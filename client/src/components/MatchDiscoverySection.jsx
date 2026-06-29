@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
-import jamesPhoto from '../../assets/james-t.jpg'
-import miaPhoto from '../../assets/mia-santos.jpg'
-import sarahPhoto from '../../assets/sarah-m.jpg'
+import jamesPhoto from '../../assets/james.jpg'
+import miaPhoto from '../../assets/mia.jpg'
+import sarahPhoto from '../../assets/sarah.jpg'
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 28 },

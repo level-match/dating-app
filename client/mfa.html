@@ -298,9 +298,15 @@
     }
     .mfa-foot svg { width: 13px; height: 13px; color: var(--gold-600); }
 
+    @media (max-width: 768px) {
+      body { overflow-x: hidden; }
+      .mfa-card { padding: var(--s-8) var(--s-5) var(--s-6); max-width: calc(100vw - 32px); }
+    }
+
     @media (max-width: 520px) {
-      .mfa-card { padding: var(--s-8) var(--s-6) var(--s-6); }
+      .mfa-card { padding: var(--s-6) var(--s-4) var(--s-5); }
       .verify-input { height: 50px; font-size: 1.4rem; }
+      .verify-inputs { gap: var(--s-2); }
     }
   </style>
 </head>

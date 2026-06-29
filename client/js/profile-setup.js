@@ -1,48 +1,46 @@
 import { store } from './store.js'
 import { evaluateEligibility } from './matching-policy.js'
-import { requireAuth, initBodyFade, hydrateFromProfile, showToast } from './app.js'
-import { apiFetch } from './sso.js'
+import { requireAuth, initBodyFade } from './app.js'
 
 requireAuth()
 initBodyFade()
 
-hydrateFromProfile().then(() => {
-  applyOAuthFieldsToForm()
-  applySavedProfileToForm()
-})
-
-function firstNameInput() {
-  return document.getElementById('firstNameInput')
-    || document.querySelector('.setup-form .form-2col .form-group:first-child input')
-}
-
-function roleInput() {
-  return document.getElementById('roleInput')
-    || document.querySelector('input[placeholder="e.g. Partner, McKinsey & Company"]')
-}
-
 window.updatePreview = function() {
-  const user = store.getUser()
-  const oauth = user?.oauthFields || {}
-  const first = firstNameInput()?.value
-    || (oauth.firstName ? user?.firstName : '')
-    || 'Your Name'
-  const last = document.getElementById('lastNameInput')?.value
-    || (oauth.lastName ? user?.lastName : '')
-  const lastInitial = last ? ` ${last.charAt(0)}.` : ''
+  const name     = document.getElementById('firstNameInput')?.value.trim() || ''
+  const age      = document.getElementById('ageInput')?.value.trim() || ''
+  const title    = document.getElementById('titleInput')?.value.trim() || ''
+  const location = document.getElementById('locationInput')?.value.trim() || ''
+
+  // Name
   const previewName = document.getElementById('previewName')
-  if (previewName) previewName.textContent = first + lastInitial
+  if (previewName) previewName.textContent = name || 'Your Name'
+
+  // Title · Age
+  const previewRole = document.getElementById('previewRole')
+  if (previewRole) {
+    if (title && age) previewRole.textContent = title + ' · ' + age
+    else if (title)   previewRole.textContent = title
+    else if (age)     previewRole.textContent = 'Age ' + age
+    else              previewRole.textContent = 'Your title will appear here'
+  }
+
+  // Location badge — show only when filled
+  const locBadge = document.getElementById('previewLocation')
+  if (locBadge) {
+    if (location) {
+      locBadge.textContent = location.split(',')[0].trim()
+      locBadge.style.display = ''
+    } else {
+      locBadge.style.display = 'none'
+    }
+  }
 }
 
-window.updatePreviewRole = function() {
-  const role = roleInput()?.value || 'Your profile details'
-  const previewRole = document.getElementById('previewRole')
-  if (previewRole) previewRole.textContent = role
-}
+window.updatePreviewRole = window.updatePreview   // keep old callers working
 
 window.updatePreviewBio = function(el) {
   const bio = document.getElementById('previewBio')
-  if (bio) bio.textContent = el.value || 'Your bio will appear here.'
+  if (bio) bio.textContent = el.value || 'Your bio will appear here. Share what makes you remarkable — your passions, your perspective, what you\'re building.'
   const count = document.getElementById('bioCount')
   if (count) count.textContent = el.value.length
 }
@@ -61,13 +59,24 @@ const PHOTO_MAX_SLOTS  = 5
 const PHOTO_MAX_BYTES  = 5 * 1024 * 1024
 const PHOTO_TYPES      = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
 
+// In-memory photo state — array of { src, name, size } indexed 0..4
 const photoState = new Array(PHOTO_MAX_SLOTS).fill(null)
 let activeSlotIndex = null
 
+/**
+ * Converts the file to a base64 data URL so the photo survives page
+ * navigation and localStorage round-trips. Blob URLs are session-scoped
+ * and break as soon as the user leaves the upload page.
+ *
+ * Swap this out for a real signed-upload endpoint when a backend exists.
+ */
 async function uploadPhoto(file) {
-  const localUrl = URL.createObjectURL(file)
-  await new Promise(r => setTimeout(r, 450 + Math.random() * 350))
-  return localUrl
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload  = e => resolve(e.target.result)
+    reader.onerror = () => reject(new Error('Failed to read file'))
+    reader.readAsDataURL(file)
+  })
 }
 
 function showPhotoError(msg) {
@@ -98,6 +107,7 @@ function validateFile(file) {
 }
 
 function renderSlot(slot, idx) {
+  // Clear previous content
   slot.innerHTML = ''
   slot.classList.remove('filled', 'loading')
 
@@ -149,7 +159,30 @@ function renderAllSlots() {
   document.querySelectorAll('.photo-slot').forEach((slot, idx) => {
     renderSlot(slot, idx)
   })
+  // Reflect main photo in the live preview card (full-cover, no arch)
+  const mainSrc = photoState[0]?.src || null
+  const previewBg     = document.querySelector('.preview-portrait-bg')
+  const previewLight  = document.querySelector('.preview-light')
+  const previewFigure = document.querySelector('.preview-figure')
+  if (previewBg) {
+    if (mainSrc) {
+      previewBg.style.cssText = `
+        background-image: url(${mainSrc});
+        background-size: cover;
+        background-position: center top;
+        width: 100%; height: 100%;
+      `
+      if (previewLight)  previewLight.style.display  = 'none'
+      if (previewFigure) previewFigure.style.display = 'none'
+    } else {
+      previewBg.style.cssText = ''
+      if (previewLight)  previewLight.style.display  = ''
+      if (previewFigure) previewFigure.style.display = ''
+    }
+  }
   persistPhotos()
+  // Re-hydrate the topbar avatar if sidebar.js exposed the helper
+  if (typeof window.__hydrateTopbarAvatars === 'function') window.__hydrateTopbarAvatars()
 }
 
 function persistPhotos() {
@@ -165,7 +198,7 @@ function openPickerForSlot(idx) {
   clearPhotoError()
   const input = document.getElementById('photoFileInput')
   if (input) {
-    input.value = ''
+    input.value = '' // allow re-selecting the same file
     input.click()
   }
 }
@@ -192,11 +225,9 @@ async function handleFile(file, idx) {
 
 function removePhoto(idx) {
   if (!photoState[idx]) return
-  try {
-    if (photoState[idx].src?.startsWith('blob:')) URL.revokeObjectURL(photoState[idx].src)
-  } catch {}
   photoState[idx] = null
 
+  // If main photo (slot 0) was removed, promote the first remaining photo
   if (idx === 0) {
     const next = photoState.findIndex(p => p)
     if (next > 0) {
@@ -207,9 +238,13 @@ function removePhoto(idx) {
   renderAllSlots()
 }
 
+/* ─── Wire up slots, actions, file input, drag-drop ─── */
+
 function wirePhotoSlot(slot) {
   const idx = +slot.dataset.index
 
+  // Click / keyboard: only open picker if the slot is empty.
+  // If filled, action buttons handle change/remove.
   slot.addEventListener('click', (e) => {
     const actBtn = e.target.closest('.photo-action-btn')
     if (actBtn) {
@@ -230,6 +265,7 @@ function wirePhotoSlot(slot) {
     }
   })
 
+  // Drag & drop
   slot.addEventListener('dragover', (e) => {
     e.preventDefault()
     slot.classList.add('dragging')
@@ -250,91 +286,116 @@ document.getElementById('photoFileInput')?.addEventListener('change', (e) => {
   if (file && activeSlotIndex != null) handleFile(file, activeSlotIndex)
 })
 
+/* Hydrate from previously saved photos (e.g. user returns to page).
+   Blob URLs are session-scoped and will be dead if the user navigated
+   away — only restore data URLs (base64) which are persistent strings. */
 ;(function hydratePhotos() {
   const user = store.getUser()
   if (!user?.photos?.length) return
+
+  let cleaned = false
   user.photos.slice(0, PHOTO_MAX_SLOTS).forEach((p, i) => {
-    if (p?.src) photoState[i] = { src: p.src, name: p.name || `photo-${i + 1}` }
+    if (!p?.src) return
+    if (p.src.startsWith('blob:')) { cleaned = true; return } // discard dead blob
+    photoState[i] = { src: p.src, name: p.name || `photo-${i + 1}` }
   })
+
+  // If we found stale blobs, scrub them from the stored user object now
+  if (cleaned) {
+    const validPhotos = photoState.filter(Boolean).map(p => ({ src: p.src, name: p.name }))
+    store.setUser({ ...user, photos: validPhotos, mainPhoto: validPhotos[0]?.src || null })
+  }
+
   renderAllSlots()
 })()
 
+// Keep the old API alive for any inline onclick still referencing it
 window.triggerUpload = openPickerForSlot
 
-window.saveProfile = async function(e) {
-  if (e) e.preventDefault()
-
-  const user = store.getUser() || {}
-  const bioInput = document.getElementById('bioInput')
-  const goals = document.getElementById('relationshipGoals')?.value
-
-  const payload = {
-    firstName: firstNameInput()?.value?.trim() || user.firstName || '',
-    lastName: document.getElementById('lastNameInput')?.value?.trim() || user.lastName || '',
-    avatarUrl: user.avatarUrl || '',
-    professionalTitle: roleInput()?.value?.trim() || '',
-    location: document.getElementById('locationInput')?.value?.trim() || '',
-    education: document.getElementById('educationInput')?.value?.trim() || '',
-    industry: document.getElementById('industrySelect')?.value || '',
-    legacyVision: bioInput?.value?.trim() || user.legacyVision || '',
-    genderIdentity: user.genderIdentity || null,
-    pronouns: user.pronouns || [],
-    orientation: user.orientation || null,
-    preferredGenders: user.preferredGenders || [],
-    ageRangeMin: user.ageRangeMin ?? null,
-    ageRangeMax: user.ageRangeMax ?? null,
-    primaryIntent: user.primaryIntent || null,
-    intentCategory: user.intentCategory || goals || null,
-    longTermVision: user.longTermVision || null,
-    careerChapter: user.careerChapter || null,
-    lifeIntegration: user.lifeIntegration || null,
-    mobilityProfile: user.mobilityProfile || null,
-    emotionalCompatibility: user.emotionalStyle || null,
-    lifestyleValues: user.lifestyleValues || [],
-  }
-
-  const btn = document.getElementById('saveProfileBtn')
-  if (btn) { btn.disabled = true; btn.textContent = 'Saving…' }
-
-  try {
-    const res = await apiFetch('/api/auth/profile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      showToast(err.message || 'Could not save your profile.', '✕')
+/* ════════════════════════════════════════════════════════════
+   Identity & Pronouns — hydrate from onboarding answers.
+   Priority: saved profile values → onboarding step answers → blank.
+   Never defaults to a value the user didn't explicitly choose.
+   ════════════════════════════════════════════════════════════ */
+function setSelectByText(selectEl, text) {
+  if (!selectEl || !text) return
+  const target = text.trim().toLowerCase()
+  for (let i = 0; i < selectEl.options.length; i++) {
+    if (selectEl.options[i].text.trim().toLowerCase() === target) {
+      selectEl.selectedIndex = i
       return
-    }
-
-    store.setUser({
-      ...user,
-      firstName: payload.firstName,
-      lastName: payload.lastName,
-      role: payload.professionalTitle,
-      bio: payload.legacyVision,
-      legacyVision: payload.legacyVision,
-      location: payload.location,
-      education: payload.education,
-      industry: payload.industry,
-      relationshipGoals: goals || user.relationshipGoals || null,
-      profileComplete: Math.min(100, (user.profileComplete || 72) + 15),
-    })
-    if (goals) store.setMatchingEligibility(evaluateEligibility(goals))
-
-    window.location.href = 'profile.html?me=1'
-  } catch (err) {
-    console.error('[profile-setup] save failed:', err)
-    showToast('Could not save your profile. Check your connection.', '✕')
-  } finally {
-    if (btn) {
-      btn.disabled = false
-      btn.textContent = 'Save & View Profile'
     }
   }
 }
 
+function hydrateIdentitySection() {
+  const user = store.getUser()
+  const ob   = store.getOnboarding()
+
+  // Onboarding saves arrays; take the first selected value for single-choice fields
+  const genderVal    = user?.genderIdentity       || ob?.step0?.[0] || ''
+  const pronounsVal  = user?.pronouns             || ob?.step1?.[0] || ''
+  const orientVal    = user?.sexualOrientation    || ob?.step2?.[0] || ''
+  const orientVisVal = user?.orientationVisibility || ''
+  const prefGenders  = user?.preferredGenders     || ob?.step3      || []
+
+  setSelectByText(document.getElementById('genderIdentitySelect'),      genderVal)
+  setSelectByText(document.getElementById('pronounsSelect'),             pronounsVal)
+  setSelectByText(document.getElementById('orientationSelect'),          orientVal)
+  setSelectByText(document.getElementById('orientationVisibilitySelect'), orientVisVal)
+
+  // Mark preferred gender chips that match the onboarding/saved selection
+  document.querySelectorAll('[data-group="gender-pref"]').forEach(chip => {
+    const label = chip.textContent.trim().toLowerCase()
+    chip.classList.toggle('selected', prefGenders.some(g => g.trim().toLowerCase() === label))
+  })
+}
+
+hydrateIdentitySection()
+
+window.saveProfile = function(e) {
+  const user = store.getUser() || store.getDefaultUser()
+  const nameInput = document.getElementById('firstNameInput')
+  const roleInput = document.getElementById('titleInput')
+  const bioInput  = document.getElementById('bioInput')
+
+  // Lifestyle interest chips only — exclude the identity/gender-pref group
+  const interests = Array.from(
+    document.querySelectorAll('.interest-chip.selected:not([data-group="gender-pref"])')
+  ).map(el => el.textContent.trim())
+
+  const goals = document.getElementById('relationshipGoals')?.value
+
+  // Identity fields
+  const genderIdentity        = document.getElementById('genderIdentitySelect')?.value        || null
+  const pronouns              = document.getElementById('pronounsSelect')?.value              || null
+  const sexualOrientation     = document.getElementById('orientationSelect')?.value           || null
+  const orientationVisibility = document.getElementById('orientationVisibilitySelect')?.value || null
+  const preferredGenders      = Array.from(
+    document.querySelectorAll('[data-group="gender-pref"].interest-chip.selected')
+  ).map(el => el.textContent.trim())
+
+  store.setUser({
+    ...user,
+    firstName: nameInput?.value || user.firstName,
+    role: roleInput?.value || user.role,
+    bio: bioInput?.value || '',
+    interests,
+    genderIdentity:        genderIdentity        || user.genderIdentity        || null,
+    pronouns:              pronouns              || user.pronouns              || null,
+    sexualOrientation:     sexualOrientation     || user.sexualOrientation     || null,
+    orientationVisibility: orientationVisibility || user.orientationVisibility || null,
+    preferredGenders:      preferredGenders.length ? preferredGenders : (user.preferredGenders || []),
+    relationshipGoals: goals || user.relationshipGoals || null,
+    profileComplete: Math.min(100, (user.profileComplete || 72) + 15),
+  })
+
+  // Keep matching eligibility in sync with the same protected policy used by
+  // onboarding — editing goals here is a valid way to update intent.
+  if (goals) store.setMatchingEligibility(evaluateEligibility(goals))
+}
+
+// Update completion ring based on filled fields
 function updateCompletionRing() {
   let filled = 0
   const total = 5
@@ -355,73 +416,11 @@ document.querySelectorAll('.form-input').forEach(el => {
   el.addEventListener('input', updateCompletionRing)
 })
 
+// Init bio count (textarea starts empty)
 const bioInput = document.getElementById('bioInput')
-if (bioInput) {
+if (bioInput && bioInput.value) {
   const count = document.getElementById('bioCount')
   if (count) count.textContent = bioInput.value.length
 }
 
 updateCompletionRing()
-
-function applyOAuthFieldsToForm() {
-  const user = store.getUser()
-  if (!user?.oauthFields) return
-
-  const { oauthFields } = user
-
-  const nameEl = firstNameInput()
-  if (nameEl && oauthFields.firstName && user.firstName) {
-    nameEl.value = user.firstName
-  }
-
-  const lastNameEl = document.getElementById('lastNameInput')
-  if (lastNameEl && oauthFields.lastName && user.lastName) {
-    lastNameEl.value = user.lastName
-  }
-
-  const emailEl = document.getElementById('emailInput')
-  if (emailEl && oauthFields.email && user.email) {
-    emailEl.value = user.email
-  }
-
-  if (oauthFields.avatarUrl && user.avatarUrl && !user.photos?.length && !photoState[0]) {
-    photoState[0] = { src: user.avatarUrl, name: 'profile-avatar' }
-    renderAllSlots()
-    const previewFigure = document.querySelector('.preview-figure')
-    if (previewFigure) {
-      previewFigure.style.backgroundImage = `url(${user.avatarUrl})`
-      previewFigure.style.backgroundSize = 'cover'
-      previewFigure.style.backgroundPosition = 'center'
-    }
-  }
-
-  window.updatePreview()
-  updateCompletionRing()
-}
-
-function applySavedProfileToForm() {
-  const user = store.getUser()
-  if (!user?.profileLoadedFromApi) return
-
-  const roleEl = roleInput()
-  if (roleEl && user.professionalTitle) roleEl.value = user.professionalTitle
-
-  const loc = document.getElementById('locationInput')
-  if (loc && user.location) loc.value = user.location
-
-  const edu = document.getElementById('educationInput')
-  if (edu && user.education) edu.value = user.education
-
-  const industry = document.getElementById('industrySelect')
-  if (industry && user.industry) industry.value = user.industry
-
-  const bioEl = document.getElementById('bioInput')
-  if (bioEl && user.legacyVision) {
-    bioEl.value = user.legacyVision
-    window.updatePreviewBio(bioEl)
-  }
-
-  window.updatePreview()
-  window.updatePreviewRole()
-  updateCompletionRing()
-}

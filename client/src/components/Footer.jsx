@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion'
 import wordmarkUrl from '../../assets/level-wordmark.png'
 
+const CONTACT_EMAIL = 'inquire@level-match.com'
+
 const COLUMNS = [
   {
     title: 'Membership',
@@ -13,6 +15,7 @@ const COLUMNS = [
   {
     title: 'Support',
     links: ['FAQ', 'Safety', 'Contact', 'Press'],
+    hrefs: { Contact: `mailto:${CONTACT_EMAIL}` },
   },
   {
     title: 'Legal',
@@ -90,7 +93,7 @@ export default function Footer() {
                     {col.links.map(link => (
                       <li key={link}>
                         <a
-                          href="#"
+                          href={col.hrefs?.[link] ?? '#'}
                           className="font-sans text-cream-100/50 hover:text-cream-100 transition-colors"
                           style={{ fontSize: '0.86rem' }}
                         >
@@ -114,6 +117,13 @@ export default function Footer() {
             >
               © {new Date().getFullYear()} Level LLC. All rights reserved.
             </p>
+            <a
+              href={`mailto:${CONTACT_EMAIL}`}
+              className="font-sans text-cream-100/40 hover:text-cream-100/70 transition-colors"
+              style={{ fontSize: '0.78rem', letterSpacing: '0.02em' }}
+            >
+              {CONTACT_EMAIL}
+            </a>
             <p
               className="font-sans accent-italic text-cream-100/45"
               style={{ fontSize: '0.86rem' }}

@@ -619,14 +619,42 @@
     }
 
     @media (max-width: 1100px) {
-      :root { --sidebar-width: 0px; }
-      .app-sidebar { display: none; }
+      /* Sidebar is off-screen via components.css; remove its grid column */
       .chat-layout { grid-template-columns: 300px 1fr; }
     }
 
-    @media (max-width: 700px) {
+    @media (max-width: 1024px) {
+      /* Sidebar column removed — sidebar floats as overlay via components.css */
+      .chat-layout { grid-template-columns: 300px 1fr; }
+      /* Override the global transform rule — in chat, sidebar is fixed overlay */
+      .app-sidebar {
+        position: fixed;
+        top: 0; left: 0; bottom: 0;
+        width: 280px;
+        z-index: 200;
+      }
+    }
+
+    @media (max-width: 768px) {
+      body { overflow: hidden; }
       .chat-layout { grid-template-columns: 1fr; }
       .conv-panel { display: none; }
+      .chat-main { display: flex; }
+      .chat-topbar { padding: 0 var(--s-4); height: 60px; }
+      .chat-topbar-name { font-size: var(--text-base); }
+      .chat-topbar-info { display: none; }
+      .chat-messages { padding: var(--s-4); }
+      .msg-content { max-width: 80%; }
+      .chat-input-area { padding: var(--s-3) var(--s-4); }
+      .chat-back-btn { display: flex; }
+    }
+
+    @media (max-width: 480px) {
+      .chat-topbar { padding: 0 var(--s-3); }
+      .chat-messages { padding: var(--s-3); gap: var(--s-3); }
+      .msg-content { max-width: 88%; }
+      .msg-bubble-text { padding: 10px 14px; font-size: var(--text-xs); }
+      .chat-input-area { padding: var(--s-2) var(--s-3); }
     }
   </style>
 </head>
@@ -664,7 +692,7 @@
         <div class="conv-item active" onclick="openConv('james')">
           <div class="conv-avatar">
             <div class="conv-avatar-img">
-              <div style="width:100%;height:100%;background:linear-gradient(135deg,#1A0F08,#140C06);"></div>
+              <img src="assets/james.jpg" alt="James T." style="width:100%;height:100%;object-fit:cover;object-position:center top;">
             </div>
             <div class="conv-online-dot"></div>
           </div>
@@ -681,7 +709,7 @@
         <div class="conv-item" onclick="openConv('david')">
           <div class="conv-avatar">
             <div class="conv-avatar-img">
-              <div style="width:100%;height:100%;background:linear-gradient(135deg,#0A1525,#060D18);"></div>
+              <img src="assets/daniel.jpg" alt="David K." style="width:100%;height:100%;object-fit:cover;object-position:center top;">
             </div>
           </div>
           <div class="conv-body">
@@ -697,7 +725,7 @@
         <div class="conv-item" onclick="openConv('oliver')">
           <div class="conv-avatar">
             <div class="conv-avatar-img">
-              <div style="width:100%;height:100%;background:linear-gradient(135deg,#1A1A2E,#10101E);"></div>
+              <img src="assets/oliver.jpg" alt="Oliver H." style="width:100%;height:100%;object-fit:cover;object-position:center top;">
             </div>
           </div>
           <div class="conv-body">
@@ -717,7 +745,7 @@
         <div class="conv-item request" onclick="openRequest('marcus')">
           <div class="conv-avatar">
             <div class="conv-avatar-img" style="border:2px solid rgba(212,168,67,0.40);">
-              <div style="width:100%;height:100%;background:linear-gradient(135deg,#12180A,#0A1005);"></div>
+              <img src="assets/Marcus.jpg" alt="Marcus L." style="width:100%;height:100%;object-fit:cover;object-position:center top;">
             </div>
           </div>
           <div class="conv-body">
@@ -732,7 +760,7 @@
         <div class="conv-item request" onclick="openRequest('ryan')">
           <div class="conv-avatar">
             <div class="conv-avatar-img" style="border:2px solid rgba(212,168,67,0.40);">
-              <div style="width:100%;height:100%;background:linear-gradient(135deg,#1A2030,#101520);"></div>
+              <img src="assets/adrian.jpg" alt="Ryan M." style="width:100%;height:100%;object-fit:cover;object-position:center top;">
             </div>
           </div>
           <div class="conv-body">
@@ -754,7 +782,7 @@
       <div class="chat-topbar">
         <div class="chat-topbar-user">
           <div style="width:44px;height:44px;border-radius:50%;overflow:hidden;border:1.5px solid var(--border-gold);">
-            <div style="width:100%;height:100%;background:linear-gradient(135deg,#1A0F08,#140C06);"></div>
+            <img src="assets/james.jpg" alt="James T." style="width:100%;height:100%;object-fit:cover;object-position:center top;">
           </div>
           <div>
             <div class="chat-topbar-name">James T.</div>
@@ -779,9 +807,6 @@
 
         <!-- Received -->
         <div class="msg-row received">
-          <div class="msg-avatar">
-            <div style="width:100%;height:100%;background:linear-gradient(135deg,#1A0F08,#140C06);border-radius:50%;"></div>
-          </div>
           <div class="msg-content">
             <div class="msg-bubble-text">I noticed you're based in New York — do you have a favorite neighborhood? I've been in Tribeca for years but always love discovering new parts of the city.</div>
             <div class="msg-time">10:14 AM</div>
@@ -797,9 +822,6 @@
         </div>
 
         <div class="msg-row received">
-          <div class="msg-avatar">
-            <div style="width:100%;height:100%;background:linear-gradient(135deg,#1A0F08,#140C06);border-radius:50%;"></div>
-          </div>
           <div class="msg-content">
             <div class="msg-bubble-text">The West Village on Sunday is perfect. I love the brunch culture there — though I should probably confess I'm a very strong black coffee, no brunch food person. Pure coffee shop atmosphere.</div>
             <div class="msg-time">10:28 AM</div>
@@ -825,9 +847,6 @@
         </div>
 
         <div class="msg-row received">
-          <div class="msg-avatar">
-            <div style="width:100%;height:100%;background:linear-gradient(135deg,#1A0F08,#140C06);border-radius:50%;"></div>
-          </div>
           <div class="msg-content">
             <div class="msg-bubble-text">I'd actually love that — there's a place in Tribeca I've been wanting to try. Their tasting menu is supposed to be exceptional. Would you be open to dinner this week?</div>
             <div class="msg-time">2:14 PM</div>
@@ -842,9 +861,6 @@
         </div>
 
         <div class="msg-row received">
-          <div class="msg-avatar">
-            <div style="width:100%;height:100%;background:linear-gradient(135deg,#1A0F08,#140C06);border-radius:50%;"></div>
-          </div>
           <div class="msg-content">
             <div class="msg-bubble-text">That sounds wonderful — I know a great place in Tribeca. I'll look at the LEVEL listings and send something over.</div>
             <div class="msg-time">2:21 PM</div>
@@ -853,9 +869,6 @@
 
         <!-- Typing -->
         <div class="typing-indicator" id="typingIndicator" style="display:none;">
-          <div class="msg-avatar">
-            <div style="width:32px;height:32px;background:linear-gradient(135deg,#1A0F08,#140C06);border-radius:50%;"></div>
-          </div>
           <div class="typing-bubble">
             <div class="typing-dot"></div>
             <div class="typing-dot"></div>
@@ -895,7 +908,7 @@
       <div class="profile-panel-header">About James</div>
 
       <div class="profile-panel-portrait">
-        <div class="portrait-bg-3" style="width:100%;height:100%;"></div>
+        <img src="assets/james.jpg" alt="James T." style="width:100%;height:100%;object-fit:cover;object-position:center top;display:block;">
         <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 50%,rgba(6,12,26,0.80) 100%);"></div>
         <div style="position:absolute;bottom:var(--s-4);left:var(--s-4);">
           <div class="badge badge-gold" style="margin-bottom:var(--s-2);">96% Match</div>

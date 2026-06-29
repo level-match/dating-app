@@ -404,12 +404,26 @@
     }
 
     @media (max-width: 1024px) {
-      :root { --sidebar-width: 0px; }
-      .app-sidebar { display: none; }
       .app-main { margin-left: 0; }
       .app-content { padding: var(--s-6); }
       .res-grid { grid-template-columns: 1fr; }
       .res-detail-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 768px) {
+      body { overflow-x: hidden; }
+      .app-main { margin-left: 0; }
+      .app-topbar { padding: 0 var(--s-4); height: 60px; }
+      .topbar-title { font-size: var(--text-xl); }
+      .app-content { padding: var(--s-4); }
+      .res-grid { grid-template-columns: 1fr; gap: var(--s-4); }
+      .res-detail-grid { grid-template-columns: 1fr; }
+      .res-card { padding: var(--s-4); }
+      .res-card-actions { flex-wrap: wrap; gap: var(--s-2); }
+    }
+
+    @media (max-width: 480px) {
+      .app-content { padding: var(--s-3); }
     }
   </style>
 </head>

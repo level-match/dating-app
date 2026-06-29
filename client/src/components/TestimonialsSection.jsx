@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion'
-import adrianReyesImg from '/assets/adrian-reyes.jpg'
-import miaSantosImg   from '/assets/mia-santos.jpg'
-import danielCruzImg  from '/assets/daniel-cruz.jpg'
-import sarahMImg      from '/assets/sarah-m.jpg'
-import jamesTImg      from '/assets/james-t.jpg'
+import adrianReyesImg from '/assets/adrian.jpg'
+import miaSantosImg   from '/assets/mia.jpg'
+import danielCruzImg  from '/assets/daniel.jpg'
+import sarahMImg      from '/assets/sarah.jpg'
+import jamesTImg      from '/assets/james.jpg'
 
 const CARDS = [
   {

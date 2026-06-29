@@ -35,6 +35,14 @@
       <!-- Topbar -->
       <header class="adm-topbar" id="admTopbar">
         <div class="adm-topbar-left">
+          <!-- Hamburger: only visible on mobile via CSS -->
+          <button class="adm-mob-menu-btn" id="admMobMenuBtn" aria-label="Open navigation" type="button">
+            <svg fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="7" x2="21" y2="7"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="17" x2="21" y2="17"/>
+            </svg>
+          </button>
           <div class="adm-breadcrumb" id="admBreadcrumb">Overview</div>
         </div>
         <div class="adm-topbar-right">
@@ -74,6 +82,45 @@
       <button class="adm-btn adm-btn-gold" id="admExtendBtn">Stay signed in</button>
     </div>
   </div>
+
+  <!-- Mobile sidebar overlay -->
+  <div id="admMobOverlay" class="adm-mob-overlay"></div>
+
+  <script>
+    // Admin mobile sidebar toggle — no dependency on core.js
+    (function () {
+      function openAdmSidebar() {
+        document.documentElement.classList.add('adm-sidebar-open');
+      }
+      function closeAdmSidebar() {
+        document.documentElement.classList.remove('adm-sidebar-open');
+      }
+      document.addEventListener('DOMContentLoaded', function () {
+        const btn     = document.getElementById('admMobMenuBtn');
+        const overlay = document.getElementById('admMobOverlay');
+        if (btn)     btn.addEventListener('click', openAdmSidebar);
+        if (overlay) overlay.addEventListener('click', closeAdmSidebar);
+        // Close on nav item click on mobile
+        document.querySelectorAll('.adm-nav-item').forEach(function (el) {
+          el.addEventListener('click', function () {
+            if (window.innerWidth <= 768) closeAdmSidebar();
+          });
+        });
+        // Also wire dynamically added nav items
+        const admNav = document.getElementById('admNav');
+        if (admNav) {
+          new MutationObserver(function () {
+            admNav.querySelectorAll('.adm-nav-item:not([data-mob-wired])').forEach(function (el) {
+              el.dataset.mobWired = '1';
+              el.addEventListener('click', function () {
+                if (window.innerWidth <= 768) closeAdmSidebar();
+              });
+            });
+          }).observe(admNav, { childList: true });
+        }
+      });
+    })();
+  </script>
 
   <script type="module" src="js/admin/core.js"></script>
 </body>

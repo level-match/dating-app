@@ -313,11 +313,27 @@
     }
 
     @media (max-width: 1024px) {
-      :root { --sidebar-width: 0px; }
-      .app-sidebar { display: none; }
       .app-main { margin-left: 0; }
       .app-content { padding: var(--s-6); }
       .set-section { padding: var(--s-5); }
+    }
+
+    @media (max-width: 768px) {
+      body { overflow-x: hidden; }
+      .app-main { margin-left: 0; }
+      .app-topbar { padding: 0 var(--s-4); height: 60px; }
+      .topbar-title { font-size: var(--text-xl); }
+      .app-content { padding: var(--s-4); }
+      .set-layout { flex-direction: column; gap: var(--s-4); }
+      .set-nav { width: 100%; }
+      .set-section { padding: var(--s-4); }
+      .set-section-title { font-size: var(--text-xl); }
+      .set-row { flex-wrap: wrap; gap: var(--s-3); }
+    }
+
+    @media (max-width: 480px) {
+      .app-content { padding: var(--s-3); }
+      .set-section { padding: var(--s-3); }
     }
   </style>
 </head>
@@ -372,7 +388,7 @@
               <div class="set-row-title">Email</div>
               <div class="set-row-sub" id="setEmail">—</div>
             </div>
-            <button class="set-btn" onclick="alert('Email change requires verification through your concierge.')">Change</button>
+            <button class="set-btn" onclick="alert('To change your email, contact us at inquire@level-match.com.')">Change</button>
           </div>
           <div class="set-row">
             <div class="set-row-text">

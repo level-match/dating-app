@@ -174,12 +174,660 @@
     .mem-dash  { color: rgba(255,255,255,0.2); }
 
     @media (max-width: 1024px) {
-      :root { --sidebar-width: 0px; }
-      .app-sidebar { display: none; }
       .app-main { margin-left: 0; }
       .app-content { padding: var(--s-6); }
       .mem-grid { grid-template-columns: 1fr; }
       .mem-compare { overflow-x: auto; }
+    }
+
+    @media (max-width: 768px) {
+      body { overflow-x: hidden; }
+      .app-main { margin-left: 0; }
+      .app-topbar { padding: 0 var(--s-4); height: 60px; }
+      .topbar-title { font-size: var(--text-xl); }
+      .app-content { padding: var(--s-4); }
+      .mem-grid { grid-template-columns: 1fr; gap: var(--s-4); margin-top: var(--s-6); }
+      .mem-card { padding: var(--s-5) var(--s-4) var(--s-4); }
+      .mem-price { font-size: 2rem; }
+      .mem-compare { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .mem-table { min-width: 480px; }
+    }
+
+    @media (max-width: 480px) {
+      .app-content { padding: var(--s-3); }
+      .mem-card { padding: var(--s-4) var(--s-3); }
+    }
+
+    /* ─── Payment Modal ─── */
+    .pay-modal-backdrop {
+      position: fixed; inset: 0; z-index: 900;
+      background: rgba(1,8,24,0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      display: flex; align-items: center; justify-content: center;
+      padding: var(--s-4);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    .pay-modal-backdrop.open { opacity: 1; pointer-events: all; }
+    .pay-modal {
+      background: linear-gradient(160deg, #09162F 0%, #060D1F 100%);
+      border: 1px solid rgba(193,164,100,0.18);
+      border-radius: 22px;
+      width: 100%; max-width: 500px;
+      box-shadow: 0 40px 100px rgba(0,0,0,0.65);
+      transform: translateY(20px) scale(0.98);
+      transition: transform 0.32s cubic-bezier(0.34,1.56,0.64,1);
+      overflow: hidden;
+      max-height: 92vh; overflow-y: auto;
+    }
+    .pay-modal-backdrop.open .pay-modal { transform: translateY(0) scale(1); }
+
+    /* Header */
+    .pay-modal-header {
+      padding: 26px 30px 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex; align-items: flex-start; justify-content: space-between;
+    }
+    .pay-modal-eyebrow {
+      font-family: var(--font-sans); font-size: 0.67rem; font-weight: 500;
+      letter-spacing: 0.20em; text-transform: uppercase;
+      color: var(--gold-400); margin-bottom: 6px;
+    }
+    .pay-modal-title {
+      font-family: var(--font-serif); font-size: 1.45rem; font-weight: 300;
+      color: var(--cream-50); letter-spacing: -0.02em;
+    }
+    .pay-close-btn {
+      width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.09);
+      color: rgba(255,255,255,0.45); font-size: 16px; flex-shrink: 0;
+      transition: all 0.18s; margin-top: 4px;
+    }
+    .pay-close-btn:hover { background: rgba(255,255,255,0.12); color: var(--cream-50); }
+
+    /* Plan summary bar */
+    .pay-plan-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(193,164,100,0.07);
+      border-bottom: 1px solid rgba(193,164,100,0.12);
+      padding: 14px 30px;
+    }
+    .pay-plan-info { display: flex; align-items: center; gap: 10px; }
+    .pay-plan-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--gold-400);
+      box-shadow: 0 0 8px var(--gold-400);
+    }
+    .pay-plan-name {
+      font-family: var(--font-sans); font-size: 0.85rem;
+      font-weight: 500; color: var(--cream-50);
+    }
+    .pay-plan-interval {
+      font-family: var(--font-sans); font-size: 0.75rem;
+      color: rgba(255,255,255,0.40);
+    }
+    .pay-plan-price {
+      font-family: var(--font-serif); font-size: 1.3rem;
+      font-weight: 300; color: var(--gold-400);
+    }
+
+    /* Payment method tabs */
+    .pay-body { padding: 24px 30px; }
+    .pay-method-tabs {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;
+    }
+    .pay-method-btn {
+      padding: 13px 10px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      border-radius: 12px; cursor: pointer;
+      font-family: var(--font-sans); font-size: 0.85rem; font-weight: 500;
+      transition: all 0.2s; border: 1.5px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.05); color: var(--cream-50);
+    }
+    .pay-method-btn:hover { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.20); }
+    .pay-method-btn.apple { background: #fff; color: #000; border-color: #fff; }
+    .pay-method-btn.apple:hover { background: #f0f0f0; }
+    .pay-method-btn.google { background: #fff; color: #3c4043; border-color: #fff; }
+    .pay-method-btn.google:hover { background: #f0f0f0; }
+
+    .pay-divider {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+    }
+    .pay-divider::before, .pay-divider::after {
+      content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.08);
+    }
+    .pay-divider span {
+      font-family: var(--font-sans); font-size: 0.72rem; font-weight: 400;
+      color: rgba(255,255,255,0.30); letter-spacing: 0.08em; white-space: nowrap;
+    }
+
+    /* Card form */
+    .pay-form { display: flex; flex-direction: column; gap: 14px; }
+    .pay-field { display: flex; flex-direction: column; gap: 6px; }
+    .pay-label {
+      font-family: var(--font-sans); font-size: 0.70rem; font-weight: 500;
+      letter-spacing: 0.10em; text-transform: uppercase; color: rgba(255,255,255,0.40);
+    }
+    .pay-input {
+      width: 100%; padding: 12px 15px;
+      font-family: var(--font-sans); font-size: 0.88rem; font-weight: 400;
+      color: var(--cream-50);
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 10px; outline: none;
+      transition: border-color 0.18s, background 0.18s;
+      box-sizing: border-box;
+    }
+    .pay-input::placeholder { color: rgba(255,255,255,0.22); }
+    .pay-input:focus { border-color: rgba(193,164,100,0.55); background: rgba(255,255,255,0.07); }
+    .pay-input.error { border-color: rgba(220,60,60,0.65); }
+    .pay-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .pay-error-msg {
+      font-family: var(--font-sans); font-size: 0.76rem;
+      color: rgba(220,100,100,0.90); display: none; margin-top: -4px;
+    }
+    .pay-error-msg.visible { display: block; }
+
+    /* Card type icons row */
+    .pay-card-icons {
+      display: flex; align-items: center; gap: 8px; margin-top: -6px;
+    }
+    .pay-card-icon {
+      height: 22px; width: 34px; border-radius: 4px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.10);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 600; letter-spacing: 0.04em;
+      color: rgba(255,255,255,0.40);
+    }
+
+    /* Actions */
+    .pay-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .pay-btn-cancel {
+      flex: 1; padding: 13px;
+      font-family: var(--font-sans); font-size: 0.84rem; font-weight: 500;
+      color: rgba(255,255,255,0.50);
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 50px; cursor: pointer; transition: all 0.18s;
+    }
+    .pay-btn-cancel:hover { background: rgba(255,255,255,0.09); color: var(--cream-50); }
+    .pay-btn-pay {
+      flex: 2.5; padding: 13px;
+      font-family: var(--font-sans); font-size: 0.88rem; font-weight: 600;
+      color: #0A1628;
+      background: linear-gradient(135deg, #D4BE6A, #C1A44A);
+      border: none; border-radius: 50px; cursor: pointer;
+      transition: all 0.2s; letter-spacing: 0.02em;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .pay-btn-pay:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(193,164,100,0.28); }
+    .pay-btn-pay:disabled { opacity: 0.55; cursor: not-allowed; transform: none; filter: none; box-shadow: none; }
+
+    .pay-secure-row {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 14px 30px 20px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      font-family: var(--font-sans); font-size: 0.72rem;
+      color: rgba(255,255,255,0.28);
+    }
+
+    /* ─── Native payment sheet (Step 2) ─── */
+    .pay-sheet {
+      display: none; padding: 0;
+    }
+    .pay-sheet.visible { display: block; }
+    .pay-sheet-inner {
+      padding: 28px 30px 24px;
+      display: flex; flex-direction: column; gap: 0;
+    }
+    .pay-sheet-provider {
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 22px;
+    }
+    .pay-sheet-provider-logo {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.78rem; font-family: var(--font-sans);
+      font-weight: 500; color: rgba(255,255,255,0.55);
+      letter-spacing: 0.06em;
+    }
+    .pay-sheet-amount-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 18px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px; margin-bottom: 10px;
+    }
+    .pay-sheet-merchant {
+      font-family: var(--font-serif); font-size: 1rem;
+      font-weight: 400; color: var(--cream-50);
+    }
+    .pay-sheet-amount {
+      font-family: var(--font-serif); font-size: 1.3rem;
+      font-weight: 300; color: var(--gold-400);
+    }
+    .pay-sheet-card-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 13px 18px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px; margin-bottom: 22px;
+    }
+    .pay-sheet-card-icon { font-size: 22px; }
+    .pay-sheet-card-label {
+      font-family: var(--font-sans); font-size: 0.85rem;
+      font-weight: 500; color: var(--cream-50);
+    }
+    .pay-sheet-card-sub {
+      font-family: var(--font-sans); font-size: 0.72rem;
+      color: rgba(255,255,255,0.38); margin-top: 2px;
+    }
+    .pay-sheet-biometric {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 12px; margin-bottom: 22px;
+    }
+    .pay-biometric-ring {
+      width: 80px; height: 80px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.15);
+      display: flex; align-items: center; justify-content: center;
+      position: relative; transition: all 0.3s;
+    }
+    .pay-biometric-ring.scanning {
+      border-color: var(--gold-400);
+      box-shadow: 0 0 0 6px rgba(193,164,100,0.10), 0 0 0 12px rgba(193,164,100,0.05);
+      animation: bio-pulse 1.4s ease-in-out infinite;
+    }
+    .pay-biometric-ring.authed {
+      border-color: #22C55E;
+      box-shadow: 0 0 0 8px rgba(34,197,94,0.12);
+      animation: none;
+    }
+    @keyframes bio-pulse {
+      0%, 100% { box-shadow: 0 0 0 4px rgba(193,164,100,0.12), 0 0 0 10px rgba(193,164,100,0.05); }
+      50%       { box-shadow: 0 0 0 8px rgba(193,164,100,0.18), 0 0 0 16px rgba(193,164,100,0.07); }
+    }
+    .pay-biometric-label {
+      font-family: var(--font-sans); font-size: 0.85rem;
+      font-weight: 500; color: var(--cream-50);
+    }
+    .pay-biometric-sub {
+      font-family: var(--font-sans); font-size: 0.75rem;
+      color: rgba(255,255,255,0.38); text-align: center;
+    }
+    .pay-sheet-confirm-btn {
+      width: 100%; padding: 14px;
+      font-family: var(--font-sans); font-size: 0.88rem; font-weight: 600;
+      color: #0A1628;
+      background: linear-gradient(135deg, #D4BE6A, #C1A44A);
+      border: none; border-radius: 50px; cursor: pointer;
+      transition: all 0.2s; letter-spacing: 0.02em;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin-bottom: 10px;
+    }
+    .pay-sheet-confirm-btn:hover { filter: brightness(1.08); }
+    .pay-sheet-cancel {
+      width: 100%; padding: 12px;
+      font-family: var(--font-sans); font-size: 0.82rem; font-weight: 400;
+      color: rgba(255,255,255,0.40); background: transparent;
+      border: none; cursor: pointer; transition: color 0.18s;
+    }
+    .pay-sheet-cancel:hover { color: var(--cream-50); }
+
+    /* ─── Processing flow panel ─── */
+    .pay-processing {
+      display: none; flex-direction: column;
+      padding: 32px 30px 36px;
+    }
+    .pay-processing.visible { display: flex; }
+    .pay-proc-title {
+      font-family: var(--font-serif); font-size: 1.2rem; font-weight: 300;
+      color: var(--cream-50); margin-bottom: 6px; text-align: center;
+    }
+    .pay-proc-subtitle {
+      font-family: var(--font-sans); font-size: 0.78rem;
+      color: rgba(255,255,255,0.38); text-align: center; margin-bottom: 28px;
+    }
+    .pay-flow-steps { display: flex; flex-direction: column; gap: 0; }
+    .pay-flow-step {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 12px 0; position: relative; opacity: 0.35;
+      transition: opacity 0.4s ease;
+    }
+    .pay-flow-step.active  { opacity: 1; }
+    .pay-flow-step.done    { opacity: 0.75; }
+    .pay-flow-step:not(:last-child)::after {
+      content: '';
+      position: absolute; left: 15px; top: 38px;
+      width: 2px; height: calc(100% - 14px);
+      background: rgba(255,255,255,0.08);
+      transition: background 0.4s;
+    }
+    .pay-flow-step.done:not(:last-child)::after { background: rgba(193,164,100,0.35); }
+    .pay-step-tier {
+      font-weight: 600; color: var(--gold-400);
+    }
+    .pay-step-num {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-sans); font-size: 0.78rem; font-weight: 600;
+      color: rgba(255,255,255,0.40);
+      background: rgba(255,255,255,0.06);
+      border: 1.5px solid rgba(255,255,255,0.10);
+      transition: all 0.3s;
+    }
+    .pay-flow-step.active .pay-step-num {
+      background: rgba(193,164,100,0.15);
+      border-color: rgba(193,164,100,0.55);
+      color: var(--gold-400);
+      animation: pulse-step 1.2s ease-in-out infinite;
+    }
+    .pay-flow-step.done .pay-step-num {
+      background: rgba(193,164,100,0.15);
+      border-color: var(--gold-400);
+      color: var(--gold-400);
+      content: '✓';
+    }
+    .pay-flow-step.done .pay-step-num::after {
+      content: '✓'; position: absolute;
+    }
+    @keyframes pulse-step {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(193,164,100,0); }
+      50%       { box-shadow: 0 0 0 6px rgba(193,164,100,0.12); }
+    }
+    .pay-step-body { flex: 1; padding-top: 5px; }
+    .pay-step-label {
+      font-family: var(--font-sans); font-size: 0.83rem; font-weight: 500;
+      color: var(--cream-50); line-height: 1.3;
+    }
+    .pay-step-desc {
+      font-family: var(--font-sans); font-size: 0.72rem;
+      color: rgba(255,255,255,0.38); margin-top: 2px; line-height: 1.4;
+    }
+    .pay-step-tag {
+      display: inline-flex; align-items: center;
+      padding: 2px 8px; border-radius: 999px; margin-top: 4px;
+      font-family: var(--font-sans); font-size: 0.65rem; font-weight: 500;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      background: rgba(193,164,100,0.10); color: var(--gold-400);
+      border: 1px solid rgba(193,164,100,0.20);
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .pay-flow-step.done .pay-step-tag { opacity: 1; }
+
+    /* Success state */
+    .pay-success {
+      display: none; flex-direction: column;
+      align-items: center; padding: 44px 30px 40px;
+      text-align: center;
+    }
+    .pay-success.visible { display: flex; }
+    .pay-success-ring {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: rgba(193,164,100,0.12);
+      border: 2px solid var(--gold-400);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; margin-bottom: 20px;
+      animation: success-pop 0.5s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes success-pop {
+      from { transform: scale(0.5); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    .pay-success-title {
+      font-family: var(--font-serif); font-size: 1.5rem; font-weight: 300;
+      color: var(--cream-50); margin-bottom: 8px; letter-spacing: -0.02em;
+    }
+    .pay-success-sub {
+      font-family: var(--font-sans); font-size: 0.83rem; font-weight: 300;
+      color: rgba(255,255,255,0.50); line-height: 1.6; max-width: 300px;
+    }
+
+    /* ─── PAST_DUE Alert Banner ─── */
+    .past-due-alert {
+      border-radius: 16px; margin-bottom: 24px; overflow: hidden;
+      border: 1px solid rgba(239,68,68,0.22);
+      background: rgba(239,68,68,0.04);
+    }
+    .pd-header {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 18px 20px 14px;
+    }
+    .pd-icon {
+      width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(239,68,68,0.12);
+      border: 1px solid rgba(239,68,68,0.25);
+      font-size: 16px;
+    }
+    .pd-header-info { flex: 1; }
+    .pd-title {
+      font-family: var(--font-sans); font-size: 0.88rem; font-weight: 600;
+      color: var(--cream-50); margin-bottom: 3px;
+    }
+    .pd-desc {
+      font-family: var(--font-sans); font-size: 0.72rem;
+      color: rgba(255,255,255,0.40);
+    }
+    .pd-state-badge {
+      flex-shrink: 0; padding: 3px 10px; border-radius: 999px;
+      font-family: 'SF Mono','Fira Code','Consolas',monospace;
+      font-size: 0.62rem; font-weight: 600; letter-spacing: 0.10em;
+      background: rgba(239,68,68,0.12);
+      border: 1px solid rgba(239,68,68,0.30);
+      color: #FCA5A5;
+    }
+    .pd-divider {
+      height: 1px; background: rgba(239,68,68,0.12); margin: 0 20px;
+    }
+    .pd-body { padding: 14px 20px 18px; }
+
+    .grace-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; border-radius: 10px; margin-bottom: 12px;
+      background: rgba(0,0,0,0.20); border: 1px solid rgba(255,255,255,0.06);
+    }
+    .grace-label {
+      font-family: var(--font-sans); font-size: 0.70rem;
+      color: rgba(255,255,255,0.40);
+    }
+    .grace-countdown {
+      font-family: 'SF Mono','Fira Code','Consolas',monospace;
+      font-size: 1.10rem; font-weight: 500; letter-spacing: 0.05em;
+      color: #FBBF24;
+    }
+    .grace-countdown.expired { color: #EF4444; }
+
+    .retry-row {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+    }
+    .retry-track { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+    .retry-dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.15);
+      transition: all 0.3s;
+    }
+    .retry-dot.fail {
+      background: rgba(239,68,68,0.30);
+      border-color: #EF4444;
+      box-shadow: 0 0 5px rgba(239,68,68,0.40);
+    }
+    .retry-dot.active {
+      background: rgba(251,191,36,0.30);
+      border-color: #FBBF24;
+      box-shadow: 0 0 6px rgba(251,191,36,0.50);
+      animation: retry-pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes retry-pulse {
+      0%,100% { box-shadow: 0 0 4px rgba(251,191,36,0.40); }
+      50%      { box-shadow: 0 0 12px rgba(251,191,36,0.70); }
+    }
+    .retry-label {
+      font-family: var(--font-sans); font-size: 0.71rem;
+      color: rgba(255,255,255,0.40);
+    }
+
+    .pd-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .pd-note {
+      margin-top: 14px;
+      font-family: var(--font-sans); font-size: 0.68rem;
+      color: rgba(255,255,255,0.28); line-height: 1.6;
+      border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px;
+    }
+
+    /* ─── Degradation Flow Panel ─── */
+    .dg-panel {
+      margin-top: 40px;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 18px; overflow: hidden;
+      background: rgba(255,255,255,0.015);
+    }
+    .dg-panel-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 16px; padding: 22px 24px 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .dg-eyebrow {
+      font-family: var(--font-sans); font-size: 0.62rem; font-weight: 600;
+      letter-spacing: 0.16em; text-transform: uppercase;
+      color: rgba(255,255,255,0.25); margin-bottom: 5px;
+    }
+    .dg-title {
+      font-family: var(--font-serif); font-size: 1.05rem; font-weight: 300;
+      color: var(--cream-50); margin-bottom: 3px;
+    }
+    .dg-subtitle {
+      font-family: var(--font-sans); font-size: 0.70rem;
+      color: rgba(255,255,255,0.30);
+    }
+    .dg-sim-btn {
+      flex-shrink: 0; padding: 8px 16px; border-radius: 8px;
+      font-family: var(--font-sans); font-size: 0.72rem; font-weight: 500;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.50);
+      cursor: pointer; white-space: nowrap;
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
+    }
+    .dg-sim-btn:hover {
+      border-color: rgba(239,68,68,0.35);
+      background: rgba(239,68,68,0.06); color: #FCA5A5;
+    }
+    .dg-sim-btn:disabled { opacity: 0.35; cursor: default; }
+
+    .dg-steps { padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 0; }
+
+    .dg-step {
+      display: flex; gap: 14px; position: relative;
+    }
+    .dg-step-left {
+      display: flex; flex-direction: column; align-items: center; flex-shrink: 0;
+    }
+    .dg-step-num {
+      width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-sans); font-size: 0.72rem; font-weight: 600;
+      border: 1px solid rgba(255,255,255,0.10);
+      color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.03);
+      transition: all 0.35s; position: relative; z-index: 1;
+    }
+    .dg-connector {
+      width: 1px; flex: 1; min-height: 20px; margin: 4px 0;
+      background: rgba(255,255,255,0.07); transition: background 0.4s;
+    }
+    .dg-step:last-child .dg-connector { display: none; }
+
+    .dg-step-body {
+      flex: 1; padding-bottom: 22px;
+    }
+    .dg-step:last-child .dg-step-body { padding-bottom: 0; }
+
+    .dg-step-badge {
+      display: inline-flex; padding: 2px 8px; border-radius: 999px; margin-bottom: 6px;
+      font-family: 'SF Mono','Fira Code','Consolas',monospace;
+      font-size: 0.58rem; font-weight: 600; letter-spacing: 0.10em;
+      border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.03); transition: all 0.35s;
+    }
+    .dg-step-title {
+      font-family: var(--font-sans); font-size: 0.82rem; font-weight: 500;
+      color: rgba(255,255,255,0.35); margin-bottom: 3px; transition: color 0.35s;
+    }
+    .dg-step-desc {
+      font-family: var(--font-sans); font-size: 0.70rem;
+      color: rgba(255,255,255,0.22); line-height: 1.5; transition: color 0.35s;
+    }
+    .dg-step-detail {
+      margin-top: 10px; padding: 10px 12px; border-radius: 8px;
+      font-family: 'SF Mono','Fira Code','Consolas',monospace;
+      font-size: 0.68rem; line-height: 1.7; white-space: pre;
+      color: rgba(255,255,255,0.45);
+      background: rgba(0,0,0,0.22);
+      display: none; overflow-x: auto;
+    }
+
+    /* Active step */
+    .dg-step.active .dg-step-num {
+      border-color: #FBBF24; color: #FBBF24;
+      background: rgba(251,191,36,0.10);
+      box-shadow: 0 0 12px rgba(251,191,36,0.30);
+      animation: dg-pulse 1s ease-in-out infinite;
+    }
+    .dg-step.active .dg-step-badge { border-color: rgba(251,191,36,0.30); color: #FBBF24; background: rgba(251,191,36,0.08); }
+    .dg-step.active .dg-step-title  { color: var(--cream-50); }
+    .dg-step.active .dg-step-desc   { color: rgba(255,255,255,0.40); }
+    .dg-step.active .dg-step-detail { display: block; }
+    .dg-step.active .dg-connector   { background: rgba(251,191,36,0.30); }
+    @keyframes dg-pulse {
+      0%,100% { box-shadow: 0 0 8px rgba(251,191,36,0.25); }
+      50%      { box-shadow: 0 0 20px rgba(251,191,36,0.55); }
+    }
+
+    /* Done (non-failure) step */
+    .dg-step.done .dg-step-num {
+      border-color: #22C55E; color: #22C55E;
+      background: rgba(34,197,94,0.10);
+      animation: none;
+    }
+    .dg-step.done .dg-step-badge { border-color: rgba(34,197,94,0.25); color: #4ADE80; background: rgba(34,197,94,0.08); }
+    .dg-step.done .dg-step-title  { color: rgba(255,255,255,0.60); }
+    .dg-step.done .dg-step-desc   { color: rgba(255,255,255,0.30); }
+    .dg-step.done .dg-step-detail { display: block; }
+    .dg-step.done .dg-connector   { background: rgba(34,197,94,0.25); }
+
+    /* Failure step */
+    .dg-step.fail .dg-step-num {
+      border-color: #EF4444; color: #EF4444;
+      background: rgba(239,68,68,0.10);
+      animation: none;
+    }
+    .dg-step.fail .dg-step-badge { border-color: rgba(239,68,68,0.28); color: #FCA5A5; background: rgba(239,68,68,0.08); }
+    .dg-step.fail .dg-step-title  { color: rgba(255,255,255,0.60); }
+    .dg-step.fail .dg-step-desc   { color: rgba(255,255,255,0.30); }
+    .dg-step.fail .dg-step-detail { display: block; }
+    .dg-step.fail .dg-connector   { background: rgba(239,68,68,0.20); }
+
+    /* PAST_DUE state variant step (amber done) */
+    .dg-step.past-due .dg-step-num {
+      border-color: #FBBF24; color: #FBBF24;
+      background: rgba(251,191,36,0.10);
+      animation: none;
+    }
+    .dg-step.past-due .dg-step-badge { border-color: rgba(251,191,36,0.28); color: #FBBF24; background: rgba(251,191,36,0.08); }
+    .dg-step.past-due .dg-step-title  { color: rgba(255,255,255,0.60); }
+    .dg-step.past-due .dg-step-desc   { color: rgba(255,255,255,0.30); }
+    .dg-step.past-due .dg-step-detail { display: block; }
+    .dg-step.past-due .dg-connector   { background: rgba(251,191,36,0.20); }
+
+    @media (max-width: 540px) {
+      .pay-modal { border-radius: 18px 18px 0 0; align-self: flex-end; max-width: 100%; }
+      .pay-modal-backdrop { align-items: flex-end; padding: 0; }
+      .pay-modal-header, .pay-body { padding-left: 20px; padding-right: 20px; }
+      .pay-plan-bar { padding-left: 20px; padding-right: 20px; }
+      .pay-processing, .pay-success { padding-left: 20px; padding-right: 20px; }
+      .pay-secure-row { padding-left: 20px; padding-right: 20px; }
+      .pay-method-tabs { grid-template-columns: 1fr 1fr; }
     }
   </style>
 </head>
@@ -216,6 +864,42 @@
         </div>
 
         <div id="currentPlanBadge" class="mem-current-plan"></div>
+
+        <!-- ─── PAST_DUE Alert Banner ─── -->
+        <div class="past-due-alert" id="pastDueBanner" style="display:none;">
+          <div class="pd-header">
+            <div class="pd-icon">⚠</div>
+            <div class="pd-header-info">
+              <div class="pd-title">Payment Failed — <span id="pdPlanName">LEVEL Plus</span></div>
+              <div class="pd-desc">We were unable to process your monthly subscription payment.</div>
+            </div>
+            <div class="pd-state-badge">PAST_DUE</div>
+          </div>
+          <div class="pd-divider"></div>
+          <div class="pd-body">
+            <div class="grace-row">
+              <div class="grace-label">Grace period ends in</div>
+              <div class="grace-countdown" id="graceCountdown">—:——:——</div>
+            </div>
+            <div class="retry-row">
+              <div class="retry-track">
+                <div class="retry-dot" id="pd-retry-1"></div>
+                <div class="retry-dot" id="pd-retry-2"></div>
+                <div class="retry-dot" id="pd-retry-3"></div>
+              </div>
+              <div class="retry-label" id="pdRetryLabel">Checking retry status…</div>
+            </div>
+            <div class="pd-actions">
+              <button class="btn btn-gold" style="font-size:0.80rem;padding:10px 18px;" onclick="updatePaymentMethod()">Update Payment Method</button>
+              <button class="btn btn-outline-dark" style="font-size:0.80rem;padding:10px 18px;" onclick="triggerRetry()">Retry Now</button>
+            </div>
+            <div class="pd-note">
+              Your premium features remain active during the grace period. After 24 hours without a successful
+              payment, your account will be automatically downgraded to LEVEL Base — restricting geographic scope,
+              messaging threads, and queue priority.
+            </div>
+          </div>
+        </div>
 
         <!-- ─── Tier Cards ─── -->
         <div class="mem-grid" id="tierGrid">
@@ -428,82 +1112,252 @@
           </table>
         </div>
 
+        <!-- ─── Billing Failure & Degradation Lifecycle ─── -->
+        <div class="dg-panel">
+          <div class="dg-panel-header">
+            <div>
+              <div class="dg-eyebrow">Error Handling Protocol</div>
+              <div class="dg-title">Subscription Degradation Lifecycle</div>
+              <div class="dg-subtitle">Automated backend response to recurring payment failures during billing cycles</div>
+            </div>
+            <button class="dg-sim-btn" id="dgSimBtn" onclick="simulatePaymentFailure()">↻ Simulate Failure</button>
+          </div>
+
+          <div class="dg-steps">
+
+            <!-- Step 1: Payment Failure Event -->
+            <div class="dg-step" id="dg-step-1">
+              <div class="dg-step-left">
+                <div class="dg-step-num">1</div>
+                <div class="dg-connector"></div>
+              </div>
+              <div class="dg-step-body">
+                <div class="dg-step-badge" id="dg-badge-1">FAILED</div>
+                <div class="dg-step-title">Payment Failure Event</div>
+                <div class="dg-step-desc">Gateway sends a cryptographically signed <code style="font-size:0.65rem;color:rgba(255,255,255,0.40);background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:4px;">charge.failed</code> webhook directly to the LEVEL backend</div>
+                <div class="dg-step-detail" id="dg-detail-1"></div>
+              </div>
+            </div>
+
+            <!-- Step 2: PAST_DUE State Transition -->
+            <div class="dg-step" id="dg-step-2">
+              <div class="dg-step-left">
+                <div class="dg-step-num">2</div>
+                <div class="dg-connector"></div>
+              </div>
+              <div class="dg-step-body">
+                <div class="dg-step-badge" id="dg-badge-2">PAST_DUE</div>
+                <div class="dg-step-title">PAST_DUE State Transition</div>
+                <div class="dg-step-desc">Backend immediately marks the database record as <strong style="color:rgba(255,255,255,0.45);">PAST_DUE</strong> and opens a 24-hour grace window</div>
+                <div class="dg-step-detail" id="dg-detail-2"></div>
+              </div>
+            </div>
+
+            <!-- Step 3: 1-Day Grace Period & Retry Loop -->
+            <div class="dg-step" id="dg-step-3">
+              <div class="dg-step-left">
+                <div class="dg-step-num">3</div>
+                <div class="dg-connector"></div>
+              </div>
+              <div class="dg-step-body">
+                <div class="dg-step-badge" id="dg-badge-3">RETRYING</div>
+                <div class="dg-step-title">1-Day Grace Period Loop</div>
+                <div class="dg-step-desc">Premium features remain active. Backend scheduler triggers 3 automated retries at +8h, +16h, and +24h intervals</div>
+                <div class="dg-step-detail" id="dg-detail-3"></div>
+              </div>
+            </div>
+
+            <!-- Step 4: Auto-Downgrade Protocol -->
+            <div class="dg-step" id="dg-step-4">
+              <div class="dg-step-left">
+                <div class="dg-step-num">4</div>
+                <div class="dg-connector"></div>
+              </div>
+              <div class="dg-step-body">
+                <div class="dg-step-badge" id="dg-badge-4">DOWNGRADED</div>
+                <div class="dg-step-title">Auto-Downgrade Protocol</div>
+                <div class="dg-step-desc">Final fallback retry fails — backend resets profile to <strong style="color:rgba(255,255,255,0.45);">LEVEL_BASE</strong>, restricting geographic scope, messaging threads, and queue priority</div>
+                <div class="dg-step-detail" id="dg-detail-4"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
       </div><!-- /app-content -->
     </main>
   </div>
 
-  <script type="module">
-    import { requireAuth, initBodyFade, hydrateUser } from './js/app.js'
-    import { store } from './js/store.js'
-    import { TIER_META } from './js/membership.js'
+  <!-- ═══ PAYMENT MODAL ═══ -->
+  <div class="pay-modal-backdrop" id="payModalBackdrop">
+    <div class="pay-modal" role="dialog" aria-modal="true" aria-labelledby="payModalTitle">
 
-    requireAuth()
-    initBodyFade()
-    hydrateUser()
+      <!-- Header -->
+      <div class="pay-modal-header">
+        <div>
+          <div class="pay-modal-eyebrow">Secure Checkout</div>
+          <div class="pay-modal-title" id="payModalTitle">Upgrade your membership</div>
+        </div>
+        <button class="pay-close-btn" onclick="closePayModal()" aria-label="Close">✕</button>
+      </div>
 
-    const tier = store.getTier()
+      <!-- Plan summary bar -->
+      <div class="pay-plan-bar">
+        <div class="pay-plan-info">
+          <div class="pay-plan-dot"></div>
+          <div>
+            <div class="pay-plan-name" id="payPlanName">LEVEL Plus</div>
+            <div class="pay-plan-interval">Billed monthly · cancel anytime</div>
+          </div>
+        </div>
+        <div class="pay-plan-price" id="payPlanPrice">₱499<span style="font-family:var(--font-sans);font-size:0.78rem;color:rgba(255,255,255,0.38);">/mo</span></div>
+      </div>
 
-    /* ─ Current plan badge ─ */
-    const meta = TIER_META[tier] || TIER_META.base
-    const badgeText = `Current plan: ${meta.name}`
-    document.getElementById('currentPlanBadge').textContent = badgeText
-    document.getElementById('topbarTier').textContent = meta.name
+      <!-- Form wrap -->
+      <div id="payFormWrap">
+        <div class="pay-body">
 
-    /* ─ Highlight active card ─ */
-    document.getElementById(`card-${tier}`)?.classList.add('mem-card--active')
+          <!-- Express payment buttons -->
+          <div class="pay-method-tabs">
+            <button class="pay-method-btn apple" onclick="submitExpressPayment('apple')">
+              <svg width="16" height="19" viewBox="0 0 814 1000"><path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-37.3-155.5-127.4C46.7 790.7 0 663 0 541.8c0-207.5 135.4-317.5 269-317.5 70.1 0 128.4 46.4 172.5 46.4 42.8 0 109.6-49.1 189.2-49.1 30.1 0 108.2 2.6 168.2 81.1zm-134.5-162.4c31.3-37.9 53.1-90.8 53.1-143.6 0-7.3-.6-14.6-1.9-20.6-50.4 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 85.2-55.1 139.3 0 8.1 1.3 16.2 1.9 18.8 3.2.6 8.4 1.3 13.6 1.3 44.9 0 100.9-29.2 135.5-71z" fill="currentColor"/></svg>
+              Apple Pay
+            </button>
+            <button class="pay-method-btn google" onclick="submitExpressPayment('google')">
+              <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+              Google Pay
+            </button>
+          </div>
 
-    /* ─ Render CTAs ─ */
-    function renderCta(cardTier, currentTier) {
-      const el = document.getElementById(`cta-${cardTier}`)
-      if (!el) return
+          <div class="pay-divider"><span>or pay with card</span></div>
 
-      if (cardTier === currentTier) {
-        el.innerHTML = `<div class="mem-current-label">✦ &nbsp;Current plan</div>`
-        return
-      }
+          <!-- Card form -->
+          <div class="pay-form">
+            <div class="pay-field">
+              <label class="pay-label" for="payCardName">Name on card</label>
+              <input class="pay-input" id="payCardName" type="text" placeholder="Full name as on card" autocomplete="cc-name">
+            </div>
+            <div class="pay-field">
+              <label class="pay-label" for="payCardNumber">Card number</label>
+              <input class="pay-input" id="payCardNumber" type="text" placeholder="0000 0000 0000 0000" maxlength="19" autocomplete="cc-number" inputmode="numeric">
+              <div class="pay-card-icons">
+                <div class="pay-card-icon">VISA</div>
+                <div class="pay-card-icon">MC</div>
+                <div class="pay-card-icon">AMEX</div>
+                <div class="pay-card-icon">JCB</div>
+              </div>
+            </div>
+            <div class="pay-row">
+              <div class="pay-field">
+                <label class="pay-label" for="payExpiry">Expiry</label>
+                <input class="pay-input" id="payExpiry" type="text" placeholder="MM / YY" maxlength="7" autocomplete="cc-exp" inputmode="numeric">
+              </div>
+              <div class="pay-field">
+                <label class="pay-label" for="payCvv">CVV</label>
+                <input class="pay-input" id="payCvv" type="text" placeholder="•••" maxlength="4" autocomplete="cc-csc" inputmode="numeric">
+              </div>
+            </div>
+            <div class="pay-error-msg" id="payErrorMsg">Please check your card details and try again.</div>
+            <div class="pay-actions">
+              <button class="pay-btn-cancel" onclick="closePayModal()">Cancel</button>
+              <button class="pay-btn-pay" id="paySubmitBtn" onclick="submitPayment()">
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+                <span id="payBtnLabel">Pay ₱499</span>
+              </button>
+            </div>
+          </div>
+        </div>
 
-      const cardMeta = TIER_META[cardTier]
-      const tiers    = ['base', 'plus', 'prime']
-      const isUpgrade = tiers.indexOf(cardTier) > tiers.indexOf(currentTier)
+        <div class="pay-secure-row">
+          <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+          256-bit SSL · Powered by PayMongo · Your card details are never stored
+        </div>
+      </div>
 
-      if (isUpgrade) {
-        el.innerHTML = `
-          <button class="btn btn-gold" style="width:100%;justify-content:center;"
-            onclick="changeTier('${cardTier}')">
-            Upgrade to ${cardMeta.shortName}
-          </button>`
-      } else {
-        el.innerHTML = `
-          <button class="btn btn-outline-dark" style="width:100%;justify-content:center;"
-            onclick="changeTier('${cardTier}')">
-            Downgrade to ${cardMeta.shortName}
-          </button>`
-      }
-    }
+      <!-- Step 2: Native payment sheet (Apple Pay / Google Pay) -->
+      <div class="pay-sheet" id="paySheet">
+        <div class="pay-sheet-inner">
+          <div class="pay-sheet-provider" id="paySheetProvider">
+            <!-- injected by JS: apple or google header -->
+          </div>
+          <div class="pay-sheet-amount-row">
+            <span class="pay-sheet-merchant">LEVEL</span>
+            <span class="pay-sheet-amount" id="paySheetAmount">₱499</span>
+          </div>
+          <div class="pay-sheet-card-row">
+            <div class="pay-sheet-card-icon">💳</div>
+            <div>
+              <div class="pay-sheet-card-label">Visa ···· 4242</div>
+              <div class="pay-sheet-card-sub">Expires 12/27</div>
+            </div>
+          </div>
+          <div class="pay-sheet-biometric" id="payBiometric">
+            <div class="pay-biometric-ring" id="payBiometricRing">
+              <svg id="bioFaceIcon" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+            </div>
+            <div class="pay-biometric-label" id="payBiometricLabel">Double-click to confirm</div>
+            <div class="pay-biometric-sub" id="payBiometricSub">Authenticate with Face ID to complete payment</div>
+          </div>
+          <button class="pay-sheet-cancel" onclick="cancelSheet()">Cancel</button>
+        </div>
+      </div>
 
-    renderCta('base',  tier)
-    renderCta('plus',  tier)
-    renderCta('prime', tier)
+      <!-- Steps 1, 3 & 4: Processing flow panel -->
+      <div class="pay-processing" id="payProcessing">
+        <div class="pay-proc-title">Processing your payment</div>
+        <div class="pay-proc-subtitle">Please don't close this window</div>
+        <div class="pay-flow-steps" id="payFlowSteps">
 
-    /* ─ Tier switch (demo only — writes directly to session store) ─ */
-    window.changeTier = function(newTier) {
-      if (newTier === store.getTier()) return
-      store.setTier(newTier)
-      /* Clear the match cycle so the new tier's quota takes effect immediately */
-      localStorage.removeItem('level_match_cycle')
+          <div class="pay-flow-step" id="pstep-1">
+            <div class="pay-step-num">1</div>
+            <div class="pay-step-body">
+              <div class="pay-step-label">Initiate Intent</div>
+              <div class="pay-step-desc">Client calls LEVEL backend to initialize a payment intent and transaction record for <span class="pay-step-tier" id="pstep1Tier">LEVEL Plus</span></div>
+              <div class="pay-step-tag">POST /payment-intent · 200 OK</div>
+            </div>
+          </div>
 
-      const newMeta = TIER_META[newTier] || TIER_META.base
-      const msg     = `Switched to ${newMeta.name}. Reloading…`
+          <div class="pay-flow-step" id="pstep-2">
+            <div class="pay-step-num">2</div>
+            <div class="pay-step-body">
+              <div class="pay-step-label">Present Payment Sheet</div>
+              <div class="pay-step-desc">Gateway SDK displays native Apple Pay / Google Pay UI — user selects card and authenticates via biometrics</div>
+              <div class="pay-step-tag">SDK · Payment sheet shown</div>
+            </div>
+          </div>
 
-      /* Brief confirmation then reload to apply all gate changes */
-      const toast = document.createElement('div')
-      toast.className = 'toast animate-fadeUp'
-      toast.innerHTML = `<span style="font-size:18px">✦</span><span>${msg}</span>`
-      document.body.appendChild(toast)
-      setTimeout(() => window.location.reload(), 1200)
-    }
-  </script>
+          <div class="pay-flow-step" id="pstep-3">
+            <div class="pay-step-num">3</div>
+            <div class="pay-step-body">
+              <div class="pay-step-label">Authorize Payment</div>
+              <div class="pay-step-desc">User authenticates via Face ID / Touch ID. Apple/Google generates an encrypted payment token and returns it to the client via the gateway SDK</div>
+              <div class="pay-step-tag">Token encrypted · returned to client</div>
+            </div>
+          </div>
 
-  <script type="module" src="js/sidebar.js"></script>
+          <div class="pay-flow-step" id="pstep-4">
+            <div class="pay-step-num">4</div>
+            <div class="pay-step-body">
+              <div class="pay-step-label">Submit Token to Backend</div>
+              <div class="pay-step-desc">Client sends POST request with the encrypted token to the LEVEL backend — subscription activated, DB updated</div>
+              <div class="pay-step-tag">POST /subscribe · Membership active</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Success state -->
+      <div class="pay-success" id="paySuccess">
+        <div class="pay-success-ring">✦</div>
+        <div class="pay-success-title" id="paySuccessTitle">Welcome to LEVEL Plus</div>
+        <div class="pay-success-sub">Your membership has been upgraded. All new features are now active on your account.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/js/sidebar.js"></script>
+  <script type="module" src="/js/membership-page.js"></script>
 </body>
 </html>

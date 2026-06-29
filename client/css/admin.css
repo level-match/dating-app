@@ -163,6 +163,9 @@
   position: sticky; top: 0; z-index: 100;
   backdrop-filter: blur(12px);
 }
+.adm-topbar-left {
+  display: flex; align-items: center; gap: 12px;
+}
 .adm-breadcrumb {
   font-family: var(--adm-font-serif); font-size: 1.1rem; font-weight: 300;
   color: var(--adm-text); letter-spacing: -0.01em;
@@ -170,6 +173,9 @@
 .adm-topbar-right {
   display: flex; align-items: center; gap: 14px;
 }
+
+/* Mobile hamburger — hidden by default, shown via media query */
+.adm-mob-menu-btn { display: none; }
 .adm-session-timer {
   font-size: 0.72rem; color: var(--adm-text-faint); font-feature-settings: "tnum";
 }
@@ -547,10 +553,58 @@ table.adm-table { width: 100%; border-collapse: collapse; }
 .adm-tier-bar-count { width: 32px; text-align: right; color: var(--adm-text-dim); }
 
 @media (max-width: 768px) {
-  .adm-sidebar { transform: translateX(-100%); }
-  .adm-main    { margin-left: 0; }
+  body { overflow-x: hidden; }
+
+  /* Sidebar slides off-screen by default; toggled by hamburger */
+  .adm-sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+    z-index: 300;
+  }
+  html.adm-sidebar-open .adm-sidebar {
+    transform: translateX(0);
+  }
+
+  /* Main takes full width */
+  .adm-main    { margin-left: 0 !important; }
+  .adm-topbar  { padding: 0 16px; }
   .adm-content { padding: 16px; }
   .adm-chart-grid { grid-template-columns: 1fr; }
   .adm-kpi-grid   { grid-template-columns: 1fr 1fr; }
   .adm-form-grid  { grid-template-columns: 1fr; }
+
+  /* Overlay backdrop */
+  .adm-mob-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(2,5,18,0.70);
+    backdrop-filter: blur(4px);
+    z-index: 299;
+  }
+  html.adm-sidebar-open .adm-mob-overlay {
+    display: block;
+  }
+
+  /* Hamburger button in admin topbar */
+  .adm-mob-menu-btn {
+    display: flex;
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--adm-border);
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--adm-text-dim);
+    flex-shrink: 0;
+  }
+  .adm-mob-menu-btn:hover { background: rgba(255,255,255,0.08); color: var(--adm-text); }
+  .adm-mob-menu-btn svg { width: 18px; height: 18px; }
+}
+
+@media (max-width: 480px) {
+  .adm-kpi-grid { grid-template-columns: 1fr; }
+  .adm-content  { padding: 12px; }
+  .adm-topbar   { padding: 0 12px; }
 }

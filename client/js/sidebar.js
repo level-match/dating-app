@@ -205,6 +205,79 @@
       });
     }
   }
+
+  /* ─── Mobile sidebar: hamburger + overlay ─────────────────── */
+  (function () {
+    // Only set up once
+    if (document.getElementById('lvl-sidebar-overlay')) return;
+
+    const ICON_HAMBURGER = `<svg fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="21" y2="17"/></svg>`;
+    const ICON_CLOSE     = `<svg fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>`;
+
+    // Inject overlay element
+    const overlay = document.createElement('div');
+    overlay.id = 'lvl-sidebar-overlay';
+    overlay.className = 'sidebar-overlay';
+    document.body.appendChild(overlay);
+
+    function getMenuBtn() {
+      return document.querySelector('.mobile-menu-btn');
+    }
+
+    // Inject hamburger button into the topbar (left side)
+    // Supports .app-topbar (most pages) and .chat-topbar (chat.html)
+    function injectHamburger() {
+      const topbar = document.querySelector('.app-topbar, .chat-topbar');
+      if (!topbar || topbar.querySelector('.mobile-menu-btn')) return;
+
+      const menuBtn = document.createElement('button');
+      menuBtn.className = 'mobile-menu-btn';
+      menuBtn.setAttribute('aria-label', 'Open navigation menu');
+      menuBtn.setAttribute('type', 'button');
+      menuBtn.innerHTML = ICON_HAMBURGER;
+      topbar.insertBefore(menuBtn, topbar.firstChild);
+
+      menuBtn.addEventListener('click', toggleSidebar);
+    }
+
+    function toggleSidebar() {
+      if (document.documentElement.classList.contains('sidebar-open')) {
+        closeSidebar();
+      } else {
+        openSidebar();
+      }
+    }
+
+    function openSidebar() {
+      document.documentElement.classList.add('sidebar-open');
+      overlay.classList.add('active');
+      const btn = getMenuBtn();
+      if (btn) { btn.innerHTML = ICON_CLOSE; btn.setAttribute('aria-label', 'Close navigation menu'); }
+    }
+
+    function closeSidebar() {
+      document.documentElement.classList.remove('sidebar-open');
+      overlay.classList.remove('active');
+      const btn = getMenuBtn();
+      if (btn) { btn.innerHTML = ICON_HAMBURGER; btn.setAttribute('aria-label', 'Open navigation menu'); }
+    }
+
+    overlay.addEventListener('click', closeSidebar);
+    overlay.addEventListener('touchend', function (e) { e.preventDefault(); closeSidebar(); });
+
+    // Close when a nav link is tapped on mobile/tablet (while sidebar is overlay)
+    document.addEventListener('click', function (e) {
+      const link = e.target.closest('.sidebar-item');
+      if (link && window.innerWidth <= 1024) {
+        closeSidebar();
+      }
+    });
+
+    // Try immediately, then observe for topbar injection
+    injectHamburger();
+    const obs = new MutationObserver(injectHamburger);
+    obs.observe(document.body, { childList: true, subtree: true });
+  })();
 })();
 
 /* ──────────────────────────────────────────────────────────────
@@ -934,14 +1007,23 @@
     `;
   }
 
+  function getUserPhoto() {
+    const u = getUser();
+    return u.mainPhoto || u.photos?.[0]?.src || null;
+  }
+
   function profileHTML() {
     const u = getUser();
     const name = `${u.firstName || 'Alexandra'} ${u.lastName || 'R.'}`;
     const tier = u.tier || 'Select';
     const complete = u.profileComplete ?? 72;
+    const photo = getUserPhoto();
+    const avatarBg = photo
+      ? `background:url(${photo}) center/cover no-repeat;`
+      : `background:linear-gradient(135deg,#1A2F4A,#0D1E35);`;
     return `
       <div class="tbp-profile-head">
-        <div class="tbp-profile-avatar"></div>
+        <div class="tbp-profile-avatar" style="${avatarBg}"></div>
         <div>
           <div class="tbp-profile-name">${escapeText(name)}</div>
           <div class="tbp-profile-tier">${escapeText(tier)} member</div>
@@ -999,7 +1081,7 @@
         </div>
       </div>
       <div class="tbp-profile-actions">
-        <a href="profile.html">
+        <a href="profile.html?me=true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round"/></svg>
           View full profile
         </a>
@@ -1076,7 +1158,29 @@
       a.dataset.tbpWired = '1';
     });
   }
+  // Expose so profile-setup.js can trigger a re-hydrate after upload
+  window.__hydrateTopbarAvatars = function () { hydrateTopbarAvatars(); };
+
+  // Inject the user's main photo into every topbar avatar circle on the page
+  function hydrateTopbarAvatars() {
+    const photo = getUserPhoto();
+    document.querySelectorAll('a[href="profile.html"]').forEach(a => {
+      const outer = a.firstElementChild;
+      if (!outer) return;
+      const s = outer.getAttribute('style') || '';
+      if (!/40px/.test(s) && !/border-radius:\s*50%/.test(s)) return;
+      const inner = outer.firstElementChild;
+      if (!inner) return;
+      if (photo) {
+        inner.style.cssText = `width:100%;height:100%;background:url(${photo}) center/cover no-repeat;`;
+      } else {
+        inner.style.cssText = `width:100%;height:100%;background:linear-gradient(135deg,#1A2F4A,#0D1E35);`;
+      }
+    });
+  }
+
   wirePopovers();
-  const mo2 = new MutationObserver(wirePopovers);
+  hydrateTopbarAvatars();
+  const mo2 = new MutationObserver(() => { wirePopovers(); hydrateTopbarAvatars(); });
   mo2.observe(document.body, { childList: true, subtree: true });
 })();

@@ -13,41 +13,6 @@
   <style>
     body { overflow: hidden; }
 
-    /* ─── Email-code auth ─── */
-    .email-auth-block { margin-bottom: var(--s-5); }
-    .email-auth-input {
-      width: 100%; height: 52px; padding: 0 var(--s-4);
-      font-family: var(--font-sans); font-size: var(--text-base);
-      color: var(--text-primary);
-      background: rgba(255,255,255,0.04);
-      border: 1.5px solid var(--border-mid); border-radius: var(--radius-md);
-      outline: none; margin-bottom: var(--s-3);
-      transition: border-color .2s, background .2s, box-shadow .2s;
-    }
-    .email-auth-input::placeholder { color: var(--text-muted); }
-    .email-auth-input:focus {
-      border-color: rgba(4,150,199,0.55);
-      background: rgba(4,150,199,0.06);
-      box-shadow: 0 0 0 4px rgba(4,150,199,0.10);
-    }
-    .email-auth-btn { width: 100%; justify-content: center; }
-    .email-auth-status {
-      display: none; margin-top: var(--s-3);
-      font-family: var(--font-sans); font-size: var(--text-xs); line-height: 1.5;
-    }
-    .email-auth-status.show { display: block; }
-    .email-auth-status[data-kind="error"]   { color: #FCA5A5; }
-    .email-auth-status[data-kind="success"] { color: #A7E0C8; }
-    .email-auth-status[data-kind="info"]    { color: var(--text-secondary); }
-
-    .auth-divider {
-      display: flex; align-items: center; gap: var(--s-3);
-      margin: var(--s-6) 0;
-      font-family: var(--font-sans); font-size: var(--text-2xs);
-      letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted);
-    }
-    .auth-divider span { flex: 1; height: 1px; background: var(--border-light); }
-
     .auth-wrapper {
       display: grid;
       grid-template-columns: 1fr 520px;
@@ -451,16 +416,23 @@
     }
 
     @media (max-width: 900px) {
-      .auth-wrapper {
-        grid-template-columns: 1fr;
-      }
-      .auth-visual {
-        display: none;
-      }
-      body { overflow: auto; }
-      .auth-form-panel {
-        padding: var(--s-8) var(--s-6);
-      }
+      .auth-wrapper { grid-template-columns: 1fr; }
+      .auth-visual { display: none; }
+      body { overflow: auto; overflow-x: hidden; }
+      .auth-form-panel { padding: var(--s-8) var(--s-6); }
+    }
+
+    @media (max-width: 768px) {
+      body { overflow-x: hidden; }
+      .auth-form-panel { padding: var(--s-6) var(--s-5); }
+      .auth-logo { font-size: var(--text-3xl); }
+      .auth-title { font-size: var(--text-3xl); }
+    }
+
+    @media (max-width: 480px) {
+      .auth-form-panel { padding: var(--s-5) var(--s-4); }
+      .auth-title { font-size: var(--text-2xl); }
+      .auth-footer { flex-direction: column; align-items: center; gap: var(--s-2); text-align: center; }
     }
   </style>
 </head>
@@ -487,14 +459,14 @@
         <!-- Central portraits -->
         <div style="display:flex;gap:var(--s-4);align-self:center;">
           <div class="auth-portrait animate-fadeUp delay-200">
-            <img src="assets/sarah-m.jpg" alt="Sarah M." style="width:100%;height:100%;object-fit:cover;display:block;" loading="lazy">
+            <img src="assets/sarah.jpg" alt="Sarah M." style="width:100%;height:100%;object-fit:cover;display:block;" loading="lazy">
             <div class="portrait-info">
               <div class="name">Sarah M.</div>
               <div class="role">Investment Director · 32</div>
             </div>
           </div>
           <div class="auth-portrait animate-fadeUp delay-400" style="margin-top:var(--s-10);">
-            <img src="assets/james-t.jpg" alt="James T." style="width:100%;height:100%;object-fit:cover;display:block;" loading="lazy">
+            <img src="assets/james.jpg" alt="James T." style="width:100%;height:100%;object-fit:cover;display:block;" loading="lazy">
             <div class="portrait-info">
               <div class="name">James T.</div>
               <div class="role">Tech Founder · 36</div>
@@ -539,14 +511,6 @@
           <p class="auth-subtitle">Sign in to your LEVEL account to continue your journey.</p>
         </div>
 
-        <div class="email-auth-block">
-          <input id="loginEmail" class="email-auth-input" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com" onkeydown="if(event.key==='Enter')handleEmailAuth('signin')">
-          <button class="btn btn-gold email-auth-btn" onclick="handleEmailAuth('signin')">Continue with email</button>
-          <div class="email-auth-status" id="loginEmailStatus"></div>
-        </div>
-
-        <div class="auth-divider"><span></span>or continue with<span></span></div>
-
         <div class="social-auth-stack">
           <button class="btn-social" onclick="handleSocialAuth('google')">
             <div class="social-auth-icon" style="background:#FFF;border:1px solid #e0e0e0;">
@@ -578,6 +542,10 @@
           <span style="font-family:var(--font-sans);font-size:var(--text-sm);font-weight:300;color:var(--text-muted);">New to LEVEL? </span>
           <button onclick="switchTab('register')" style="font-family:var(--font-sans);font-size:var(--text-sm);font-weight:500;color:var(--ocean-700);cursor:pointer;text-decoration:underline;text-underline-offset:2px;">Sign Up</button>
         </div>
+
+        <div style="margin-top:var(--s-6);text-align:center;">
+          <a href="admin-login.html" style="font-family:var(--font-sans);font-size:11px;font-weight:400;color:rgba(255,255,255,0.2);letter-spacing:0.08em;text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='rgba(255,255,255,0.5)'" onmouseout="this.style.color='rgba(255,255,255,0.2)'">Admin Access</a>
+        </div>
       </div>
 
       <!-- ─── REGISTER PANEL ─── -->
@@ -591,14 +559,6 @@
           <div class="application-note-title">An intentional community</div>
           <p>LEVEL is curated and intentional by design — a community for people seeking serious, long-term partnership. No lengthy forms, no waiting on approval.</p>
         </div>
-
-        <div class="email-auth-block">
-          <input id="applyEmail" class="email-auth-input" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com" onkeydown="if(event.key==='Enter')handleEmailAuth('apply')">
-          <button class="btn btn-gold email-auth-btn" onclick="handleEmailAuth('apply')">Continue with email</button>
-          <div class="email-auth-status" id="applyEmailStatus"></div>
-        </div>
-
-        <div class="auth-divider"><span></span>or apply with<span></span></div>
 
         <div class="social-auth-stack">
           <button class="btn-social" onclick="handleApplyAuth('google')">

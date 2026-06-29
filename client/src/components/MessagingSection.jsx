@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import miaPhoto from '../../assets/mia-santos.jpg'
+import miaPhoto from '../../assets/mia.jpg'
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 28 },

@@ -1,14 +1,16 @@
 import { requireAuth, initBodyFade, initNav, showToast } from './app.js'
 import { store } from './store.js'
 import { getMember, getMembersByScore } from './members.js'
-import { apiFetch } from './sso.js'
 
 requireAuth()
 initBodyFade()
 initNav()
 
+/* ─── Resolve which member to show ─── */
 const params = new URLSearchParams(window.location.search)
-const isOwnProfile = params.get('me') === '1'
+const isSelfView = params.get('me') === 'true'
+const requestedId = params.get('id')
+const member = isSelfView ? null : (getMember(requestedId) || getMembersByScore()[0])
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({
@@ -16,114 +18,8 @@ function esc(s) {
   }[ch]))
 }
 
-function section(label, inner) {
-  return `<div class="profile-section">
-    <div class="profile-section-label">${esc(label)}</div>
-    ${inner}
-  </div>`
-}
-
-function rowList(rows) {
-  return `<div class="pf-rows">${rows.filter(r => r.value).map(r => `
-    <div class="pf-row">
-      <div class="pf-row-label">${esc(r.label)}</div>
-      <div class="pf-row-value">${esc(r.value)}</div>
-    </div>`).join('')}</div>`
-}
-
-async function bootOwnProfile() {
-  const back = document.getElementById('navBack')
-  const label = document.getElementById('navBackLabel')
-  if (back) back.setAttribute('href', 'dashboard.html')
-  if (label) label.textContent = 'Dashboard'
-
-  try {
-    const res = await apiFetch('/api/auth/profile')
-    if (!res.ok) throw new Error('Profile not found')
-    const { profile } = await res.json()
-    renderOwnProfile(profile)
-  } catch (err) {
-    console.warn('[profile] own profile load failed:', err.message)
-    window.location.replace('profile-setup.html')
-  }
-}
-
-function renderOwnProfile(p) {
-  const name = [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Your Profile'
-  document.title = `LEVEL — ${name}`
-
-  const photoEl = document.getElementById('portraitPhoto')
-  if (p.avatar_url) {
-    photoEl.style.backgroundImage = `url('${esc(p.avatar_url)}')`
-    photoEl.style.backgroundSize = 'cover'
-    photoEl.style.backgroundPosition = 'center'
-  }
-
-  document.getElementById('portraitScore').innerHTML = `
-    <div class="portrait-score-num" style="font-size:1.4rem;">✦</div>
-    <div class="portrait-score-label">Your profile</div>`
-
-  const pronounText = (p.pronouns || []).map(x => x.label).join(', ')
-  const ageRange = p.age_range_min && p.age_range_max
-    ? `${p.age_range_min} – ${p.age_range_max}` : ''
-
-  document.getElementById('portraitInfo').innerHTML = `
-    <div class="portrait-name">${esc(name)}</div>
-    <div class="portrait-role">${esc(p.professional_title || 'Add your professional title')}</div>
-    <div class="portrait-meta">
-      ${p.location ? `<div class="portrait-meta-item">📍 ${esc(p.location)}</div>` : ''}
-      ${pronounText ? `<div class="portrait-meta-item">· ${esc(pronounText)}</div>` : ''}
-    </div>
-    <div class="portrait-actions" style="margin-top:18px;">
-      <a href="profile-setup.html" class="btn btn-gold" style="flex:1;justify-content:center;">Edit Profile</a>
-      <a href="dashboard.html" class="btn btn-outline" title="Dashboard" style="width:48px;height:48px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;">⌂</a>
-    </div>`
-
-  const prefGenders = (p.preferred_genders || []).map(g => g.label).join(', ')
-  const lifestyle = (p.lifestyle_values || []).map(v => v.label)
-
-  const html = [
-    p.legacy_vision ? section('Legacy & Vision', `<p class="pf-lead">${esc(p.legacy_vision)}</p>`) : '',
-    section('About You', rowList([
-      { label: 'Email', value: store.getUser()?.email },
-      { label: 'Industry', value: p.industry },
-      { label: 'Education', value: p.education },
-      { label: 'Gender identity', value: p.gender_identity },
-      { label: 'Orientation', value: p.orientation },
-      { label: 'Pronouns', value: pronounText },
-      { label: 'Looking to meet', value: prefGenders },
-      { label: 'Age range', value: ageRange },
-    ])),
-    section('Alignment', rowList([
-      { label: 'Primary intent', value: p.primary_intent },
-      { label: 'Long-term vision', value: p.long_term_vision },
-      { label: 'Career chapter', value: p.career_chapter },
-      { label: 'Life integration', value: p.life_integration },
-      { label: 'Mobility', value: p.mobility_profile },
-      { label: 'Emotional style', value: p.emotional_style },
-    ])),
-    lifestyle.length ? section('Lifestyle & Values', `
-      <div class="values-grid">${lifestyle.map(v => `<span class="chip">${esc(v)}</span>`).join('')}</div>`) : '',
-    `<div style="display:flex;gap:var(--s-4);margin-top:var(--s-4);">
-      <a href="profile-setup.html" class="btn btn-primary btn-lg" style="flex:1;justify-content:center;">Edit Profile</a>
-      <a href="dashboard.html" class="btn btn-outline btn-lg" style="justify-content:center;">Go to Dashboard</a>
-    </div>`,
-  ].filter(Boolean).join('')
-
-  document.getElementById('profileDetail').innerHTML = html
-}
-
-if (isOwnProfile) {
-  bootOwnProfile()
-} else {
-  bootMemberProfile()
-}
-
-function bootMemberProfile() {
-  const requestedId = params.get('id')
-  const member = getMember(requestedId) || getMembersByScore()[0]
-
-  const BADGE_SVG = {
+/* ─── Verification badges ─── */
+const BADGE_SVG = {
   id: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2.2"/><path d="M14 10h4M14 13h3"/></svg>`,
   career: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v12H3z"/><path d="M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2"/></svg>`,
   photo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="3"/><path d="M5 7h3l2-3h4l2 3h3v12H5z"/></svg>`,
@@ -177,7 +73,14 @@ function renderPortrait(m) {
     </div>`
 }
 
-/* ─── Section builders (match profiles) ─── */
+/* ─── Section builders ─── */
+function section(label, inner) {
+  return `<div class="profile-section">
+    <div class="profile-section-label">${esc(label)}</div>
+    ${inner}
+  </div>`
+}
+
 function overviewSection(m) {
   const paras = (m.overview.paragraphs || []).map(p => `<p class="pf-para">${esc(p)}</p>`).join('')
   return section('Overview', `
@@ -211,7 +114,7 @@ function valuesSection(m) {
     <div class="pf-principles">${principles}</div>`)
 }
 
-function memberRowList(rows) {
+function rowList(rows) {
   return `<div class="pf-rows">${rows.map(r => `
     <div class="pf-row">
       <div class="pf-row-label">${esc(r.label)}</div>
@@ -220,13 +123,13 @@ function memberRowList(rows) {
 }
 
 function lifestyleSection(m) {
-  return section('Lifestyle Alignment', memberRowList(m.lifestyle || []))
+  return section('Lifestyle Alignment', rowList(m.lifestyle || []))
 }
 
 function relationshipSection(m) {
   return section('Relationship Intent', `
     <p class="pf-lead">${esc(m.intentLong)}</p>
-    <div style="margin-top:var(--s-5);">${memberRowList(m.relationship || [])}</div>`)
+    <div style="margin-top:var(--s-5);">${rowList(m.relationship || [])}</div>`)
 }
 
 function mobilitySection(m) {
@@ -320,28 +223,156 @@ function sendConnection() {
   }, 1600)
 }
 
-/* ─── Boot ─── */
-document.title = `LEVEL — ${member.name}`
+/* ─── Lightbox (self-view photos) ─── */
+let _lbPhotos = []
+let _lbIndex  = 0
 
-// Back link: return to wherever the member arrived from when it's one of ours
-const from = params.get('from')
-if (from === 'dashboard') {
-  const back = document.getElementById('navBack')
-  const label = document.getElementById('navBackLabel')
-  if (back) back.setAttribute('href', 'dashboard.html')
-  if (label) label.textContent = 'Dashboard'
+window.openLightbox = function (src) {
+  _lbIndex = _lbPhotos.indexOf(src)
+  if (_lbIndex < 0) _lbIndex = 0
+  document.getElementById('pfLightboxImg').src = src
+  document.getElementById('pfLightbox').classList.add('active')
+  document.body.style.overflow = 'hidden'
 }
 
-renderPortrait(member)
-renderDetail(member)
-
-// If this member was already requested in a prior session, restore sent state
-if (store.hasSentRequest(member.id)) {
-  requestSent = true
-  markButtonsSent()
+window.closeLightbox = function () {
+  document.getElementById('pfLightbox').classList.remove('active')
+  document.body.style.overflow = ''
 }
 
-document.addEventListener('click', e => {
-  if (e.target.closest('#connectBtn') || e.target.closest('#connectBtnFooter')) sendConnection()
+window.shiftLightbox = function (dir) {
+  if (!_lbPhotos.length) return
+  _lbIndex = (_lbIndex + dir + _lbPhotos.length) % _lbPhotos.length
+  const img = document.getElementById('pfLightboxImg')
+  img.style.animation = 'none'
+  requestAnimationFrame(() => {
+    img.style.animation = ''
+    img.src = _lbPhotos[_lbIndex]
+  })
+}
+
+document.addEventListener('keydown', e => {
+  const lb = document.getElementById('pfLightbox')
+  if (!lb?.classList.contains('active')) return
+  if (e.key === 'Escape') window.closeLightbox()
+  if (e.key === 'ArrowLeft')  window.shiftLightbox(-1)
+  if (e.key === 'ArrowRight') window.shiftLightbox(1)
 })
+
+/* ─── Self-view renderer ─── */
+function renderSelfProfile() {
+  const u = store.getUser() || store.getDefaultUser()
+  const name  = [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Your Profile'
+  // Blob URLs are session-scoped and break after page navigation — skip them
+  const photos = (u.photos || [])
+    .filter(p => p?.src && !p.src.startsWith('blob:'))
+    .map(p => p.src)
+  if (u.mainPhoto && !u.mainPhoto.startsWith('blob:') && !photos.includes(u.mainPhoto)) {
+    photos.unshift(u.mainPhoto)
+  }
+  _lbPhotos = photos
+  const mainPhoto = photos[0] || null
+
+  document.title = 'LEVEL — My Profile'
+
+  // Portrait
+  const photoEl = document.getElementById('portraitPhoto')
+  if (photoEl) {
+    if (mainPhoto) {
+      photoEl.style.backgroundImage = `url('${mainPhoto}')`
+    } else {
+      photoEl.style.background = 'linear-gradient(135deg,#1A2F4A,#0D1E35)'
+    }
+  }
+
+  document.getElementById('portraitScore').innerHTML = `
+    <div class="portrait-score-num" style="font-size:1rem;letter-spacing:0.1em;">MY</div>
+    <div class="portrait-score-label">Profile</div>`
+
+  document.getElementById('portraitInfo').innerHTML = `
+    <div class="portrait-name">${esc(name)}</div>
+    <div class="portrait-role">${esc(u.role || '')}</div>
+    ${u.location || u.city ? `<div class="portrait-meta"><div class="portrait-meta-item">📍 ${esc(u.location || u.city)}</div>${u.age ? `<div class="portrait-meta-item">· ${esc(String(u.age))} years</div>` : ''}</div>` : ''}
+    <div class="portrait-actions" style="margin-top:var(--s-5);">
+      <a href="profile-setup.html" class="btn btn-gold" style="flex:1;justify-content:center;">Edit Profile</a>
+    </div>`
+
+  // Detail sections
+  const sections = []
+
+  // ── Photos gallery ──
+  if (photos.length) {
+    const [first, ...rest] = photos
+    const mainHTML = `
+      <div class="pf-photo-item pf-photo-main" onclick="openLightbox('${first}')">
+        <img src="${first}" alt="Main photo" />
+        <span class="pf-photo-badge">Main Photo</span>
+      </div>`
+    const restHTML = rest.map(src => `
+      <div class="pf-photo-item" onclick="openLightbox('${src}')">
+        <img src="${src}" alt="Profile photo" />
+      </div>`).join('')
+    sections.push(section('Photos', `<div class="pf-photo-gallery">${mainHTML}${restHTML}</div>`))
+  }
+
+  // ── Bio / Legacy ──
+  if (u.bio) {
+    sections.push(section('Legacy & Vision', `<p class="pf-lead">${esc(u.bio)}</p>`))
+  }
+
+  // ── Education ──
+  if (u.education) {
+    sections.push(section('Education', `<p class="pf-lead">${esc(u.education)}</p>`))
+  }
+
+  // ── Interests ──
+  const interests = u.interests || []
+  if (interests.length) {
+    const chips = interests.map(v => `<span class="chip">${esc(v)}</span>`).join('')
+    sections.push(section('Lifestyle & Values', `<div class="values-grid">${chips}</div>`))
+  }
+
+  if (!sections.length) {
+    sections.push(`<div style="padding:var(--s-8) 0;text-align:center;">
+      <p style="font-family:var(--font-serif);font-size:1.5rem;font-weight:300;color:var(--cream-50);margin-bottom:12px;">Your profile is waiting.</p>
+      <p style="font-size:0.9rem;line-height:1.7;color:var(--text-secondary);max-width:360px;margin:0 auto 24px;">Complete your profile so your matches can see what makes you remarkable.</p>
+      <a href="profile-setup.html" class="btn btn-gold">Complete Profile</a>
+    </div>`)
+  } else {
+    sections.push(`<div style="margin-top:var(--s-6);">
+      <a href="profile-setup.html" class="btn btn-outline btn-lg" style="display:inline-flex;align-items:center;gap:10px;">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+        Edit Profile
+      </a>
+    </div>`)
+  }
+
+  document.getElementById('profileDetail').innerHTML = sections.join('')
+}
+
+/* ─── Boot ─── */
+if (isSelfView) {
+  renderSelfProfile()
+} else {
+  document.title = `LEVEL — ${member.name}`
+
+  const from = params.get('from')
+  if (from === 'dashboard') {
+    const back = document.getElementById('navBack')
+    const label = document.getElementById('navBackLabel')
+    if (back) back.setAttribute('href', 'dashboard.html')
+    if (label) label.textContent = 'Dashboard'
+  }
+
+  renderPortrait(member)
+  renderDetail(member)
+
+  if (store.hasSentRequest(member.id)) {
+    requestSent = true
+    markButtonsSent()
+  }
+
+  document.addEventListener('click', e => {
+    if (e.target.closest('#connectBtn') || e.target.closest('#connectBtnFooter')) sendConnection()
+  })
 }

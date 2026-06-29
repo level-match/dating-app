@@ -2229,3 +2229,123 @@ input[type="range"]::-webkit-slider-thumb:hover {
   color: var(--gold-300, #C1A464);
   letter-spacing: 0.06em;
 }
+
+/* ─── Mobile Sidebar ─── */
+
+/* Hamburger toggle button — injected into topbar on mobile */
+.mobile-menu-btn {
+  display: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.75);
+  transition: background 0.2s, color 0.2s;
+}
+
+.mobile-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.mobile-menu-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Overlay backdrop when sidebar is open on mobile */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 5, 18, 0.70);
+  z-index: 199;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+  display: block;
+  opacity: 1;
+}
+
+@media (max-width: 1024px) {
+  /* Show hamburger button at tablet and smaller */
+  .mobile-menu-btn {
+    display: flex;
+  }
+
+  /* Topbar floats above the overlay so the hamburger/X is always tappable */
+  .app-topbar,
+  .chat-topbar {
+    z-index: 210 !important;
+    position: relative;
+  }
+
+  /* Sidebar slides in from the left — off-screen by default */
+  .app-sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    z-index: 200 !important;
+    width: 280px !important;
+  }
+
+  /* When sidebar is open via hamburger */
+  html.sidebar-open .app-sidebar {
+    transform: translateX(0) !important;
+  }
+
+  /* Main content: no left margin since sidebar is off-screen */
+  .app-main {
+    margin-left: 0 !important;
+  }
+
+  /* Chat layout: remove sidebar column */
+  .chat-layout {
+    margin-left: 0 !important;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Topbar padding tighter on mobile */
+  .app-topbar {
+    padding: 0 var(--s-4) !important;
+  }
+
+  /* Toast: full-width on very small screens */
+  .toast {
+    bottom: var(--s-4);
+    right: var(--s-4);
+    left: var(--s-4);
+    max-width: none;
+  }
+
+  /* Modal: full width padding */
+  .modal-backdrop {
+    padding: var(--s-4);
+  }
+
+  .modal {
+    padding: var(--s-8) var(--s-6);
+  }
+
+  /* Message bubbles can be wider on mobile */
+  .message-bubble {
+    max-width: 85%;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-topbar {
+    padding: 0 var(--s-3) !important;
+  }
+
+  .modal {
+    padding: var(--s-6) var(--s-4);
+  }
+}

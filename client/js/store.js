@@ -13,6 +13,7 @@ const KEYS = {
   NOTIFICATIONS: 'level_notifications',
   SETTINGS:      'level_settings',
   SENT_REQUESTS: 'level_sent_requests',
+  PAST_DUE:      'level_past_due',
 }
 
 const DEFAULT_SETTINGS = {
@@ -151,7 +152,7 @@ export const store = {
       role: 'Partner, McKinsey & Company',
       age: 34,
       city: 'New York',
-      tier: 'prime',
+      tier: 'base',
       profileComplete: 72,
       matches: 7,
       messages: 3,
@@ -497,5 +498,29 @@ export const store = {
   resetSettings() {
     localStorage.removeItem(KEYS.SETTINGS)
     return this.getSettings()
+  },
+
+  /* ─── Subscription billing failure state ───────────────────────
+     Stored when a recurring charge fails. Shape:
+       {
+         tier:            'plus' | 'prime',
+         gracePeriodEnd:  <Unix ms>,   // 24h after first failure
+         retryCount:      0-3,
+         nextRetry:       <Unix ms>,
+       }
+     Cleared on successful retry or manual payment update.
+     ─────────────────────────────────────────────────────────── */
+
+  getPastDue() {
+    try { return JSON.parse(localStorage.getItem(KEYS.PAST_DUE) || 'null') }
+    catch { return null }
+  },
+
+  setPastDue(data) {
+    localStorage.setItem(KEYS.PAST_DUE, JSON.stringify(data))
+  },
+
+  clearPastDue() {
+    localStorage.removeItem(KEYS.PAST_DUE)
   },
 }

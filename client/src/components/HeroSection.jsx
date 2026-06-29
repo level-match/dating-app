@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import jamesPhoto from '../../assets/james-t.jpg'
+import jamesPhoto from '../../assets/james.jpg'
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 32 },

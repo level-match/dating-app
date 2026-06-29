@@ -760,25 +760,6 @@
       background: rgba(245,237,224,0.06);
       box-shadow: 0 0 0 4px rgba(232,199,160,0.08);
     }
-    .ob-profile-fields {
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-      max-width: 480px;
-    }
-    .ob-profile-field label {
-      display: block;
-      font-family: 'Inter', sans-serif;
-      font-size: 0.68rem;
-      font-weight: 500;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: rgba(245,237,224,0.45);
-      margin-bottom: 8px;
-    }
-    .ob-profile-field .ob-verify-input {
-      padding: 13px 16px;
-    }
     .ob-verify-action {
       position: absolute;
       right: 6px;
@@ -900,6 +881,33 @@
       line-height: 1.65;
     }
 
+    /* ID type selector buttons */
+    .ob-id-type-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 16px;
+      background: rgba(245,237,224,0.04);
+      border: 1px solid rgba(245,237,224,0.13);
+      border-radius: 10px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 400;
+      color: rgba(245,237,224,0.72);
+      cursor: pointer;
+      transition: all 0.25s;
+    }
+    .ob-id-type-btn:hover {
+      border-color: rgba(212,165,116,0.40);
+      background: rgba(212,165,116,0.07);
+      color: #E8C7A0;
+    }
+    .ob-id-type-btn.selected {
+      border-color: rgba(212,165,116,0.55);
+      background: rgba(212,165,116,0.10);
+      color: #E8C7A0;
+    }
+
     @media (max-width: 960px) {
       .ob-sidebar { display: none; }
       .onboarding-wrapper { grid-template-columns: 1fr; }
@@ -907,6 +915,22 @@
       .ob-options-grid { grid-template-columns: 1fr; }
       .ob-verify-head { grid-template-columns: 40px 1fr; row-gap: 8px; }
       .ob-verify-status { grid-column: 1 / -1; justify-self: start; }
+    }
+
+    @media (max-width: 768px) {
+      body { overflow-x: hidden; }
+      .ob-main { padding: 24px 16px; }
+      .ob-step-title { font-size: var(--text-2xl); }
+      .ob-chips { gap: 8px; }
+      .ob-chip { padding: 8px 14px; font-size: 0.82rem; }
+      .ob-actions { flex-direction: column-reverse; gap: var(--s-3); }
+      .ob-actions .btn { width: 100%; justify-content: center; }
+      .ob-progress-bar { height: 3px; }
+    }
+
+    @media (max-width: 480px) {
+      .ob-main { padding: 20px 12px; }
+      .ob-step-title { font-size: var(--text-xl); }
     }
   </style>
 </head>
@@ -939,63 +963,59 @@
       <nav class="ob-steps-list" id="sidebarSteps">
         <div class="ob-step-item active" data-step="0">
           <div class="ob-step-num">1</div>
-          <div class="ob-step-label">Your details</div>
+          <div class="ob-step-label">Verify your identity</div>
         </div>
         <div class="ob-step-item" data-step="1">
           <div class="ob-step-num">2</div>
-          <div class="ob-step-label">Verify your identity</div>
+          <div class="ob-step-label">Gender identity</div>
         </div>
         <div class="ob-step-item" data-step="2">
           <div class="ob-step-num">3</div>
-          <div class="ob-step-label">Gender identity</div>
+          <div class="ob-step-label">Pronouns</div>
         </div>
         <div class="ob-step-item" data-step="3">
           <div class="ob-step-num">4</div>
-          <div class="ob-step-label">Pronouns</div>
+          <div class="ob-step-label">Orientation</div>
         </div>
         <div class="ob-step-item" data-step="4">
           <div class="ob-step-num">5</div>
-          <div class="ob-step-label">Orientation</div>
+          <div class="ob-step-label">Preferred genders</div>
         </div>
         <div class="ob-step-item" data-step="5">
           <div class="ob-step-num">6</div>
-          <div class="ob-step-label">Preferred genders</div>
+          <div class="ob-step-label">Age range</div>
         </div>
         <div class="ob-step-item" data-step="6">
           <div class="ob-step-num">7</div>
-          <div class="ob-step-label">Age range</div>
+          <div class="ob-step-label">Primary intent</div>
         </div>
         <div class="ob-step-item" data-step="7">
           <div class="ob-step-num">8</div>
-          <div class="ob-step-label">Primary intent</div>
+          <div class="ob-step-label">Long-term vision</div>
         </div>
         <div class="ob-step-item" data-step="8">
           <div class="ob-step-num">9</div>
-          <div class="ob-step-label">Long-term vision</div>
+          <div class="ob-step-label">Career chapter</div>
         </div>
         <div class="ob-step-item" data-step="9">
           <div class="ob-step-num">10</div>
-          <div class="ob-step-label">Career chapter</div>
+          <div class="ob-step-label">Life integration</div>
         </div>
         <div class="ob-step-item" data-step="10">
           <div class="ob-step-num">11</div>
-          <div class="ob-step-label">Life integration</div>
+          <div class="ob-step-label">Mobility profile</div>
         </div>
         <div class="ob-step-item" data-step="11">
           <div class="ob-step-num">12</div>
-          <div class="ob-step-label">Mobility profile</div>
-        </div>
-        <div class="ob-step-item" data-step="12">
-          <div class="ob-step-num">13</div>
           <div class="ob-step-label">Emotional compatibility</div>
         </div>
         <!-- Faith & religion step temporarily hidden -->
-        <div class="ob-step-item" data-step="13">
-          <div class="ob-step-num">14</div>
+        <div class="ob-step-item" data-step="12">
+          <div class="ob-step-num">13</div>
           <div class="ob-step-label">Lifestyle &amp; values</div>
         </div>
-        <div class="ob-step-item" data-step="14">
-          <div class="ob-step-num">15</div>
+        <div class="ob-step-item" data-step="13">
+          <div class="ob-step-num">14</div>
           <div class="ob-step-label">Legacy &amp; vision</div>
         </div>
       </nav>
@@ -1020,36 +1040,12 @@
           </svg>
           Back
         </button>
-        <div class="ob-step-counter">Step <span id="currentStepNum">1</span> of <span id="totalStepNum">15</span></div>
+        <div class="ob-step-counter">Step <span id="currentStepNum">1</span> of 15</div>
       </div>
 
-      <!-- ─── STEP 1: Your details (from OAuth consent) ─── -->
-      <div class="ob-question-panel" id="stepProfile">
-        <div class="ob-question-category">Your profile · 01</div>
-        <h2 class="ob-question-title">Confirm your<br><em>details.</em></h2>
-        <p class="ob-question-subtitle">
-          These came from your sign-in. Review them here — edit anything that
-          doesn't look right before we continue.
-        </p>
-        <div class="ob-profile-fields">
-          <div class="ob-profile-field">
-            <label for="obFirstName">First name</label>
-            <input type="text" id="obFirstName" class="ob-verify-input" placeholder="First name" autocomplete="given-name">
-          </div>
-          <div class="ob-profile-field">
-            <label for="obLastName">Last name</label>
-            <input type="text" id="obLastName" class="ob-verify-input" placeholder="Last name" autocomplete="family-name">
-          </div>
-          <div class="ob-profile-field">
-            <label for="obEmail">Email</label>
-            <input type="email" id="obEmail" class="ob-verify-input" placeholder="Email address" autocomplete="email">
-          </div>
-        </div>
-      </div>
-
-      <!-- ─── STEP 2: Identity Verification ─── -->
-      <div class="ob-question-panel hidden" id="stepVerify">
-        <div class="ob-question-category">Verification · 02</div>
+      <!-- ─── STEP 1: Identity Verification ─── -->
+      <div class="ob-question-panel" id="stepVerify">
+        <div class="ob-question-category">Verification · 01</div>
         <h2 class="ob-question-title">A private<br><em>screening process.</em></h2>
         <p class="ob-question-subtitle">
           Every LEVEL applicant completes a two-step trust check before
@@ -1076,19 +1072,43 @@
               <span class="ob-verify-status" data-state="idle">Not started</span>
             </div>
             <div class="ob-verify-body">
-              <label for="verifyIdFile" class="ob-verify-drop" id="verifyIdDrop">
-                <div class="ob-verify-drop-orb">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 19V5"/>
-                    <path d="M5 12l7-7 7 7"/>
-                  </svg>
+              <!-- Step A: choose ID type -->
+              <div id="idTypeSelector">
+                <p style="font-family:Inter,sans-serif;font-size:0.8rem;font-weight:400;color:rgba(245,237,224,0.55);margin-bottom:12px;">Select the type of government-issued ID you will upload:</p>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                  <button type="button" class="ob-id-type-btn" onclick="selectIdType(this,'Passport')">
+                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><circle cx="12" cy="10" r="3"/><path d="M7 20h10"/></svg>
+                    Passport
+                  </button>
+                  <button type="button" class="ob-id-type-btn" onclick="selectIdType(this,'Driver\'s Licence')">
+                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2"/><path d="M14 10h4M14 13h3"/></svg>
+                    Driver's Licence
+                  </button>
+                  <button type="button" class="ob-id-type-btn" onclick="selectIdType(this,'National ID Card')">
+                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h4M7 12h6M7 15h4"/></svg>
+                    National ID Card
+                  </button>
                 </div>
-                <div>
-                  <div class="ob-verify-drop-title" id="verifyIdDropTitle">Drag your ID here, or browse</div>
-                  <div class="ob-verify-drop-sub">PNG · JPG · PDF · Max 8MB · Encrypted at rest</div>
-                </div>
-                <input type="file" id="verifyIdFile" accept="image/png,image/jpeg,application/pdf" hidden onchange="onVerifyIdFile(event)" />
-              </label>
+              </div>
+
+              <!-- Step B: upload zone — shown only after type is chosen -->
+              <div id="idUploadZone" style="display:none;margin-top:14px;">
+                <p id="idTypeLabel" style="font-family:Inter,sans-serif;font-size:0.75rem;font-weight:500;color:#E8C7A0;letter-spacing:0.08em;margin-bottom:10px;"></p>
+                <label for="verifyIdFile" class="ob-verify-drop" id="verifyIdDrop">
+                  <div class="ob-verify-drop-orb">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 19V5"/>
+                      <path d="M5 12l7-7 7 7"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="ob-verify-drop-title" id="verifyIdDropTitle">Drag your document here, or browse</div>
+                    <div class="ob-verify-drop-sub">PNG · JPG · PDF · Max 8 MB · Encrypted at rest</div>
+                  </div>
+                  <input type="file" id="verifyIdFile" accept="image/png,image/jpeg,application/pdf" hidden onchange="onVerifyIdFile(event)" />
+                </label>
+                <button type="button" onclick="resetIdType()" style="margin-top:10px;background:none;border:none;font-family:Inter,sans-serif;font-size:0.74rem;color:rgba(245,237,224,0.40);cursor:pointer;padding:0;transition:color 0.2s;" onmouseover="this.style.color='rgba(245,237,224,0.70)'" onmouseout="this.style.color='rgba(245,237,224,0.40)'">← Change ID type</button>
+              </div>
             </div>
           </article>
 
@@ -1140,24 +1160,58 @@
 
       <!-- ─── STEP 2: Gender Identity ─── -->
       <div class="ob-question-panel hidden" id="step0">
-        <div class="ob-question-category">Identity · 03</div>
+        <div class="ob-question-category">Identity · 02</div>
         <h2 class="ob-question-title">How do you<br><em>identify?</em></h2>
         <p class="ob-question-subtitle">
           Choose what feels true to you. This is visible to your matches —
           who'll only see what helps you connect, never more.
         </p>
-        <div class="ob-options-grid" id="step0-options"><!-- loaded from DB --></div>
+        <div class="ob-options-grid">
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Male</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Female</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Non-binary</span>
+            <span class="ob-option-desc">Genderqueer, genderfluid, agender — and more</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Transgender</span>
+            <span class="ob-option-desc">Trans woman, trans man, two-spirit</span>
+          </div>
+          <div class="ob-option custom" onclick="selectCustom(this, 'identity')">
+            <div class="ob-option-check"></div>
+            <span class="ob-option-label">Add your own</span>
+            <span class="ob-option-desc">Type it the way you'd describe yourself</span>
+            <input type="text" class="ob-custom-input" placeholder="Type and press enter" style="display:none;margin-top:10px;width:100%;background:transparent;border:none;border-bottom:1px solid rgba(184,168,212,0.5);color:#FBF7EE;padding:6px 0;font-family:Inter,sans-serif;font-size:0.92rem;outline:none;"/>
+          </div>
+        </div>
       </div>
 
       <!-- ─── STEP 3: Pronouns ─── -->
       <div class="ob-question-panel hidden" id="step1">
-        <div class="ob-question-category">Identity · 04</div>
+        <div class="ob-question-category">Identity · 03</div>
         <h2 class="ob-question-title">What pronouns<br><em>do you go by?</em></h2>
         <p class="ob-question-subtitle">
           Pick one or more — and we'll make sure your matches see them and use them
           from the very first message.
         </p>
-        <div class="ob-chips-grid" id="step1-options"><!-- loaded from DB --></div>
+        <div class="ob-chips-grid">
+          <div class="ob-chip" onclick="toggleChip(this)">she / her</div>
+          <div class="ob-chip" onclick="toggleChip(this)">he / him</div>
+          <div class="ob-chip" onclick="toggleChip(this)">they / them</div>
+          <div class="ob-chip" onclick="toggleChip(this)">she / they</div>
+          <div class="ob-chip" onclick="toggleChip(this)">he / they</div>
+          <div class="ob-chip" onclick="toggleChip(this)">ze / zir</div>
+          <div class="ob-chip" onclick="toggleChip(this)">xe / xem</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Just my name</div>
+        </div>
         <p style="margin-top:24px;font-size:0.82rem;color:rgba(245,237,224,0.45);font-style:italic;">
           + Need something different? <a href="#" style="color:#B8A8D4;" onclick="openCustom('pronouns');return false;">Add your own pronouns →</a>
         </p>
@@ -1171,7 +1225,42 @@
           We use this to honour your matches, never to filter or rank you.
           You decide whether this appears on your profile.
         </p>
-        <div class="ob-options-grid" id="step2-options"><!-- loaded from DB --></div>
+        <div class="ob-options-grid">
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Straight</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Gay</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Lesbian</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Bisexual</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Pansexual</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Asexual</span>
+            <span class="ob-option-desc">Including demi-, grey-, and the wider spectrum</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Queer</span>
+          </div>
+          <div class="ob-option custom" onclick="selectCustom(this, 'orientation')">
+            <div class="ob-option-check"></div>
+            <span class="ob-option-label">Add your own</span>
+            <input type="text" class="ob-custom-input" placeholder="Type and press enter" style="display:none;margin-top:10px;width:100%;background:transparent;border:none;border-bottom:1px solid rgba(184,168,212,0.5);color:#FBF7EE;padding:6px 0;font-family:Inter,sans-serif;font-size:0.92rem;outline:none;"/>
+          </div>
+        </div>
       </div>
 
       <!-- ─── STEP 5: Preferred Genders ─── -->
@@ -1182,7 +1271,15 @@
           Select any combination — you can adjust these later, and we'll only
           surface matches who are open to you in return.
         </p>
-        <div class="ob-chips-grid" id="step3-options"><!-- loaded from DB --></div>
+        <div class="ob-chips-grid">
+          <div class="ob-chip" onclick="toggleChip(this)">Men</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Women</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Non-binary people</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Trans women</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Trans men</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Genderqueer people</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Everyone</div>
+        </div>
       </div>
 
       <!-- ─── STEP 6: Age range ─── -->
@@ -1320,7 +1417,33 @@
           Marriage timing, family planning, where you'd live — alignment here
           predicts long-term happiness more than almost anything else.
         </p>
-        <div class="ob-options-list" id="step6-options"><!-- loaded from DB --></div>
+        <div class="ob-options-list">
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Settled, building a family — possibly relocating</span>
+            <span class="ob-option-desc" style="margin-top:4px;">Partnership and family are this season's priority</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Peak career alongside a serious partner</span>
+            <span class="ob-option-desc" style="margin-top:4px;">Momentum and depth — both at once</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Exploring and growing together</span>
+            <span class="ob-option-desc" style="margin-top:4px;">Intentional, not yet fully settled</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Scaled back, focused on what matters</span>
+            <span class="ob-option-desc" style="margin-top:4px;">I've built what I set out to — depth over ambition</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Chosen family — by design, not default</span>
+            <span class="ob-option-desc" style="margin-top:4px;">Love and community above conventional milestones</span>
+          </div>
+        </div>
       </div>
 
       <!-- ─── STEP 9: Career Chapter ─── -->
@@ -1331,7 +1454,23 @@
           Where you are in your career shapes your rhythm, energy and partnership
           needs. We use this to align you with someone at a compatible pace.
         </p>
-        <div class="ob-options-list" id="step7-options"><!-- loaded from DB --></div>
+        <div class="ob-options-list">
+          <div class="ob-option" onclick="selectSingle(this)" data-chapter="scaling">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Scaling</span>
+            <span class="ob-option-desc" style="margin-top:4px;">Building momentum at the top of my field — clear vision, relentless execution.</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)" data-chapter="established">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Established</span>
+            <span class="ob-option-desc" style="margin-top:4px;">I've built what I set out to. Now optimising for excellence and integrated balance.</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)" data-chapter="transitioning">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Transitioning</span>
+            <span class="ob-option-desc" style="margin-top:4px;">An intentional inflection — pivoting, founding, or stepping into the next chapter.</span>
+          </div>
+        </div>
       </div>
 
       <!-- ─── STEP 10: Life Integration Style ─── -->
@@ -1342,7 +1481,20 @@
           The way you integrate professional and personal life reveals a lot
           about partnership rhythm. Choose the one that's most true today.
         </p>
-        <div class="ob-options-grid" id="stepLifeInt-options"><!-- loaded from DB --></div>
+        <div class="ob-options-grid">
+          <div class="ob-option" onclick="selectSingle(this)" data-integration="blended">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">◐</span>
+            <span class="ob-option-label">Blended</span>
+            <span class="ob-option-desc">Work, life and partnership flow together. I bring my partner into my world.</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)" data-integration="segmented">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">◑</span>
+            <span class="ob-option-label">Segmented</span>
+            <span class="ob-option-desc">Clear lines between professional and personal. Evenings and weekends are sacred.</span>
+          </div>
+        </div>
       </div>
 
       <!-- ─── STEP 11: Mobility Profile ─── -->
@@ -1353,7 +1505,23 @@
           Geographic compatibility is one of the strongest predictors of a
           partnership that lasts. Tell us how rooted — or how global — your life is.
         </p>
-        <div class="ob-options-list" id="stepMobility-options"><!-- loaded from DB --></div>
+        <div class="ob-options-list">
+          <div class="ob-option" onclick="selectSingle(this)" data-mobility="rooted">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Rooted</span>
+            <span class="ob-option-desc" style="margin-top:4px;">Anchored in one city, building a home. I value continuity, community and a place that knows me.</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)" data-mobility="frequent">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Frequent traveller</span>
+            <span class="ob-option-desc" style="margin-top:4px;">A home base I love, with regular travel for work or pleasure. Bicoastal or international cadence.</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)" data-mobility="global">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Global citizen</span>
+            <span class="ob-option-desc" style="margin-top:4px;">Multiple cities, fluid base. Comfortable building life and partnership across borders.</span>
+          </div>
+        </div>
       </div>
 
       <!-- ─── STEP 12: Emotional compatibility ─── -->
@@ -1364,7 +1532,32 @@
           Emotional fluency is the strongest predictor of relationships that
           last. There's no right answer — only self-awareness.
         </p>
-        <div class="ob-options-grid" id="step8-options"><!-- loaded from DB --></div>
+        <div class="ob-options-grid">
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">⊙</span>
+            <span class="ob-option-label">I address it directly but calmly</span>
+            <span class="ob-option-desc">I value honest resolution over avoidance</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">⊚</span>
+            <span class="ob-option-label">I need space to process first</span>
+            <span class="ob-option-desc">My responses are deliberate, not reactive</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">⊕</span>
+            <span class="ob-option-label">I seek to understand first</span>
+            <span class="ob-option-desc">Empathy before reaction</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">⊘</span>
+            <span class="ob-option-label">I step back and de-escalate</span>
+            <span class="ob-option-desc">Peace preserves what we've built</span>
+          </div>
+        </div>
       </div>
 
       <!-- ─── STEP 13: Faith & religion ─── -->
@@ -1433,7 +1626,28 @@
           Select anything that genuinely reflects how you like to spend your time
           and energy outside of work.
         </p>
-        <div class="ob-chips-grid" id="step9-options"><!-- loaded from DB --></div>
+        <div class="ob-chips-grid">
+          <div class="ob-chip" onclick="toggleChip(this)">Fine dining</div>
+          <div class="ob-chip" onclick="toggleChip(this)">International travel</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Art &amp; culture</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Fitness &amp; wellness</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Live music &amp; theatre</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Outdoor adventures</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Wine &amp; spirits</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Philosophy &amp; ideas</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Philanthropy</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Cooking</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Meditation</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Sober &amp; curious</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Reading &amp; literature</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Architecture</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Fashion &amp; style</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Sailing &amp; water</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Single-parent life</div>
+          <div class="ob-chip" onclick="toggleChip(this)">LGBTQIA+ community</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Faith &amp; spirituality</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Collecting</div>
+        </div>
       </div>
 
       <!-- ─── STEP 15: Legacy & Vision ─── -->
@@ -1482,14 +1696,60 @@
       </div>
 
       <!-- Footer Nav -->
-      <div class="ob-footer" id="obFooter">
-        <button class="ob-skip" onclick="nextStep()">Skip this question</button>
+      <div class="ob-footer" id="obFooter" style="justify-content:flex-end;">
         <button class="ob-next-btn" onclick="nextStep()">
           Continue
           <div class="ob-next-arrow">→</div>
         </button>
       </div>
     </main>
+  </div>
+
+  <!-- ── Selfie Camera Modal ── -->
+  <div id="cameraModal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(2,5,18,0.95);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);align-items:center;justify-content:center;flex-direction:column;padding:24px;">
+    <div style="max-width:520px;width:100%;text-align:center;">
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+        <div style="text-align:left;">
+          <div style="font-size:0.62rem;letter-spacing:0.26em;text-transform:uppercase;color:#9BCBB4;font-weight:600;font-family:Inter,sans-serif;margin-bottom:4px;">Selfie verification</div>
+          <div style="font-family:'Fraunces',serif;font-size:1.4rem;font-weight:400;color:#FBF7EE;letter-spacing:-0.01em;">Secure camera</div>
+        </div>
+        <button id="cameraCloseBtn" type="button" aria-label="Close camera" style="width:40px;height:40px;border-radius:50%;background:rgba(245,237,224,0.06);border:1px solid rgba(245,237,224,0.12);color:rgba(245,237,224,0.75);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;flex-shrink:0;">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        </button>
+      </div>
+
+      <!-- Live feed / captured photo -->
+      <div style="position:relative;border-radius:20px;overflow:hidden;background:rgba(245,237,224,0.03);border:1px solid rgba(245,237,224,0.10);aspect-ratio:4/3;margin-bottom:18px;">
+        <video id="cameraVideo" playsinline autoplay muted style="width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1);"></video>
+        <img id="selfiePreview" alt="Your selfie" style="width:100%;height:100%;object-fit:cover;display:none;position:absolute;inset:0;" />
+        <!-- Oval face guide overlay -->
+        <div id="cameraGuide" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+          <div style="width:54%;padding-top:68%;border-radius:50%;position:relative;margin-top:-8%;">
+            <div style="position:absolute;inset:0;border-radius:50%;border:2px solid rgba(155,203,180,0.65);box-shadow:0 0 0 9999px rgba(2,5,18,0.42);"></div>
+          </div>
+        </div>
+      </div>
+
+      <p id="cameraStatus" style="font-family:Inter,sans-serif;font-size:0.86rem;font-weight:300;color:rgba(245,237,224,0.62);margin-bottom:20px;line-height:1.6;min-height:2.5em;"></p>
+
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <button id="cameraCaptureBtn" type="button" style="display:inline-flex;align-items:center;gap:10px;padding:14px 30px;background:linear-gradient(135deg,#9B6E3F,#D4A574,#E8C7A0);color:#1A1335;border-radius:999px;border:none;font-family:Inter,sans-serif;font-size:0.76rem;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;cursor:pointer;box-shadow:0 4px 22px rgba(212,165,116,0.30);">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="3"/><path d="M5 7h3l2-3h4l2 3h3v12H5z"/></svg>
+          Capture photo
+        </button>
+        <button id="cameraRetakeBtn" type="button" style="display:none;align-items:center;gap:8px;padding:14px 24px;background:rgba(245,237,224,0.06);color:rgba(245,237,224,0.78);border-radius:999px;border:1px solid rgba(245,237,224,0.14);font-family:Inter,sans-serif;font-size:0.76rem;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">
+          Retake
+        </button>
+        <button id="cameraUseBtn" type="button" style="display:none;align-items:center;gap:10px;padding:14px 30px;background:linear-gradient(135deg,#1D5E4A,#2A8C6A,#9BCBB4);color:#0A1F18;border-radius:999px;border:none;font-family:Inter,sans-serif;font-size:0.76rem;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;cursor:pointer;box-shadow:0 4px 22px rgba(155,203,180,0.28);">
+          ✓ Use this photo
+        </button>
+      </div>
+
+      <p style="margin-top:20px;font-family:Inter,sans-serif;font-size:0.72rem;color:rgba(245,237,224,0.35);line-height:1.5;">
+        Encrypted · Reviewed by a person, not an algorithm · Never displayed publicly
+      </p>
+    </div>
   </div>
 
   <script type="module" src="/js/onboarding.js"></script>

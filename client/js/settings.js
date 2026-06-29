@@ -1,6 +1,5 @@
 import { store } from './store.js'
 import { requireAuth, initBodyFade, initNav } from './app.js'
-import { signOut as ssoSignOut } from './sso.js'
 
 requireAuth()
 initBodyFade()
@@ -53,9 +52,9 @@ function pretty(key) {
 }
 
 /* ─── Sign out ─── */
-window.signOut = async function () {
+window.signOut = function () {
   if (!confirm('Sign out of LEVEL on this device?')) return
-  await ssoSignOut()   // clears the Supabase session + local store
+  store.logout()
   window.location.href = 'auth.html'
 }
 
