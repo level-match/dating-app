@@ -7,6 +7,8 @@ const cors         = require('cors')
 const cookieParser = require('cookie-parser')
 const rateLimit    = require('express-rate-limit')
 
+const authRoutes         = require('./routes/auth')
+const refRoutes          = require('./routes/ref')
 const subscriptionRoutes = require('./routes/subscriptions')
 const webhookRoutes      = require('./routes/webhooks')
 const adminAuthRoutes    = require('./routes/admin-auth')
@@ -19,10 +21,18 @@ const PORT = Number(process.env.PORT || 4000)
 /* ─── Security headers ──────────────────────────────────────────*/
 app.use(helmet())
 app.use(cors({
-  origin:      [
-    process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
-    process.env.ADMIN_ORIGIN    || 'http://localhost:3000',
-  ],
+  origin: (origin, cb) => {
+    const allowed = [
+      process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
+      process.env.ADMIN_ORIGIN    || 'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:3002',
+      'http://localhost:3003',
+      'http://localhost:5173',
+    ]
+    if (!origin || allowed.includes(origin)) return cb(null, true)
+    cb(new Error(`CORS: origin ${origin} not allowed`))
+  },
   credentials: true,
   methods:     ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
 }))
@@ -45,6 +55,8 @@ app.use((req, res, next) => {
 })
 
 /* ─── Routes ────────────────────────────────────────────────────*/
+app.use('/api/auth',                         authRoutes)
+app.use('/api/ref',                          refRoutes)
 app.use('/api',           paymentLimiter,    subscriptionRoutes)
 app.use('/webhooks',                         webhookRoutes)
 app.use('/admin/auth',    adminLoginLimiter,  adminAuthRoutes)

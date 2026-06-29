@@ -1,6 +1,8 @@
 import { store } from './store.js'
 import { requireAuth, initBodyFade } from './app.js'
 import { evaluateEligibility } from './matching-policy.js'
+import { apiFetch } from './sso.js'
+import { getRefData } from './ref-data.js'
 
 // Onboarding is a protected route — only reachable after MFA is complete.
 requireAuth()
@@ -14,26 +16,117 @@ initBodyFade()
  * force renumbering of every existing panel element.
  */
 const STEP_IDS = [
-  'stepVerify',     //  1. Identity verification (Gov ID + Selfie)
-  'step0',          //  2. Gender identity
-  'step1',          //  3. Pronouns
-  'step2',          //  4. Orientation
-  'step3',          //  5. Preferred genders
-  'step4',          //  6. Age range
-  'step5',          //  7. Primary intent
-  'step6',          //  8. Long-term vision
-  'step7',          //  9. Career chapter
-  'stepLifeInt',    // 10. Life integration style
-  'stepMobility',   // 11. Mobility profile
-  'step8',          // 12. Emotional compatibility
+  'stepVerify',     //  0. Identity verification (auto-skipped for now; restore when KYC is ready)
+  'step0',          //  1. Gender identity
+  'step1',          //  2. Pronouns
+  'step2',          //  3. Orientation
+  'step3',          //  4. Preferred genders
+  'step4',          //  5. Age range
+  'step5',          //  6. Primary intent
+  'step6',          //  7. Long-term vision
+  'step7',          //  8. Career chapter
+  'stepLifeInt',    //  9. Life integration style
+  'stepMobility',   // 10. Mobility profile
+  'step8',          // 11. Emotional compatibility
   // 'stepReligion',   // Faith & religion — temporarily hidden (re-add to restore)
-  'step9',          // 13. Lifestyle & values
-  'step10',         // 14. Legacy & vision
+  'step9',          // 12. Lifestyle & values
+  'step10',         // 13. Legacy & vision
 ]
 
-let currentStep = 0
+// Start at 1 to skip identity verification — step still exists in the array
+// so the sidebar renders it, but users land directly on gender identity.
+const SKIP_TO_STEP = 0
+let currentStep = SKIP_TO_STEP
 const totalSteps = STEP_IDS.length
 const answers = {}
+
+// Initialise panel visibility: show only the starting step
+;(() => {
+  STEP_IDS.forEach((id, i) => {
+    const el = document.getElementById(id)
+    if (!el) return
+    if (i === currentStep) el.classList.remove('hidden')
+    else el.classList.add('hidden')
+  })
+})()
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Dynamic option rendering — loads all choices from /api/ref/all so
+   the UI always reflects what's in the database (no hardcoded labels).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function renderOptions(container, items, { single = true, hasCustom = false, customKey = '' } = {}) {
+  if (!container || !items?.length) return
+  const handler = single ? 'selectSingle(this)' : 'toggleChip(this)'
+
+  container.innerHTML = items
+    .filter(item => item.id !== 99)   // 99 = Custom sentinel — added separately below
+    .map(item => `
+      <div class="ob-option" onclick="${handler}">
+        <div class="ob-option-check">✓</div>
+        <span class="ob-option-label">${item.label}</span>
+      </div>`).join('')
+
+  if (hasCustom) {
+    container.insertAdjacentHTML('beforeend', `
+      <div class="ob-option custom" onclick="selectCustom(this, '${customKey}')">
+        <div class="ob-option-check"></div>
+        <span class="ob-option-label">Add your own</span>
+        <span class="ob-option-desc">Type it the way you'd describe yourself</span>
+        <input type="text" class="ob-custom-input" placeholder="Type and press enter"
+          style="display:none;margin-top:10px;width:100%;background:transparent;border:none;
+                 border-bottom:1px solid rgba(184,168,212,0.5);color:#FBF7EE;padding:6px 0;
+                 font-family:Inter,sans-serif;font-size:0.92rem;outline:none;"/>
+      </div>`)
+  }
+}
+
+function renderChips(container, items) {
+  if (!container || !items?.length) return
+  container.innerHTML = items.map(item =>
+    `<div class="ob-chip" onclick="toggleChip(this)">${item.label}</div>`
+  ).join('')
+}
+
+// Fetch ref data and populate every option container in the DOM
+getRefData().then(ref => {
+  // step0 — Gender identity (single select + custom)
+  renderOptions(document.getElementById('step0-options'), ref.genders,
+    { single: true, hasCustom: true, customKey: 'identity' })
+
+  // step1 — Pronouns (multi chip)
+  renderChips(document.getElementById('step1-options'), ref.pronouns)
+
+  // step2 — Orientation (single select + custom)
+  renderOptions(document.getElementById('step2-options'), ref.orientations,
+    { single: true, hasCustom: true, customKey: 'orientation' })
+
+  // step3 — Preferred genders (multi chip)
+  renderChips(document.getElementById('step3-options'), ref.preferredGenders)
+
+  // step5 intent panel has custom layout — keep its static HTML
+
+  // step6 — Long-term vision (list layout)
+  renderOptions(document.getElementById('step6-options'), ref.longTermVisions)
+
+  // step7 — Career chapter (list layout)
+  renderOptions(document.getElementById('step7-options'), ref.careerChapters)
+
+  // stepLifeInt — Life integration
+  renderOptions(document.getElementById('stepLifeInt-options'), ref.lifeIntegrations)
+
+  // stepMobility — Mobility profile (list layout)
+  renderOptions(document.getElementById('stepMobility-options'), ref.mobilityProfiles)
+
+  // step8 — Emotional compatibility
+  renderOptions(document.getElementById('step8-options'), ref.emotionalStyles)
+
+  // step9 — Lifestyle values (multi chip)
+  renderChips(document.getElementById('step9-options'), ref.lifestyleValues)
+
+}).catch(err => {
+  console.warn('[onboarding] Could not load ref data:', err.message)
+})
 
 function panelEl(i) {
   return document.getElementById(STEP_IDS[i])
@@ -109,7 +202,7 @@ window.nextStep = function () {
 }
 
 window.prevStep = function () {
-  if (currentStep > 0) {
+  if (currentStep > SKIP_TO_STEP) {
     panelEl(currentStep).classList.add('hidden')
     currentStep--
     panelEl(currentStep).classList.remove('hidden')
@@ -119,11 +212,11 @@ window.prevStep = function () {
   }
 }
 
-function showCompletion() {
+async function showCompletion() {
   saveCurrentStep()
   store.setOnboarding(answers)
-  // Final eligibility decision from the protected matching policy.
   store.setMatchingEligibility(evaluateEligibility(answers.intentCategory || answers['step5']?.[0]))
+
   panelEl(totalSteps - 1).classList.add('hidden')
   document.getElementById('completionScreen').style.display = 'flex'
   document.getElementById('obFooter').style.display = 'none'
@@ -132,6 +225,53 @@ function showCompletion() {
   })
   document.getElementById('progressFill').style.width = '100%'
   document.getElementById('progressPercent').textContent = '100%'
+
+  // Build the profile payload from collected answers
+  const user    = store.getUser()
+  const ageData = answers['step4'] || {}
+
+  const pick = (key) => {
+    const v = answers[key]
+    if (!v) return null
+    if (Array.isArray(v)) return v.length === 1 ? v[0] : v.join(', ')
+    return v
+  }
+
+  const payload = {
+    firstName:              user?.firstName || '',
+    lastName:               user?.lastName  || '',
+    avatarUrl:              user?.avatarUrl || '',
+    genderIdentity:         pick('step0'),
+    pronouns:               answers['step1']  || [],
+    orientation:            pick('step2'),
+    preferredGenders:       answers['step3']  || [],
+    ageRangeMin:            ageData.min || null,
+    ageRangeMax:            ageData.max || null,
+    primaryIntent:          pick('step5'),
+    intentCategory:         answers.intentCategory || null,
+    longTermVision:         pick('step6'),
+    careerChapter:          pick('step7'),
+    lifeIntegration:        pick('stepLifeInt'),
+    mobilityProfile:        pick('stepMobility'),
+    emotionalCompatibility: pick('step8'),
+    lifestyleValues:        answers['step9']  || [],
+    legacyVision:           answers['step10'] || '',
+  }
+
+  try {
+    const res = await apiFetch('/api/auth/profile', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      console.error('[onboarding] profile save failed:', err)
+    } else {
+      console.log('[onboarding] profile saved to database.')
+    }
+  } catch (e) {
+    console.error('[onboarding] profile save error:', e)
+  }
 }
 
 window.selectOption = function (el) { el.classList.toggle('selected') }

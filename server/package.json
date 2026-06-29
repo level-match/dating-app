@@ -7,9 +7,16 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "migrate": "node db/migrate.js",
-    "migrate:admin": "node db/admin-migrate.js",
-    "seed:admin": "node db/admin-seed.js"
+    "migrate:001": "node db/migrations/20260629_001_initial_schema.js",
+    "migrate:002": "node db/migrations/20260629_002_admin_schema.js",
+    "migrate:003": "node db/migrations/20260629_003_profiles_table.js",
+    "migrate:004": "node db/migrations/20260629_004_lookup_tables.js",
+    "migrate:005": "node db/migrations/20260629_005_preferred_genders.js",
+    "seed:001": "node db/seeds/20260629_001_admin_user.js",
+    "seed:002": "node db/seeds/20260629_002_lookup_values.js",
+    "seed:003": "node db/seeds/20260629_003_preferred_genders.js",
+    "db:reset": "node db/reset.js",
+    "db:fresh": "npm run db:reset && npm run migrate:001 && npm run migrate:002 && npm run migrate:003 && npm run migrate:004 && npm run migrate:005 && npm run seed:001 && npm run seed:002 && npm run seed:003"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

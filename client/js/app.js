@@ -4,6 +4,7 @@
 
 import { store } from './store.js'
 import { getTierMeta } from './membership.js'
+import { apiFetch } from './sso.js'
 
 // ─── Nav scroll effect ───
 export function initNav() {
@@ -103,6 +104,49 @@ export function requireAuth() {
   if (store.needsMfa()) {
     window.location.replace('mfa.html')
   }
+}
+
+// ─── Fetch real profile from API and refresh the store + DOM ───────────────
+// Call this on any protected page to ensure the UI shows live DB data,
+// not just whatever was last written to localStorage.
+export async function hydrateFromProfile() {
+  try {
+    const res = await apiFetch('/api/auth/profile')
+    if (!res.ok) return hydrateUser() // fall back to store
+
+    const { profile } = await res.json()
+    if (!profile) return hydrateUser()
+
+    // Merge API data into store — preserves any local-only fields (tier, etc.)
+    const current = store.getUser() || store.getDefaultUser()
+    store.setUser({
+      ...current,
+      firstName:   profile.first_name   || current.firstName,
+      lastName:    profile.last_name    || current.lastName,
+      avatarUrl:   profile.avatar_url   || current.avatarUrl,
+      // Resolved label strings from joined queries
+      genderIdentity:         profile.gender_identity,
+      orientation:            profile.orientation,
+      pronouns:               profile.pronouns?.map(p => p.label) || [],
+      preferredGenders:       profile.preferred_genders?.map(g => g.label) || [],
+      ageRangeMin:            profile.age_range_min,
+      ageRangeMax:            profile.age_range_max,
+      primaryIntent:          profile.primary_intent,
+      intentCategory:         profile.intent_category,
+      longTermVision:         profile.long_term_vision,
+      careerChapter:          profile.career_chapter,
+      lifeIntegration:        profile.life_integration,
+      mobilityProfile:        profile.mobility_profile,
+      emotionalStyle:         profile.emotional_style,
+      lifestyleValues:        profile.lifestyle_values?.map(v => v.label) || [],
+      legacyVision:           profile.legacy_vision,
+      profileLoadedFromApi:   true,
+    })
+  } catch (e) {
+    console.warn('[app] hydrateFromProfile failed:', e.message)
+  }
+
+  return hydrateUser()
 }
 
 // ─── Init shared across all pages ───

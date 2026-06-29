@@ -1099,32 +1099,7 @@
           Choose what feels true to you. This is visible to your matches —
           who'll only see what helps you connect, never more.
         </p>
-        <div class="ob-options-grid">
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Male</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Female</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Non-binary</span>
-            <span class="ob-option-desc">Genderqueer, genderfluid, agender — and more</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Transgender</span>
-            <span class="ob-option-desc">Trans woman, trans man, two-spirit</span>
-          </div>
-          <div class="ob-option custom" onclick="selectCustom(this, 'identity')">
-            <div class="ob-option-check"></div>
-            <span class="ob-option-label">Add your own</span>
-            <span class="ob-option-desc">Type it the way you'd describe yourself</span>
-            <input type="text" class="ob-custom-input" placeholder="Type and press enter" style="display:none;margin-top:10px;width:100%;background:transparent;border:none;border-bottom:1px solid rgba(184,168,212,0.5);color:#FBF7EE;padding:6px 0;font-family:Inter,sans-serif;font-size:0.92rem;outline:none;"/>
-          </div>
-        </div>
+        <div class="ob-options-grid" id="step0-options"><!-- loaded from DB --></div>
       </div>
 
       <!-- ─── STEP 3: Pronouns ─── -->
@@ -1135,16 +1110,7 @@
           Pick one or more — and we'll make sure your matches see them and use them
           from the very first message.
         </p>
-        <div class="ob-chips-grid">
-          <div class="ob-chip" onclick="toggleChip(this)">she / her</div>
-          <div class="ob-chip" onclick="toggleChip(this)">he / him</div>
-          <div class="ob-chip" onclick="toggleChip(this)">they / them</div>
-          <div class="ob-chip" onclick="toggleChip(this)">she / they</div>
-          <div class="ob-chip" onclick="toggleChip(this)">he / they</div>
-          <div class="ob-chip" onclick="toggleChip(this)">ze / zir</div>
-          <div class="ob-chip" onclick="toggleChip(this)">xe / xem</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Just my name</div>
-        </div>
+        <div class="ob-chips-grid" id="step1-options"><!-- loaded from DB --></div>
         <p style="margin-top:24px;font-size:0.82rem;color:rgba(245,237,224,0.45);font-style:italic;">
           + Need something different? <a href="#" style="color:#B8A8D4;" onclick="openCustom('pronouns');return false;">Add your own pronouns →</a>
         </p>
@@ -1158,42 +1124,7 @@
           We use this to honour your matches, never to filter or rank you.
           You decide whether this appears on your profile.
         </p>
-        <div class="ob-options-grid">
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Straight</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Gay</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Lesbian</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Bisexual</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Pansexual</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Asexual</span>
-            <span class="ob-option-desc">Including demi-, grey-, and the wider spectrum</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Queer</span>
-          </div>
-          <div class="ob-option custom" onclick="selectCustom(this, 'orientation')">
-            <div class="ob-option-check"></div>
-            <span class="ob-option-label">Add your own</span>
-            <input type="text" class="ob-custom-input" placeholder="Type and press enter" style="display:none;margin-top:10px;width:100%;background:transparent;border:none;border-bottom:1px solid rgba(184,168,212,0.5);color:#FBF7EE;padding:6px 0;font-family:Inter,sans-serif;font-size:0.92rem;outline:none;"/>
-          </div>
-        </div>
+        <div class="ob-options-grid" id="step2-options"><!-- loaded from DB --></div>
       </div>
 
       <!-- ─── STEP 5: Preferred Genders ─── -->
@@ -1204,15 +1135,7 @@
           Select any combination — you can adjust these later, and we'll only
           surface matches who are open to you in return.
         </p>
-        <div class="ob-chips-grid">
-          <div class="ob-chip" onclick="toggleChip(this)">Men</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Women</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Non-binary people</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Trans women</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Trans men</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Genderqueer people</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Everyone</div>
-        </div>
+        <div class="ob-chips-grid" id="step3-options"><!-- loaded from DB --></div>
       </div>
 
       <!-- ─── STEP 6: Age range ─── -->
@@ -1350,33 +1273,7 @@
           Marriage timing, family planning, where you'd live — alignment here
           predicts long-term happiness more than almost anything else.
         </p>
-        <div class="ob-options-list">
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Settled, building a family — possibly relocating</span>
-            <span class="ob-option-desc" style="margin-top:4px;">Partnership and family are this season's priority</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Peak career alongside a serious partner</span>
-            <span class="ob-option-desc" style="margin-top:4px;">Momentum and depth — both at once</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Exploring and growing together</span>
-            <span class="ob-option-desc" style="margin-top:4px;">Intentional, not yet fully settled</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Scaled back, focused on what matters</span>
-            <span class="ob-option-desc" style="margin-top:4px;">I've built what I set out to — depth over ambition</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Chosen family — by design, not default</span>
-            <span class="ob-option-desc" style="margin-top:4px;">Love and community above conventional milestones</span>
-          </div>
-        </div>
+        <div class="ob-options-list" id="step6-options"><!-- loaded from DB --></div>
       </div>
 
       <!-- ─── STEP 9: Career Chapter ─── -->
@@ -1387,23 +1284,7 @@
           Where you are in your career shapes your rhythm, energy and partnership
           needs. We use this to align you with someone at a compatible pace.
         </p>
-        <div class="ob-options-list">
-          <div class="ob-option" onclick="selectSingle(this)" data-chapter="scaling">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Scaling</span>
-            <span class="ob-option-desc" style="margin-top:4px;">Building momentum at the top of my field — clear vision, relentless execution.</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)" data-chapter="established">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Established</span>
-            <span class="ob-option-desc" style="margin-top:4px;">I've built what I set out to. Now optimising for excellence and integrated balance.</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)" data-chapter="transitioning">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Transitioning</span>
-            <span class="ob-option-desc" style="margin-top:4px;">An intentional inflection — pivoting, founding, or stepping into the next chapter.</span>
-          </div>
-        </div>
+        <div class="ob-options-list" id="step7-options"><!-- loaded from DB --></div>
       </div>
 
       <!-- ─── STEP 10: Life Integration Style ─── -->
@@ -1414,20 +1295,7 @@
           The way you integrate professional and personal life reveals a lot
           about partnership rhythm. Choose the one that's most true today.
         </p>
-        <div class="ob-options-grid">
-          <div class="ob-option" onclick="selectSingle(this)" data-integration="blended">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-icon">◐</span>
-            <span class="ob-option-label">Blended</span>
-            <span class="ob-option-desc">Work, life and partnership flow together. I bring my partner into my world.</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)" data-integration="segmented">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-icon">◑</span>
-            <span class="ob-option-label">Segmented</span>
-            <span class="ob-option-desc">Clear lines between professional and personal. Evenings and weekends are sacred.</span>
-          </div>
-        </div>
+        <div class="ob-options-grid" id="stepLifeInt-options"><!-- loaded from DB --></div>
       </div>
 
       <!-- ─── STEP 11: Mobility Profile ─── -->
@@ -1438,23 +1306,7 @@
           Geographic compatibility is one of the strongest predictors of a
           partnership that lasts. Tell us how rooted — or how global — your life is.
         </p>
-        <div class="ob-options-list">
-          <div class="ob-option" onclick="selectSingle(this)" data-mobility="rooted">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Rooted</span>
-            <span class="ob-option-desc" style="margin-top:4px;">Anchored in one city, building a home. I value continuity, community and a place that knows me.</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)" data-mobility="frequent">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Frequent traveller</span>
-            <span class="ob-option-desc" style="margin-top:4px;">A home base I love, with regular travel for work or pleasure. Bicoastal or international cadence.</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)" data-mobility="global">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-label">Global citizen</span>
-            <span class="ob-option-desc" style="margin-top:4px;">Multiple cities, fluid base. Comfortable building life and partnership across borders.</span>
-          </div>
-        </div>
+        <div class="ob-options-list" id="stepMobility-options"><!-- loaded from DB --></div>
       </div>
 
       <!-- ─── STEP 12: Emotional compatibility ─── -->
@@ -1465,32 +1317,7 @@
           Emotional fluency is the strongest predictor of relationships that
           last. There's no right answer — only self-awareness.
         </p>
-        <div class="ob-options-grid">
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-icon">⊙</span>
-            <span class="ob-option-label">I address it directly but calmly</span>
-            <span class="ob-option-desc">I value honest resolution over avoidance</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-icon">⊚</span>
-            <span class="ob-option-label">I need space to process first</span>
-            <span class="ob-option-desc">My responses are deliberate, not reactive</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-icon">⊕</span>
-            <span class="ob-option-label">I seek to understand first</span>
-            <span class="ob-option-desc">Empathy before reaction</span>
-          </div>
-          <div class="ob-option" onclick="selectSingle(this)">
-            <div class="ob-option-check">✓</div>
-            <span class="ob-option-icon">⊘</span>
-            <span class="ob-option-label">I step back and de-escalate</span>
-            <span class="ob-option-desc">Peace preserves what we've built</span>
-          </div>
-        </div>
+        <div class="ob-options-grid" id="step8-options"><!-- loaded from DB --></div>
       </div>
 
       <!-- ─── STEP 13: Faith & religion ─── -->
@@ -1559,28 +1386,7 @@
           Select anything that genuinely reflects how you like to spend your time
           and energy outside of work.
         </p>
-        <div class="ob-chips-grid">
-          <div class="ob-chip" onclick="toggleChip(this)">Fine dining</div>
-          <div class="ob-chip" onclick="toggleChip(this)">International travel</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Art &amp; culture</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Fitness &amp; wellness</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Live music &amp; theatre</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Outdoor adventures</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Wine &amp; spirits</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Philosophy &amp; ideas</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Philanthropy</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Cooking</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Meditation</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Sober &amp; curious</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Reading &amp; literature</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Architecture</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Fashion &amp; style</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Sailing &amp; water</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Single-parent life</div>
-          <div class="ob-chip" onclick="toggleChip(this)">LGBTQIA+ community</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Faith &amp; spirituality</div>
-          <div class="ob-chip" onclick="toggleChip(this)">Collecting</div>
-        </div>
+        <div class="ob-chips-grid" id="step9-options"><!-- loaded from DB --></div>
       </div>
 
       <!-- ─── STEP 15: Legacy & Vision ─── -->

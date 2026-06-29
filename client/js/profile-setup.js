@@ -1,9 +1,12 @@
 import { store } from './store.js'
 import { evaluateEligibility } from './matching-policy.js'
-import { requireAuth, initBodyFade } from './app.js'
+import { requireAuth, initBodyFade, hydrateFromProfile } from './app.js'
 
 requireAuth()
 initBodyFade()
+
+// Fetch the live profile from the DB and pre-fill the form
+hydrateFromProfile().then(() => applyStoreToForm())
 
 window.updatePreview = function() {
   const nameInput = document.querySelector('input[placeholder="Alexandra"]')
@@ -310,3 +313,41 @@ if (bioInput) {
 }
 
 updateCompletionRing()
+
+/* ─── Pre-fill form from store (runs twice: immediately + after API hydration) ─── */
+function applyStoreToForm() {
+  const user = store.getUser()
+  if (!user) return
+
+  // Name field
+  const nameInput = document.querySelector('input[placeholder="Alexandra"]')
+  if (nameInput && user.firstName) {
+    nameInput.value = user.firstName
+    const lastInitial = user.lastName ? ` ${user.lastName.charAt(0)}.` : ''
+    const previewName = document.getElementById('previewName')
+    if (previewName) previewName.textContent = user.firstName + lastInitial
+  }
+
+  // Email field
+  const emailInput = document.querySelector('input[type="email"]')
+  if (emailInput && user.email) emailInput.value = user.email
+
+  // Bio
+  const bioEl = document.getElementById('bioInput')
+  if (bioEl && user.legacyVision && !bioEl.value) {
+    bioEl.value = user.legacyVision
+    const count = document.getElementById('bioCount')
+    if (count) count.textContent = bioEl.value.length
+  }
+
+  // Google / saved avatar into photo slot 0 if nothing uploaded yet
+  if (user.avatarUrl && !user.photos?.length && !photoState[0]) {
+    photoState[0] = { src: user.avatarUrl, name: 'profile-avatar' }
+    renderAllSlots()
+  }
+
+  updateCompletionRing()
+}
+
+// Run once immediately from whatever is already in the store
+applyStoreToForm()

@@ -1,4 +1,4 @@
-/* ════════════════════════════════════════════════════════════════
+﻿/* ════════════════════════════════════════════════════════════════
    LEVEL — Email-code auth (passwordless registration + login)
 
    auth.html: user types an email → Supabase emails a 6-digit code →
@@ -60,6 +60,7 @@ window.handleEmailAuth = async function (intent) {
   if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label || 'Continue with email' }
 
   if (error) {
+    console.error('[email-auth] signInWithOtp error:', error.message, error)
     setStatus(status, 'error', friendlySendError(error.message, intent))
     return
   }
@@ -68,16 +69,18 @@ window.handleEmailAuth = async function (intent) {
   openCodeModal(email, intent)
 }
 
-function friendlySendError(message = '', intent) {
-  if (/not allowed|user not found|signups? not/i.test(message)) {
+function friendlySendError(message, intent) {
+  const msg = (message || '').toLowerCase()
+  if (msg.includes('not allowed') || msg.includes('user not found') || msg.includes('signup') || msg.includes('otp')) {
     return intent === 'signin'
-      ? 'No account found for that email. Use “Apply Now” to join.'
-      : 'Could not start signup for that email. Please try again.'
+      ? 'No account found for that email. Use "Sign Up" to join.'
+      : 'Signups are disabled on this project. Enable Email sign ups in Supabase Auth settings.'
   }
-  if (/rate|too many|limit|seconds/i.test(message)) {
+  if (msg.includes('rate') || msg.includes('too many') || msg.includes('limit') || msg.includes('seconds')) {
     return 'Please wait a moment before requesting another code.'
   }
-  return 'We couldn’t send a code. Please check the email and try again.'
+  console.error('[email-auth] Unhandled error:', message)
+  return 'We could not send a code. Please try again in a moment.'
 }
 
 /* ─── 6-digit code modal ─── */
@@ -177,21 +180,27 @@ function openCodeModal(email, intent) {
 
 /* ─── Bridge the verified session into the app store, then route on ─── */
 async function finishSession(email, intent) {
-  let profile = null
+  // Sync to backend — needsOnboarding drives routing.
+  // Safe default: send to onboarding if sync fails.
+  let needsOnboarding = true
   try {
-    const res = await apiFetch('/api/me')
-    if (res.ok) profile = (await res.json()).profile
-  } catch { /* backend optional — fall back to defaults */ }
+    const res = await apiFetch('/api/auth/sync', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    })
+    if (res.ok) ({ needsOnboarding } = await res.json())
+  } catch { /* backend optional — fall back to safe default */ }
 
   const def = store.getDefaultUser()
   store.setUser({
     ...def,
-    firstName: profile?.firstName || def.firstName,
-    lastName: profile?.lastName || '',
+    firstName: def.firstName,
+    lastName: '',
     email,
-    profession: profile?.profession || '',
+    profession: '',
     authProvider: 'email',
   })
 
-  window.location.replace(DESTINATION[intent])
+  // New users → onboarding; returning users → dashboard.
+  window.location.replace(needsOnboarding ? 'onboarding.html' : 'dashboard.html')
 }

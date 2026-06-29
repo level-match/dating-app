@@ -1,4 +1,4 @@
-import { requireAuth, hydrateUser, initBodyFade, initNav, initScrollReveal, initCompatBars } from './app.js'
+import { requireAuth, hydrateFromProfile, initBodyFade, initNav, initScrollReveal, initCompatBars } from './app.js'
 import { getMembersByScore } from './members.js'
 import { store } from './store.js'
 
@@ -8,29 +8,34 @@ initNav()
 initScrollReveal()
 initCompatBars()
 
-const user = hydrateUser()
+function applyGreeting(user) {
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  const topbarTitle = document.querySelector('.topbar-title')
+  if (topbarTitle) topbarTitle.textContent = `${greeting}, ${user.firstName}.`
 
-// Hydrate stats
-const statValues = document.querySelectorAll('.stat-value')
-if (statValues[0]) statValues[0].textContent = user.matches || 7
-if (statValues[1]) statValues[1].textContent = user.messages || 3
-if (statValues[2]) statValues[2].textContent = user.views || 12
-if (statValues[3]) statValues[3].textContent = user.connections || 2
-
-// Update greeting with time of day
-const hour = new Date().getHours()
-const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
-const topbarTitle = document.querySelector('.topbar-title')
-if (topbarTitle) topbarTitle.textContent = `${greeting}, ${user.firstName}.`
-
-// Update date line
-const welcomeDate = document.querySelector('.welcome-date')
-if (welcomeDate) {
   const now = new Date()
-  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+  const days   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December']
-  welcomeDate.textContent = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()} · ${user.matches || 7} new profiles curated for you`
+  const welcomeDate = document.querySelector('.welcome-date')
+  if (welcomeDate) {
+    welcomeDate.textContent = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()} · ${user.matches || 7} new profiles curated for you`
+  }
+
+  const statValues = document.querySelectorAll('.stat-value')
+  if (statValues[0]) statValues[0].textContent = user.matches     || 7
+  if (statValues[1]) statValues[1].textContent = user.messages    || 3
+  if (statValues[2]) statValues[2].textContent = user.views       || 12
+  if (statValues[3]) statValues[3].textContent = user.connections || 2
 }
+
+// Render immediately from store so the page isn't blank while the API loads
+applyGreeting(store.getUser() || store.getDefaultUser())
+
+// Then fetch live profile data from the DB and re-render with real name/data
+hydrateFromProfile().then(user => {
+  if (user) applyGreeting(user)
+})
 
 // ─── Today's curated matches (top 3, click-through to full profile) ───
 const dashGrid = document.getElementById('dashMatches')
