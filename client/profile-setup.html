@@ -511,8 +511,8 @@
           <div class="preview-figure"></div>
           <div class="preview-overlay"></div>
           <div class="preview-content">
-            <div class="preview-name" id="previewName">Alexandra R.</div>
-            <div class="preview-role" id="previewRole">Partner, McKinsey &amp; Company · 34</div>
+            <div class="preview-name" id="previewName">Your Name</div>
+            <div class="preview-role" id="previewRole">Your profile details</div>
             <div class="preview-tags">
               <span class="badge badge-navy">New York</span>
               <span class="badge badge-gold">Select Member</span>
@@ -601,22 +601,32 @@
           <div class="form-2col">
             <div class="form-group">
               <label class="form-label">First Name</label>
-              <input type="text" class="form-input" value="Alexandra" oninput="updatePreview()">
+              <input type="text" class="form-input" id="firstNameInput" placeholder="First name" oninput="updatePreview()">
             </div>
             <div class="form-group">
-              <label class="form-label">Age</label>
-              <input type="number" class="form-input" value="34" min="21" max="75">
+              <label class="form-label">Last Name</label>
+              <input type="text" class="form-input" id="lastNameInput" placeholder="Last name" oninput="updatePreview()">
             </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-input" id="emailInput" placeholder="Email address" autocomplete="email">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Age</label>
+            <input type="number" class="form-input" id="ageInput" placeholder="Age" min="21" max="75">
           </div>
 
           <div class="form-group">
             <label class="form-label">Professional Title</label>
-            <input type="text" class="form-input" placeholder="e.g. Partner, McKinsey & Company" value="Partner, McKinsey & Company" oninput="updatePreviewRole()">
+            <input type="text" class="form-input" id="roleInput" placeholder="e.g. Partner, McKinsey & Company" oninput="updatePreviewRole()">
           </div>
 
           <div class="form-group">
             <label class="form-label">Industry</label>
-            <select class="form-input form-select">
+            <select class="form-input form-select" id="industrySelect">
               <option>Management Consulting</option>
               <option>Finance & Investment</option>
               <option>Technology</option>
@@ -628,18 +638,18 @@
 
           <div class="form-group">
             <label class="form-label">Location</label>
-            <input type="text" class="form-input" placeholder="City, State" value="New York, NY">
+            <input type="text" class="form-input" id="locationInput" placeholder="City, State">
           </div>
 
           <div class="form-group">
             <label class="form-label">Education</label>
-            <input type="text" class="form-input" placeholder="Degree, University" value="MBA, Wharton School · J.D., Yale Law">
+            <input type="text" class="form-input" id="educationInput" placeholder="Degree, University">
           </div>
         </div>
       </div>
 
       <!-- ─── Identity & Pronouns (new) ─── -->
-      <div class="setup-section">
+      <div class="setup-section" id="identitySection">
         <div class="setup-section-title">
           Identity &amp; Pronouns
           <span style="display:inline-block;margin-left:10px;padding:3px 10px;border:1px solid rgba(184,168,212,0.40);border-radius:999px;font-family:'Inter',sans-serif;font-size:0.62rem;letter-spacing:0.18em;text-transform:uppercase;color:#B8A8D4;font-weight:500;">
@@ -702,8 +712,8 @@
           </div>
           <div class="form-group">
             <label class="form-label">Preferred genders for matching</label>
-            <div class="interests-grid" style="margin-top:8px;">
-              <div class="interest-chip selected" onclick="toggleInterest(this)">Men</div>
+            <div class="interests-grid" id="preferredGendersGrid" style="margin-top:8px;">
+              <div class="interest-chip" onclick="toggleInterest(this)">Men</div>
               <div class="interest-chip" onclick="toggleInterest(this)">Women</div>
               <div class="interest-chip" onclick="toggleInterest(this)">Non-binary people</div>
               <div class="interest-chip" onclick="toggleInterest(this)">Trans women</div>
@@ -730,13 +740,13 @@
             id="bioInput"
             oninput="updatePreviewBio(this)"
             placeholder="I'm building toward a life where excellence in my field and depth at home reinforce each other — not compete. My next chapter is anchored in a city I love, with a partner who shares my belief that real partnership is the highest form of leverage…"
-          >I'm building a private equity practice with the same intention I bring to my personal life — patience, conviction, and a long horizon. My next chapter is rooted in New York, with seasonal time in Europe. I'm looking for a partner who treats their work as a craft, who values quiet over performance, and who sees marriage and family as a deliberate act of building something together.</textarea>
+          ></textarea>
         </div>
-        <div class="char-count"><span id="bioCount">340</span> / 500</div>
+        <div class="char-count"><span id="bioCount">0</span> / 500</div>
       </div>
 
       <!-- ─── Alignment Indicators ─── -->
-      <div class="setup-section">
+      <div class="setup-section" id="alignmentSection">
         <div class="setup-section-title">
           Alignment Indicators
           <span style="display:inline-block;margin-left:10px;padding:3px 10px;border:1px solid rgba(212,168,67,0.40);border-radius:999px;font-family:'Inter',sans-serif;font-size:0.62rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold-300);font-weight:500;">
@@ -756,9 +766,9 @@
             <span style="font-family:'Inter',sans-serif;font-size:0.6rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--gold-300);background:rgba(212,168,67,0.12);border:1px solid rgba(212,168,67,0.32);border-radius:999px;padding:2px 9px;">25%</span>
           </label>
           <div class="interests-grid" style="margin-top:8px;">
-            <div class="interest-chip selected" onclick="toggleInterest(this)">Building shared legacy</div>
-            <div class="interest-chip" onclick="toggleInterest(this)">Family-oriented partnership</div>
-            <div class="interest-chip" onclick="toggleInterest(this)">Intentional long-term connection</div>
+            <div class="interest-chip" onclick="toggleInterest(this)">Legacy Builder</div>
+            <div class="interest-chip" onclick="toggleInterest(this)">Intentional Partner</div>
+            <div class="interest-chip" onclick="toggleInterest(this)">Marriage &amp; family</div>
           </div>
         </div>
 
@@ -770,7 +780,7 @@
           </label>
           <div class="interests-grid" style="margin-top:8px;">
             <div class="interest-chip" onclick="toggleInterest(this)">Scaling</div>
-            <div class="interest-chip selected" onclick="toggleInterest(this)">Established</div>
+            <div class="interest-chip" onclick="toggleInterest(this)">Established</div>
             <div class="interest-chip" onclick="toggleInterest(this)">Transitioning</div>
           </div>
         </div>
@@ -782,7 +792,7 @@
             <span style="font-family:'Inter',sans-serif;font-size:0.6rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--gold-300);background:rgba(212,168,67,0.12);border:1px solid rgba(212,168,67,0.32);border-radius:999px;padding:2px 9px;">15%</span>
           </label>
           <div class="interests-grid" style="margin-top:8px;">
-            <div class="interest-chip selected" onclick="toggleInterest(this)">Blended</div>
+            <div class="interest-chip" onclick="toggleInterest(this)">Blended</div>
             <div class="interest-chip" onclick="toggleInterest(this)">Segmented</div>
           </div>
         </div>
@@ -795,25 +805,25 @@
           </label>
           <div class="interests-grid" style="margin-top:8px;">
             <div class="interest-chip" onclick="toggleInterest(this)">Rooted</div>
-            <div class="interest-chip selected" onclick="toggleInterest(this)">Frequent traveller</div>
+            <div class="interest-chip" onclick="toggleInterest(this)">Frequent traveller</div>
             <div class="interest-chip" onclick="toggleInterest(this)">Global citizen</div>
           </div>
         </div>
       </div>
 
       <!-- ─── Personal Interests (secondary) ─── -->
-      <div class="setup-section">
+      <div class="setup-section" id="lifestyleSection">
         <div class="setup-section-title">Personal Interests</div>
         <p style="font-family:'Inter',sans-serif;font-size:0.84rem;font-weight:300;color:rgba(245,237,224,0.55);line-height:1.7;margin-bottom:18px;max-width:560px;">
           The textures of how you spend a weekend. Shown on your profile — not used as primary match weights.
         </p>
         <div class="interests-grid">
-          <div class="interest-chip selected" onclick="toggleInterest(this)">Fine Dining</div>
-          <div class="interest-chip selected" onclick="toggleInterest(this)">Travel</div>
+          <div class="interest-chip" onclick="toggleInterest(this)">Fine Dining</div>
+          <div class="interest-chip" onclick="toggleInterest(this)">Travel</div>
           <div class="interest-chip" onclick="toggleInterest(this)">Art &amp; Museums</div>
-          <div class="interest-chip selected" onclick="toggleInterest(this)">Fitness &amp; Wellness</div>
+          <div class="interest-chip" onclick="toggleInterest(this)">Fitness &amp; Wellness</div>
           <div class="interest-chip" onclick="toggleInterest(this)">Theatre &amp; Live Music</div>
-          <div class="interest-chip selected" onclick="toggleInterest(this)">Cooking</div>
+          <div class="interest-chip" onclick="toggleInterest(this)">Cooking</div>
           <div class="interest-chip" onclick="toggleInterest(this)">Wine &amp; Spirits</div>
           <div class="interest-chip" onclick="toggleInterest(this)">Philosophy</div>
           <div class="interest-chip" onclick="toggleInterest(this)">Philanthropy</div>
@@ -869,7 +879,7 @@
           <div class="form-2col">
             <div class="form-group">
               <label class="form-label">Partner age range</label>
-              <input type="text" class="form-input" placeholder="e.g. 32 – 46" value="34 – 48">
+              <input type="text" class="form-input" id="ageRangeInput" placeholder="e.g. 32 – 46">
             </div>
             <div class="form-group">
               <label class="form-label">Willing to relocate</label>
@@ -950,7 +960,7 @@
         <div style="font-family:var(--font-sans);font-size:var(--text-xs);font-weight:300;color:var(--text-muted);">All changes are saved automatically</div>
         <div style="display:flex;gap:var(--s-3);">
           <a href="dashboard.html" class="btn btn-ghost">Skip for now</a>
-          <a href="dashboard.html" class="btn btn-primary btn-lg" onclick="saveProfile(event)">Save & Go to Dashboard</a>
+          <button type="button" class="btn btn-primary btn-lg" id="saveProfileBtn" onclick="saveProfile(event)">Save &amp; View Profile</button>
         </div>
       </div>
 

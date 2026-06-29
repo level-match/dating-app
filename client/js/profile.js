@@ -1,15 +1,14 @@
 import { requireAuth, initBodyFade, initNav, showToast } from './app.js'
 import { store } from './store.js'
 import { getMember, getMembersByScore } from './members.js'
+import { apiFetch } from './sso.js'
 
 requireAuth()
 initBodyFade()
 initNav()
 
-/* ─── Resolve which member to show ─── */
 const params = new URLSearchParams(window.location.search)
-const requestedId = params.get('id')
-const member = getMember(requestedId) || getMembersByScore()[0]
+const isOwnProfile = params.get('me') === '1'
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({
@@ -17,8 +16,114 @@ function esc(s) {
   }[ch]))
 }
 
-/* ─── Verification badges ─── */
-const BADGE_SVG = {
+function section(label, inner) {
+  return `<div class="profile-section">
+    <div class="profile-section-label">${esc(label)}</div>
+    ${inner}
+  </div>`
+}
+
+function rowList(rows) {
+  return `<div class="pf-rows">${rows.filter(r => r.value).map(r => `
+    <div class="pf-row">
+      <div class="pf-row-label">${esc(r.label)}</div>
+      <div class="pf-row-value">${esc(r.value)}</div>
+    </div>`).join('')}</div>`
+}
+
+async function bootOwnProfile() {
+  const back = document.getElementById('navBack')
+  const label = document.getElementById('navBackLabel')
+  if (back) back.setAttribute('href', 'dashboard.html')
+  if (label) label.textContent = 'Dashboard'
+
+  try {
+    const res = await apiFetch('/api/auth/profile')
+    if (!res.ok) throw new Error('Profile not found')
+    const { profile } = await res.json()
+    renderOwnProfile(profile)
+  } catch (err) {
+    console.warn('[profile] own profile load failed:', err.message)
+    window.location.replace('profile-setup.html')
+  }
+}
+
+function renderOwnProfile(p) {
+  const name = [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Your Profile'
+  document.title = `LEVEL — ${name}`
+
+  const photoEl = document.getElementById('portraitPhoto')
+  if (p.avatar_url) {
+    photoEl.style.backgroundImage = `url('${esc(p.avatar_url)}')`
+    photoEl.style.backgroundSize = 'cover'
+    photoEl.style.backgroundPosition = 'center'
+  }
+
+  document.getElementById('portraitScore').innerHTML = `
+    <div class="portrait-score-num" style="font-size:1.4rem;">✦</div>
+    <div class="portrait-score-label">Your profile</div>`
+
+  const pronounText = (p.pronouns || []).map(x => x.label).join(', ')
+  const ageRange = p.age_range_min && p.age_range_max
+    ? `${p.age_range_min} – ${p.age_range_max}` : ''
+
+  document.getElementById('portraitInfo').innerHTML = `
+    <div class="portrait-name">${esc(name)}</div>
+    <div class="portrait-role">${esc(p.professional_title || 'Add your professional title')}</div>
+    <div class="portrait-meta">
+      ${p.location ? `<div class="portrait-meta-item">📍 ${esc(p.location)}</div>` : ''}
+      ${pronounText ? `<div class="portrait-meta-item">· ${esc(pronounText)}</div>` : ''}
+    </div>
+    <div class="portrait-actions" style="margin-top:18px;">
+      <a href="profile-setup.html" class="btn btn-gold" style="flex:1;justify-content:center;">Edit Profile</a>
+      <a href="dashboard.html" class="btn btn-outline" title="Dashboard" style="width:48px;height:48px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;">⌂</a>
+    </div>`
+
+  const prefGenders = (p.preferred_genders || []).map(g => g.label).join(', ')
+  const lifestyle = (p.lifestyle_values || []).map(v => v.label)
+
+  const html = [
+    p.legacy_vision ? section('Legacy & Vision', `<p class="pf-lead">${esc(p.legacy_vision)}</p>`) : '',
+    section('About You', rowList([
+      { label: 'Email', value: store.getUser()?.email },
+      { label: 'Industry', value: p.industry },
+      { label: 'Education', value: p.education },
+      { label: 'Gender identity', value: p.gender_identity },
+      { label: 'Orientation', value: p.orientation },
+      { label: 'Pronouns', value: pronounText },
+      { label: 'Looking to meet', value: prefGenders },
+      { label: 'Age range', value: ageRange },
+    ])),
+    section('Alignment', rowList([
+      { label: 'Primary intent', value: p.primary_intent },
+      { label: 'Long-term vision', value: p.long_term_vision },
+      { label: 'Career chapter', value: p.career_chapter },
+      { label: 'Life integration', value: p.life_integration },
+      { label: 'Mobility', value: p.mobility_profile },
+      { label: 'Emotional style', value: p.emotional_style },
+    ])),
+    lifestyle.length ? section('Lifestyle & Values', `
+      <div class="values-grid">${lifestyle.map(v => `<span class="chip">${esc(v)}</span>`).join('')}</div>`) : '',
+    `<div style="display:flex;gap:var(--s-4);margin-top:var(--s-4);">
+      <a href="profile-setup.html" class="btn btn-primary btn-lg" style="flex:1;justify-content:center;">Edit Profile</a>
+      <a href="dashboard.html" class="btn btn-outline btn-lg" style="justify-content:center;">Go to Dashboard</a>
+    </div>`,
+  ].filter(Boolean).join('')
+
+  document.getElementById('profileDetail').innerHTML = html
+}
+
+if (isOwnProfile) {
+  bootOwnProfile()
+} else {
+  bootMemberProfile()
+}
+
+function bootMemberProfile() {
+  const requestedId = params.get('id')
+  const member = getMember(requestedId) || getMembersByScore()[0]
+
+  const BADGE_SVG = {
   id: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2.2"/><path d="M14 10h4M14 13h3"/></svg>`,
   career: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v12H3z"/><path d="M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2"/></svg>`,
   photo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="3"/><path d="M5 7h3l2-3h4l2 3h3v12H5z"/></svg>`,
@@ -72,14 +177,7 @@ function renderPortrait(m) {
     </div>`
 }
 
-/* ─── Section builders ─── */
-function section(label, inner) {
-  return `<div class="profile-section">
-    <div class="profile-section-label">${esc(label)}</div>
-    ${inner}
-  </div>`
-}
-
+/* ─── Section builders (match profiles) ─── */
 function overviewSection(m) {
   const paras = (m.overview.paragraphs || []).map(p => `<p class="pf-para">${esc(p)}</p>`).join('')
   return section('Overview', `
@@ -113,7 +211,7 @@ function valuesSection(m) {
     <div class="pf-principles">${principles}</div>`)
 }
 
-function rowList(rows) {
+function memberRowList(rows) {
   return `<div class="pf-rows">${rows.map(r => `
     <div class="pf-row">
       <div class="pf-row-label">${esc(r.label)}</div>
@@ -122,13 +220,13 @@ function rowList(rows) {
 }
 
 function lifestyleSection(m) {
-  return section('Lifestyle Alignment', rowList(m.lifestyle || []))
+  return section('Lifestyle Alignment', memberRowList(m.lifestyle || []))
 }
 
 function relationshipSection(m) {
   return section('Relationship Intent', `
     <p class="pf-lead">${esc(m.intentLong)}</p>
-    <div style="margin-top:var(--s-5);">${rowList(m.relationship || [])}</div>`)
+    <div style="margin-top:var(--s-5);">${memberRowList(m.relationship || [])}</div>`)
 }
 
 function mobilitySection(m) {
@@ -246,3 +344,4 @@ if (store.hasSentRequest(member.id)) {
 document.addEventListener('click', e => {
   if (e.target.closest('#connectBtn') || e.target.closest('#connectBtnFooter')) sendConnection()
 })
+}

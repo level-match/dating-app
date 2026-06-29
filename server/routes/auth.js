@@ -128,6 +128,7 @@ router.post('/profile', async (req, res) => {
 
   const {
     firstName, lastName, avatarUrl,
+    professionalTitle, location, education, industry,
     genderIdentity, pronouns, orientation, preferredGenders,
     ageRangeMin, ageRangeMax,
     primaryIntent,
@@ -170,6 +171,7 @@ router.post('/profile', async (req, res) => {
     const { rows: profRows } = await client.query(
       `INSERT INTO profiles (
          user_id, first_name, last_name, avatar_url,
+         professional_title, location, education, industry,
          gender_identity_id, gender_identity_custom,
          orientation_id, orientation_custom,
          intent_id,
@@ -178,12 +180,16 @@ router.post('/profile', async (req, res) => {
          life_integration_id, mobility_profile_id,
          emotional_style_id, legacy_vision
        ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17
+         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21
        )
        ON CONFLICT (user_id) DO UPDATE SET
          first_name              = EXCLUDED.first_name,
          last_name               = EXCLUDED.last_name,
          avatar_url              = EXCLUDED.avatar_url,
+         professional_title      = EXCLUDED.professional_title,
+         location                = EXCLUDED.location,
+         education               = EXCLUDED.education,
+         industry                = EXCLUDED.industry,
          gender_identity_id      = EXCLUDED.gender_identity_id,
          gender_identity_custom  = EXCLUDED.gender_identity_custom,
          orientation_id          = EXCLUDED.orientation_id,
@@ -203,6 +209,10 @@ router.post('/profile', async (req, res) => {
         firstName  || null,
         lastName   || null,
         avatarUrl  || null,
+        professionalTitle || null,
+        location   || null,
+        education  || null,
+        industry   || null,
         genderIdRes,
         genderCustom,
         orientationRes,
@@ -282,6 +292,10 @@ router.get('/profile', async (req, res) => {
          p.first_name,
          p.last_name,
          p.avatar_url,
+         p.professional_title,
+         p.location,
+         p.education,
+         p.industry,
          p.age_range_min,
          p.age_range_max,
          p.legacy_vision,

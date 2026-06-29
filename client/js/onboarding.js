@@ -16,8 +16,9 @@ initBodyFade()
  * force renumbering of every existing panel element.
  */
 const STEP_IDS = [
-  'stepVerify',     //  0. Identity verification (auto-skipped for now; restore when KYC is ready)
-  'step0',          //  1. Gender identity
+  'stepProfile',    //  0. Your details (name + email from OAuth consent)
+  'stepVerify',     //  1. Identity verification
+  'step0',          //  2. Gender identity
   'step1',          //  2. Pronouns
   'step2',          //  3. Orientation
   'step3',          //  4. Preferred genders
@@ -33,8 +34,7 @@ const STEP_IDS = [
   'step10',         // 13. Legacy & vision
 ]
 
-// Start at 1 to skip identity verification — step still exists in the array
-// so the sidebar renders it, but users land directly on gender identity.
+// Start at profile details — user confirms OAuth name/email, then verification.
 const SKIP_TO_STEP = 0
 let currentStep = SKIP_TO_STEP
 const totalSteps = STEP_IDS.length
@@ -124,12 +124,74 @@ getRefData().then(ref => {
   // step9 — Lifestyle values (multi chip)
   renderChips(document.getElementById('step9-options'), ref.lifestyleValues)
 
+  // Re-apply any selections saved before ref data finished loading
+  STEP_IDS.forEach(restorePanelSelections)
+
 }).catch(err => {
   console.warn('[onboarding] Could not load ref data:', err.message)
 })
 
-function panelEl(i) {
-  return document.getElementById(STEP_IDS[i])
+function restorePanelSelections(stepKey) {
+  const panel = document.getElementById(stepKey)
+  if (!panel) return
+
+  if (stepKey === 'stepProfile') {
+    const data = answers.stepProfile
+    if (!data) return
+    const fn = document.getElementById('obFirstName')
+    const ln = document.getElementById('obLastName')
+    const em = document.getElementById('obEmail')
+    if (fn && data.firstName) fn.value = data.firstName
+    if (ln && data.lastName) ln.value = data.lastName
+    if (em && data.email) em.value = data.email
+    return
+  }
+
+  if (stepKey === 'step4') {
+    const data = answers.step4
+    if (!data?.min) return
+    const minEl = panel.querySelector('#rangeMin')
+    const maxEl = panel.querySelector('#rangeMax')
+    if (minEl) minEl.value = data.min
+    if (maxEl) maxEl.value = data.max
+    const ageMin = document.getElementById('ageMin')
+    const ageMax = document.getElementById('ageMax')
+    if (ageMin) ageMin.textContent = data.min
+    if (ageMax) ageMax.textContent = data.max
+    return
+  }
+
+  const textarea = panel.querySelector('textarea')
+  if (textarea && typeof answers[stepKey] === 'string') {
+    textarea.value = answers[stepKey]
+    const count = textarea.nextElementSibling
+    if (count?.classList.contains('ob-char-count')) {
+      count.textContent = textarea.value.length + ' / 500 characters'
+    }
+    return
+  }
+
+  const saved = answers[stepKey]
+  if (!Array.isArray(saved) || !saved.length) return
+
+  panel.querySelectorAll('.ob-option, .ob-chip').forEach(el => {
+    const label = (el.querySelector('.ob-option-label')?.textContent || el.textContent).trim()
+    const intent = el.dataset.intent
+    const match = saved.includes(label)
+      || saved.includes(intent)
+      || (stepKey === 'step5' && answers.intentCategory && intent === answers.intentCategory)
+    el.classList.toggle('selected', match)
+  })
+}
+
+function showPanel(stepIndex) {
+  panelEl(currentStep)?.classList.add('hidden')
+  currentStep = stepIndex
+  const panel = panelEl(currentStep)
+  panel?.classList.remove('hidden')
+  if (panel) panel.style.animation = 'fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both'
+  restorePanelSelections(STEP_IDS[currentStep])
+  updateUI()
 }
 
 function updateUI() {
@@ -137,6 +199,8 @@ function updateUI() {
   document.getElementById('progressFill').style.width = pct + '%'
   document.getElementById('progressPercent').textContent = pct + '%'
   document.getElementById('currentStepNum').textContent = currentStep + 1
+  const totalEl = document.getElementById('totalStepNum')
+  if (totalEl) totalEl.textContent = totalSteps
   document.querySelectorAll('.ob-step-item').forEach((el, i) => {
     el.classList.remove('active', 'completed')
     if (i === currentStep) el.classList.add('active')
@@ -151,6 +215,29 @@ function saveCurrentStep() {
 
   // Verification step is handled via mock state on each card; no fields to save.
   if (key === 'stepVerify') return
+
+  if (key === 'stepProfile') {
+    const firstName = document.getElementById('obFirstName')?.value.trim() || ''
+    const lastName  = document.getElementById('obLastName')?.value.trim() || ''
+    const email     = document.getElementById('obEmail')?.value.trim() || ''
+    answers.stepProfile = { firstName, lastName, email }
+    const user = store.getUser()
+    if (user) {
+      store.setUser({
+        ...user,
+        firstName,
+        lastName,
+        email,
+        oauthFields: {
+          ...(user.oauthFields || {}),
+          firstName: !!firstName,
+          lastName: !!lastName,
+          email: !!email,
+        },
+      })
+    }
+    return
+  }
 
   const textarea = panel.querySelector('textarea')
   if (textarea) {
@@ -181,21 +268,22 @@ function saveCurrentStep() {
   // takes effect even without re-completing the entire flow.
   if (key === 'step5') {
     const sel = panel.querySelector('.ob-option.selected')
-    const category = sel?.dataset.intent || answers[key]?.[0]
-    answers.intentCategory = category
-    store.setMatchingEligibility(evaluateEligibility(category))
+    const category = sel?.dataset.intent
+    if (category) {
+      answers.intentCategory = category
+      store.setMatchingEligibility(evaluateEligibility(category))
+    }
   }
+}
+
+function panelEl(i) {
+  return document.getElementById(STEP_IDS[i])
 }
 
 window.nextStep = function () {
   saveCurrentStep()
   if (currentStep < totalSteps - 1) {
-    panelEl(currentStep).classList.add('hidden')
-    currentStep++
-    const next = panelEl(currentStep)
-    next.classList.remove('hidden')
-    next.style.animation = 'fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both'
-    updateUI()
+    showPanel(currentStep + 1)
   } else {
     showCompletion()
   }
@@ -203,10 +291,8 @@ window.nextStep = function () {
 
 window.prevStep = function () {
   if (currentStep > SKIP_TO_STEP) {
-    panelEl(currentStep).classList.add('hidden')
-    currentStep--
-    panelEl(currentStep).classList.remove('hidden')
-    updateUI()
+    saveCurrentStep()
+    showPanel(currentStep - 1)
   } else {
     window.history.back()
   }
@@ -227,19 +313,20 @@ async function showCompletion() {
   document.getElementById('progressPercent').textContent = '100%'
 
   // Build the profile payload from collected answers
-  const user    = store.getUser()
-  const ageData = answers['step4'] || {}
+  const user       = store.getUser()
+  const profileData = answers.stepProfile || {}
+  const ageData    = answers['step4'] || {}
 
   const pick = (key) => {
     const v = answers[key]
-    if (!v) return null
+    if (!v || (Array.isArray(v) && !v.length)) return null
     if (Array.isArray(v)) return v.length === 1 ? v[0] : v.join(', ')
     return v
   }
 
   const payload = {
-    firstName:              user?.firstName || '',
-    lastName:               user?.lastName  || '',
+    firstName:              profileData.firstName || user?.firstName || '',
+    lastName:               profileData.lastName  || user?.lastName  || '',
     avatarUrl:              user?.avatarUrl || '',
     genderIdentity:         pick('step0'),
     pronouns:               answers['step1']  || [],
@@ -279,6 +366,7 @@ window.selectOption = function (el) { el.classList.toggle('selected') }
 window.selectSingle = function (el) {
   el.parentNode.querySelectorAll('.ob-option').forEach(s => s.classList.remove('selected'))
   el.classList.add('selected')
+  saveCurrentStep()
 }
 
 window.selectCustom = function (el) {
@@ -288,14 +376,20 @@ window.selectCustom = function (el) {
   if (input) {
     input.style.display = 'block'
     setTimeout(() => input.focus(), 60)
+    input.oninput = () => saveCurrentStep()
+    input.onkeydown = (e) => { if (e.key === 'Enter') saveCurrentStep() }
   }
+  saveCurrentStep()
 }
 
 window.openCustom = function (key) {
   alert('Tap "Add your own" on the previous step to enter a custom ' + key + '.')
 }
 
-window.toggleChip = function (el) { el.classList.toggle('selected') }
+window.toggleChip = function (el) {
+  el.classList.toggle('selected')
+  saveCurrentStep()
+}
 
 window.syncAge = function (which) {
   const minEl = document.getElementById('rangeMin')
@@ -308,6 +402,7 @@ window.syncAge = function (which) {
   maxEl.value = max
   document.getElementById('ageMin').textContent = min
   document.getElementById('ageMax').textContent = max
+  saveCurrentStep()
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -385,10 +480,8 @@ document.querySelectorAll('.ob-step-item').forEach((el, i) => {
   el.addEventListener('click', () => {
     if (i === currentStep) return
     if (i < currentStep) {
-      panelEl(currentStep).classList.add('hidden')
-      currentStep = i
-      panelEl(currentStep).classList.remove('hidden')
-      updateUI()
+      saveCurrentStep()
+      showPanel(i)
     }
   })
 })
@@ -398,11 +491,22 @@ document.querySelectorAll('.ob-step-item').forEach((el, i) => {
 const obParams = new URLSearchParams(window.location.search)
 if (obParams.has('goals')) {
   const idx = STEP_IDS.indexOf('step5')
-  if (idx >= 0) {
-    panelEl(currentStep).classList.add('hidden')
-    currentStep = idx
-    panelEl(currentStep).classList.remove('hidden')
-  }
+  if (idx >= 0) showPanel(idx)
 }
 
+function prefillProfileStep() {
+  const user = store.getUser()
+  if (!user) return
+  const oauth = user.oauthFields || {}
+
+  const fn = document.getElementById('obFirstName')
+  const ln = document.getElementById('obLastName')
+  const em = document.getElementById('obEmail')
+
+  if (fn && oauth.firstName && user.firstName) fn.value = user.firstName
+  if (ln && oauth.lastName && user.lastName) ln.value = user.lastName
+  if (em && oauth.email && user.email) em.value = user.email
+}
+
+prefillProfileStep()
 updateUI()

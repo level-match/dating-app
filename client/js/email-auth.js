@@ -199,6 +199,12 @@ async function finishSession(email, intent) {
     email,
     profession: '',
     authProvider: 'email',
+    oauthFields: {
+      firstName: false,
+      lastName: false,
+      email: true,
+      avatarUrl: false,
+    },
   })
 
   // New users → onboarding; returning users → dashboard.

@@ -760,6 +760,25 @@
       background: rgba(245,237,224,0.06);
       box-shadow: 0 0 0 4px rgba(232,199,160,0.08);
     }
+    .ob-profile-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      max-width: 480px;
+    }
+    .ob-profile-field label {
+      display: block;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.68rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(245,237,224,0.45);
+      margin-bottom: 8px;
+    }
+    .ob-profile-field .ob-verify-input {
+      padding: 13px 16px;
+    }
     .ob-verify-action {
       position: absolute;
       right: 6px;
@@ -920,59 +939,63 @@
       <nav class="ob-steps-list" id="sidebarSteps">
         <div class="ob-step-item active" data-step="0">
           <div class="ob-step-num">1</div>
-          <div class="ob-step-label">Verify your identity</div>
+          <div class="ob-step-label">Your details</div>
         </div>
         <div class="ob-step-item" data-step="1">
           <div class="ob-step-num">2</div>
-          <div class="ob-step-label">Gender identity</div>
+          <div class="ob-step-label">Verify your identity</div>
         </div>
         <div class="ob-step-item" data-step="2">
           <div class="ob-step-num">3</div>
-          <div class="ob-step-label">Pronouns</div>
+          <div class="ob-step-label">Gender identity</div>
         </div>
         <div class="ob-step-item" data-step="3">
           <div class="ob-step-num">4</div>
-          <div class="ob-step-label">Orientation</div>
+          <div class="ob-step-label">Pronouns</div>
         </div>
         <div class="ob-step-item" data-step="4">
           <div class="ob-step-num">5</div>
-          <div class="ob-step-label">Preferred genders</div>
+          <div class="ob-step-label">Orientation</div>
         </div>
         <div class="ob-step-item" data-step="5">
           <div class="ob-step-num">6</div>
-          <div class="ob-step-label">Age range</div>
+          <div class="ob-step-label">Preferred genders</div>
         </div>
         <div class="ob-step-item" data-step="6">
           <div class="ob-step-num">7</div>
-          <div class="ob-step-label">Primary intent</div>
+          <div class="ob-step-label">Age range</div>
         </div>
         <div class="ob-step-item" data-step="7">
           <div class="ob-step-num">8</div>
-          <div class="ob-step-label">Long-term vision</div>
+          <div class="ob-step-label">Primary intent</div>
         </div>
         <div class="ob-step-item" data-step="8">
           <div class="ob-step-num">9</div>
-          <div class="ob-step-label">Career chapter</div>
+          <div class="ob-step-label">Long-term vision</div>
         </div>
         <div class="ob-step-item" data-step="9">
           <div class="ob-step-num">10</div>
-          <div class="ob-step-label">Life integration</div>
+          <div class="ob-step-label">Career chapter</div>
         </div>
         <div class="ob-step-item" data-step="10">
           <div class="ob-step-num">11</div>
-          <div class="ob-step-label">Mobility profile</div>
+          <div class="ob-step-label">Life integration</div>
         </div>
         <div class="ob-step-item" data-step="11">
           <div class="ob-step-num">12</div>
+          <div class="ob-step-label">Mobility profile</div>
+        </div>
+        <div class="ob-step-item" data-step="12">
+          <div class="ob-step-num">13</div>
           <div class="ob-step-label">Emotional compatibility</div>
         </div>
         <!-- Faith & religion step temporarily hidden -->
-        <div class="ob-step-item" data-step="12">
-          <div class="ob-step-num">13</div>
-          <div class="ob-step-label">Lifestyle &amp; values</div>
-        </div>
         <div class="ob-step-item" data-step="13">
           <div class="ob-step-num">14</div>
+          <div class="ob-step-label">Lifestyle &amp; values</div>
+        </div>
+        <div class="ob-step-item" data-step="14">
+          <div class="ob-step-num">15</div>
           <div class="ob-step-label">Legacy &amp; vision</div>
         </div>
       </nav>
@@ -997,12 +1020,36 @@
           </svg>
           Back
         </button>
-        <div class="ob-step-counter">Step <span id="currentStepNum">1</span> of 15</div>
+        <div class="ob-step-counter">Step <span id="currentStepNum">1</span> of <span id="totalStepNum">15</span></div>
       </div>
 
-      <!-- ─── STEP 1: Identity Verification ─── -->
-      <div class="ob-question-panel" id="stepVerify">
-        <div class="ob-question-category">Verification · 01</div>
+      <!-- ─── STEP 1: Your details (from OAuth consent) ─── -->
+      <div class="ob-question-panel" id="stepProfile">
+        <div class="ob-question-category">Your profile · 01</div>
+        <h2 class="ob-question-title">Confirm your<br><em>details.</em></h2>
+        <p class="ob-question-subtitle">
+          These came from your sign-in. Review them here — edit anything that
+          doesn't look right before we continue.
+        </p>
+        <div class="ob-profile-fields">
+          <div class="ob-profile-field">
+            <label for="obFirstName">First name</label>
+            <input type="text" id="obFirstName" class="ob-verify-input" placeholder="First name" autocomplete="given-name">
+          </div>
+          <div class="ob-profile-field">
+            <label for="obLastName">Last name</label>
+            <input type="text" id="obLastName" class="ob-verify-input" placeholder="Last name" autocomplete="family-name">
+          </div>
+          <div class="ob-profile-field">
+            <label for="obEmail">Email</label>
+            <input type="email" id="obEmail" class="ob-verify-input" placeholder="Email address" autocomplete="email">
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── STEP 2: Identity Verification ─── -->
+      <div class="ob-question-panel hidden" id="stepVerify">
+        <div class="ob-question-category">Verification · 02</div>
         <h2 class="ob-question-title">A private<br><em>screening process.</em></h2>
         <p class="ob-question-subtitle">
           Every LEVEL applicant completes a two-step trust check before
@@ -1093,7 +1140,7 @@
 
       <!-- ─── STEP 2: Gender Identity ─── -->
       <div class="ob-question-panel hidden" id="step0">
-        <div class="ob-question-category">Identity · 02</div>
+        <div class="ob-question-category">Identity · 03</div>
         <h2 class="ob-question-title">How do you<br><em>identify?</em></h2>
         <p class="ob-question-subtitle">
           Choose what feels true to you. This is visible to your matches —
@@ -1104,7 +1151,7 @@
 
       <!-- ─── STEP 3: Pronouns ─── -->
       <div class="ob-question-panel hidden" id="step1">
-        <div class="ob-question-category">Identity · 03</div>
+        <div class="ob-question-category">Identity · 04</div>
         <h2 class="ob-question-title">What pronouns<br><em>do you go by?</em></h2>
         <p class="ob-question-subtitle">
           Pick one or more — and we'll make sure your matches see them and use them

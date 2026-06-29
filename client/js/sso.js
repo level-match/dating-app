@@ -125,6 +125,12 @@ export async function handleOAuthReturn() {
           email: user.email || '',
           avatarUrl: avatar,
           authProvider: provider,
+          oauthFields: {
+            firstName: !!firstName,
+            lastName: !!lastName,
+            email: !!(user.email),
+            avatarUrl: !!avatar,
+          },
         })
         window.location.replace(needsOnboarding ? 'onboarding.html' : 'dashboard.html')
         return true
@@ -250,6 +256,12 @@ function showOAuthConsentModal({ firstName, lastName, email, avatar, provider })
       avatarUrl:   avatar,
       authProvider: provider,
       oauthPrefilled: true,
+      oauthFields: {
+        firstName: !!firstName,
+        lastName: !!lastName,
+        email: !!email,
+        avatarUrl: !!avatar,
+      },
     })
 
     overlay.remove()

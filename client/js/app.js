@@ -124,6 +124,10 @@ export async function hydrateFromProfile() {
       firstName:   profile.first_name   || current.firstName,
       lastName:    profile.last_name    || current.lastName,
       avatarUrl:   profile.avatar_url   || current.avatarUrl,
+      professionalTitle: profile.professional_title || current.professionalTitle,
+      location:    profile.location     || current.location,
+      education:   profile.education    || current.education,
+      industry:    profile.industry     || current.industry,
       // Resolved label strings from joined queries
       genderIdentity:         profile.gender_identity,
       orientation:            profile.orientation,

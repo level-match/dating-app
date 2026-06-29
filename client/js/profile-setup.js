@@ -1,25 +1,43 @@
 import { store } from './store.js'
 import { evaluateEligibility } from './matching-policy.js'
-import { requireAuth, initBodyFade, hydrateFromProfile } from './app.js'
+import { requireAuth, initBodyFade, hydrateFromProfile, showToast } from './app.js'
+import { apiFetch } from './sso.js'
 
 requireAuth()
 initBodyFade()
 
-// Fetch the live profile from the DB and pre-fill the form
-hydrateFromProfile().then(() => applyStoreToForm())
+hydrateFromProfile().then(() => {
+  applyOAuthFieldsToForm()
+  applySavedProfileToForm()
+})
+
+function firstNameInput() {
+  return document.getElementById('firstNameInput')
+    || document.querySelector('.setup-form .form-2col .form-group:first-child input')
+}
+
+function roleInput() {
+  return document.getElementById('roleInput')
+    || document.querySelector('input[placeholder="e.g. Partner, McKinsey & Company"]')
+}
 
 window.updatePreview = function() {
-  const nameInput = document.querySelector('input[placeholder="Alexandra"]')
-  const name = nameInput?.value || 'Your Name'
+  const user = store.getUser()
+  const oauth = user?.oauthFields || {}
+  const first = firstNameInput()?.value
+    || (oauth.firstName ? user?.firstName : '')
+    || 'Your Name'
+  const last = document.getElementById('lastNameInput')?.value
+    || (oauth.lastName ? user?.lastName : '')
+  const lastInitial = last ? ` ${last.charAt(0)}.` : ''
   const previewName = document.getElementById('previewName')
-  if (previewName) previewName.textContent = name + ' R.'
+  if (previewName) previewName.textContent = first + lastInitial
 }
 
 window.updatePreviewRole = function() {
-  const roleInput = document.querySelector('input[placeholder="e.g. Partner, McKinsey & Company"]')
-  const role = roleInput?.value || 'Your Title'
+  const role = roleInput()?.value || 'Your profile details'
   const previewRole = document.getElementById('previewRole')
-  if (previewRole) previewRole.textContent = role + ' · 34'
+  if (previewRole) previewRole.textContent = role
 }
 
 window.updatePreviewBio = function(el) {
@@ -43,18 +61,11 @@ const PHOTO_MAX_SLOTS  = 5
 const PHOTO_MAX_BYTES  = 5 * 1024 * 1024
 const PHOTO_TYPES      = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
 
-// In-memory photo state — array of { src, name, size } indexed 0..4
 const photoState = new Array(PHOTO_MAX_SLOTS).fill(null)
 let activeSlotIndex = null
 
-/**
- * Hook this in place of a real backend upload later. Resolves with
- * the persistent URL we should store. For now it just returns the
- * blob URL after a brief simulated network delay.
- */
 async function uploadPhoto(file) {
   const localUrl = URL.createObjectURL(file)
-  // Simulate network upload
   await new Promise(r => setTimeout(r, 450 + Math.random() * 350))
   return localUrl
 }
@@ -87,7 +98,6 @@ function validateFile(file) {
 }
 
 function renderSlot(slot, idx) {
-  // Clear previous content
   slot.innerHTML = ''
   slot.classList.remove('filled', 'loading')
 
@@ -155,7 +165,7 @@ function openPickerForSlot(idx) {
   clearPhotoError()
   const input = document.getElementById('photoFileInput')
   if (input) {
-    input.value = '' // allow re-selecting the same file
+    input.value = ''
     input.click()
   }
 }
@@ -182,13 +192,11 @@ async function handleFile(file, idx) {
 
 function removePhoto(idx) {
   if (!photoState[idx]) return
-  // Revoke the object URL to free memory
   try {
     if (photoState[idx].src?.startsWith('blob:')) URL.revokeObjectURL(photoState[idx].src)
   } catch {}
   photoState[idx] = null
 
-  // If main photo (slot 0) was removed, promote the first remaining photo
   if (idx === 0) {
     const next = photoState.findIndex(p => p)
     if (next > 0) {
@@ -199,13 +207,9 @@ function removePhoto(idx) {
   renderAllSlots()
 }
 
-/* ─── Wire up slots, actions, file input, drag-drop ─── */
-
 function wirePhotoSlot(slot) {
   const idx = +slot.dataset.index
 
-  // Click / keyboard: only open picker if the slot is empty.
-  // If filled, action buttons handle change/remove.
   slot.addEventListener('click', (e) => {
     const actBtn = e.target.closest('.photo-action-btn')
     if (actBtn) {
@@ -226,7 +230,6 @@ function wirePhotoSlot(slot) {
     }
   })
 
-  // Drag & drop
   slot.addEventListener('dragover', (e) => {
     e.preventDefault()
     slot.classList.add('dragging')
@@ -247,7 +250,6 @@ document.getElementById('photoFileInput')?.addEventListener('change', (e) => {
   if (file && activeSlotIndex != null) handleFile(file, activeSlotIndex)
 })
 
-/* Hydrate from previously saved photos (e.g. user returns to page) */
 ;(function hydratePhotos() {
   const user = store.getUser()
   if (!user?.photos?.length) return
@@ -257,34 +259,82 @@ document.getElementById('photoFileInput')?.addEventListener('change', (e) => {
   renderAllSlots()
 })()
 
-// Keep the old API alive for any inline onclick still referencing it
 window.triggerUpload = openPickerForSlot
 
-window.saveProfile = function(e) {
-  const user = store.getUser() || store.getDefaultUser()
-  const nameInput = document.querySelector('input[placeholder="Alexandra"]')
-  const roleInput = document.querySelector('input[placeholder="e.g. Partner, McKinsey & Company"]')
-  const bioInput = document.getElementById('bioInput')
-  const interests = Array.from(document.querySelectorAll('.interest-chip.selected')).map(el => el.textContent)
+window.saveProfile = async function(e) {
+  if (e) e.preventDefault()
 
+  const user = store.getUser() || {}
+  const bioInput = document.getElementById('bioInput')
   const goals = document.getElementById('relationshipGoals')?.value
 
-  store.setUser({
-    ...user,
-    firstName: nameInput?.value || user.firstName,
-    role: roleInput?.value || user.role,
-    bio: bioInput?.value || '',
-    interests,
-    relationshipGoals: goals || user.relationshipGoals || null,
-    profileComplete: Math.min(100, (user.profileComplete || 72) + 15),
-  })
+  const payload = {
+    firstName: firstNameInput()?.value?.trim() || user.firstName || '',
+    lastName: document.getElementById('lastNameInput')?.value?.trim() || user.lastName || '',
+    avatarUrl: user.avatarUrl || '',
+    professionalTitle: roleInput()?.value?.trim() || '',
+    location: document.getElementById('locationInput')?.value?.trim() || '',
+    education: document.getElementById('educationInput')?.value?.trim() || '',
+    industry: document.getElementById('industrySelect')?.value || '',
+    legacyVision: bioInput?.value?.trim() || user.legacyVision || '',
+    genderIdentity: user.genderIdentity || null,
+    pronouns: user.pronouns || [],
+    orientation: user.orientation || null,
+    preferredGenders: user.preferredGenders || [],
+    ageRangeMin: user.ageRangeMin ?? null,
+    ageRangeMax: user.ageRangeMax ?? null,
+    primaryIntent: user.primaryIntent || null,
+    intentCategory: user.intentCategory || goals || null,
+    longTermVision: user.longTermVision || null,
+    careerChapter: user.careerChapter || null,
+    lifeIntegration: user.lifeIntegration || null,
+    mobilityProfile: user.mobilityProfile || null,
+    emotionalCompatibility: user.emotionalStyle || null,
+    lifestyleValues: user.lifestyleValues || [],
+  }
 
-  // Keep matching eligibility in sync with the same protected policy used by
-  // onboarding — editing goals here is a valid way to update intent.
-  if (goals) store.setMatchingEligibility(evaluateEligibility(goals))
+  const btn = document.getElementById('saveProfileBtn')
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…' }
+
+  try {
+    const res = await apiFetch('/api/auth/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      showToast(err.message || 'Could not save your profile.', '✕')
+      return
+    }
+
+    store.setUser({
+      ...user,
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      role: payload.professionalTitle,
+      bio: payload.legacyVision,
+      legacyVision: payload.legacyVision,
+      location: payload.location,
+      education: payload.education,
+      industry: payload.industry,
+      relationshipGoals: goals || user.relationshipGoals || null,
+      profileComplete: Math.min(100, (user.profileComplete || 72) + 15),
+    })
+    if (goals) store.setMatchingEligibility(evaluateEligibility(goals))
+
+    window.location.href = 'profile.html?me=1'
+  } catch (err) {
+    console.error('[profile-setup] save failed:', err)
+    showToast('Could not save your profile. Check your connection.', '✕')
+  } finally {
+    if (btn) {
+      btn.disabled = false
+      btn.textContent = 'Save & View Profile'
+    }
+  }
 }
 
-// Update completion ring based on filled fields
 function updateCompletionRing() {
   let filled = 0
   const total = 5
@@ -305,7 +355,6 @@ document.querySelectorAll('.form-input').forEach(el => {
   el.addEventListener('input', updateCompletionRing)
 })
 
-// Init bio count
 const bioInput = document.getElementById('bioInput')
 if (bioInput) {
   const count = document.getElementById('bioCount')
@@ -314,40 +363,65 @@ if (bioInput) {
 
 updateCompletionRing()
 
-/* ─── Pre-fill form from store (runs twice: immediately + after API hydration) ─── */
-function applyStoreToForm() {
+function applyOAuthFieldsToForm() {
   const user = store.getUser()
-  if (!user) return
+  if (!user?.oauthFields) return
 
-  // Name field
-  const nameInput = document.querySelector('input[placeholder="Alexandra"]')
-  if (nameInput && user.firstName) {
-    nameInput.value = user.firstName
-    const lastInitial = user.lastName ? ` ${user.lastName.charAt(0)}.` : ''
-    const previewName = document.getElementById('previewName')
-    if (previewName) previewName.textContent = user.firstName + lastInitial
+  const { oauthFields } = user
+
+  const nameEl = firstNameInput()
+  if (nameEl && oauthFields.firstName && user.firstName) {
+    nameEl.value = user.firstName
   }
 
-  // Email field
-  const emailInput = document.querySelector('input[type="email"]')
-  if (emailInput && user.email) emailInput.value = user.email
-
-  // Bio
-  const bioEl = document.getElementById('bioInput')
-  if (bioEl && user.legacyVision && !bioEl.value) {
-    bioEl.value = user.legacyVision
-    const count = document.getElementById('bioCount')
-    if (count) count.textContent = bioEl.value.length
+  const lastNameEl = document.getElementById('lastNameInput')
+  if (lastNameEl && oauthFields.lastName && user.lastName) {
+    lastNameEl.value = user.lastName
   }
 
-  // Google / saved avatar into photo slot 0 if nothing uploaded yet
-  if (user.avatarUrl && !user.photos?.length && !photoState[0]) {
+  const emailEl = document.getElementById('emailInput')
+  if (emailEl && oauthFields.email && user.email) {
+    emailEl.value = user.email
+  }
+
+  if (oauthFields.avatarUrl && user.avatarUrl && !user.photos?.length && !photoState[0]) {
     photoState[0] = { src: user.avatarUrl, name: 'profile-avatar' }
     renderAllSlots()
+    const previewFigure = document.querySelector('.preview-figure')
+    if (previewFigure) {
+      previewFigure.style.backgroundImage = `url(${user.avatarUrl})`
+      previewFigure.style.backgroundSize = 'cover'
+      previewFigure.style.backgroundPosition = 'center'
+    }
   }
 
+  window.updatePreview()
   updateCompletionRing()
 }
 
-// Run once immediately from whatever is already in the store
-applyStoreToForm()
+function applySavedProfileToForm() {
+  const user = store.getUser()
+  if (!user?.profileLoadedFromApi) return
+
+  const roleEl = roleInput()
+  if (roleEl && user.professionalTitle) roleEl.value = user.professionalTitle
+
+  const loc = document.getElementById('locationInput')
+  if (loc && user.location) loc.value = user.location
+
+  const edu = document.getElementById('educationInput')
+  if (edu && user.education) edu.value = user.education
+
+  const industry = document.getElementById('industrySelect')
+  if (industry && user.industry) industry.value = user.industry
+
+  const bioEl = document.getElementById('bioInput')
+  if (bioEl && user.legacyVision) {
+    bioEl.value = user.legacyVision
+    window.updatePreviewBio(bioEl)
+  }
+
+  window.updatePreview()
+  window.updatePreviewRole()
+  updateCompletionRing()
+}
