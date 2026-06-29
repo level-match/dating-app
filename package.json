@@ -1,0 +1,13 @@
+{
+  "name": "level-dating-app-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LEVEL — Monorepo root. Frontend lives in /client, backend in /server.",
+  "scripts": {
+    "dev:client":   "npm run dev   --prefix client",
+    "dev:server":   "npm run dev   --prefix server",
+    "build":        "npm run build --prefix client",
+    "start:server": "npm run start --prefix server",
+    "install:all":  "npm install   --prefix client && npm install --prefix server"
+  }
+}

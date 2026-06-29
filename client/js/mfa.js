@@ -1,0 +1,327 @@
+import { store } from './store.js'
+import { initBodyFade } from './app.js'
+import {
+  sendEmailOtp, verifyEmailOtp, sendPhoneOtp, verifyPhoneOtp,
+  getExpiresAt, getResendAt, OTP_CONFIG,
+} from './otp-service.js'
+
+initBodyFade()
+
+/* ─── Route guard ───────────────────────────────────────────────
+   Only an authenticated session that still owes MFA belongs here. */
+if (!store.isLoggedIn()) {
+  window.location.replace('auth.html')
+} else if (store.isMfaComplete()) {
+  window.location.replace(store.getPendingDestination())
+}
+
+const user = store.getUser() || {}
+const mfa = store.getMfaState() || {}
+
+/* ─── Helpers ─── */
+const $ = id => document.getElementById(id)
+
+function maskEmail(email) {
+  if (!email || !email.includes('@')) return email || 'your email'
+  const [local, domain] = email.split('@')
+  const head = local[0]
+  return `${head}${'•'.repeat(Math.max(2, local.length - 1))}@${domain}`
+}
+
+function maskPhone(phone) {
+  const digits = (phone || '').replace(/\D/g, '')
+  if (digits.length < 4) return phone || ''
+  return `••• ••• ${digits.slice(-4)}`
+}
+
+function setStatus(el, kind, message) {
+  if (!el) return
+  if (!message) { el.classList.remove('show'); return }
+  el.dataset.kind = kind
+  el.textContent = message
+  el.classList.add('show')
+}
+
+function setStep(stepEl, state) { if (stepEl) stepEl.dataset.state = state }
+
+function fmt(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+if (OTP_CONFIG.exposeDemoCode) {
+  $('mfaHint').innerHTML = `Demo mode — use code <span class="mfa-demo-code">${OTP_CONFIG.demoCode}</span> for both factors.`
+}
+
+/* ─── OTP code-input wiring (auto-advance, backspace, paste) ─── */
+function wireOtpInputs(row, onComplete) {
+  const inputs = Array.from(row.querySelectorAll('.verify-input'))
+  const code = () => inputs.map(i => i.value.trim()).join('')
+  inputs.forEach((input, i) => {
+    input.addEventListener('input', e => {
+      const v = e.target.value.replace(/\D/g, '').slice(0, 1)
+      e.target.value = v
+      e.target.classList.toggle('filled', !!v)
+      row.dataset.error = 'false'
+      if (v && i < inputs.length - 1) inputs[i + 1].focus()
+      if (i === inputs.length - 1 && code().length === 6) onComplete()
+    })
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && !e.target.value && i > 0) inputs[i - 1].focus()
+      else if (e.key === 'Enter' && code().length === 6) onComplete()
+    })
+    input.addEventListener('paste', e => {
+      e.preventDefault()
+      const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6)
+      pasted.split('').forEach((ch, idx) => {
+        if (inputs[idx]) { inputs[idx].value = ch; inputs[idx].classList.add('filled') }
+      })
+      inputs[Math.min(pasted.length, inputs.length - 1)].focus()
+      if (pasted.length === 6) onComplete()
+    })
+  })
+  return {
+    inputs,
+    code,
+    reset() { inputs.forEach(i => { i.value = ''; i.classList.remove('filled') }); row.dataset.error = 'false' },
+    setError() { row.dataset.error = 'true' },
+    setDisabled(d) { inputs.forEach(i => { i.disabled = d }) },
+    focus() { inputs[0]?.focus() },
+  }
+}
+
+/* ─── Reusable OTP stage controller ─────────────────────────────
+   Drives one channel (email or phone): send, countdown, resend,
+   verify, and the full set of states. */
+function createOtpStage(opts) {
+  const { channel, sendFn, verifyFn, els, onVerified } = opts
+  const otp = wireOtpInputs(els.row, () => verify())
+  let ticker = null
+  let busy = false
+
+  function stopTicker() { if (ticker) { clearInterval(ticker); ticker = null } }
+
+  function tick() {
+    const now = Date.now()
+    const expMs = getExpiresAt(channel) - now
+    const resendMs = getResendAt(channel) - now
+
+    if (expMs <= 0) {
+      els.countdown.textContent = 'Code expired'
+      els.countdown.classList.add('expired')
+      els.verifyBtn.disabled = true
+      otp.setDisabled(true)
+      els.resend.disabled = false
+      els.resend.textContent = 'Resend code'
+      stopTicker()
+      setStatus(els.status, 'error', 'Your code expired. Request a new one to continue.')
+      return
+    }
+    els.countdown.classList.remove('expired')
+    els.countdown.textContent = `Code expires in ${fmt(expMs)}`
+    if (resendMs > 0) {
+      els.resend.disabled = true
+      els.resend.textContent = `Resend in ${fmt(resendMs)}`
+    } else {
+      els.resend.disabled = false
+      els.resend.textContent = 'Resend code'
+    }
+  }
+
+  function startTicker() { stopTicker(); tick(); ticker = setInterval(tick, 1000) }
+
+  async function send(target, { isResend = false } = {}) {
+    if (busy) return
+    busy = true
+    els.loading.classList.add('show')
+    setStatus(els.status, 'info', '')
+    els.status.classList.remove('show')
+
+    const res = await sendFn(target)
+    els.loading.classList.remove('show')
+    busy = false
+
+    if (!res.ok) {
+      if (els.onSendFail) els.onSendFail(res)
+      else setStatus(els.status, 'error', 'We couldn’t send the code. Please try again.')
+      return false
+    }
+
+    els.otpBlock.style.display = 'block'
+    otp.reset(); otp.setDisabled(false)
+    els.verifyBtn.disabled = false
+    const mask = opts.maskTarget ? opts.maskTarget(target) : target
+    setStatus(els.status, 'success', `${isResend ? 'A new code' : 'A 6-digit code'} is on its way to ${mask}.`)
+    startTicker()
+    otp.focus()
+    return true
+  }
+
+  async function verify() {
+    if (busy) return
+    const code = otp.code()
+    if (code.length < 6) { otp.setError(); setStatus(els.status, 'error', 'Enter all six digits.'); return }
+
+    busy = true
+    els.verifyBtn.disabled = true
+    els.loading.classList.add('show')
+
+    const res = await verifyFn(code)
+    els.loading.classList.remove('show')
+    busy = false
+
+    if (res.ok) {
+      stopTicker()
+      otp.setDisabled(true)
+      els.countdown.textContent = ''
+      els.resend.style.display = 'none'
+      setStatus(els.status, 'success', 'Verified.')
+      onVerified()
+      return
+    }
+
+    otp.setError()
+    els.verifyBtn.disabled = false
+    const messages = {
+      expired: 'That code has expired. Tap “Resend code” for a new one.',
+      invalid: res.attemptsLeft != null
+        ? `That code isn’t right. ${res.attemptsLeft} attempt${res.attemptsLeft === 1 ? '' : 's'} left.`
+        : 'That code isn’t right. Please try again.',
+      locked: 'Too many attempts. Please request a new code.',
+      no_otp: 'Please request a code first.',
+    }
+    setStatus(els.status, 'error', messages[res.reason] || 'Verification failed. Please try again.')
+    otp.reset(); otp.focus()
+  }
+
+  els.verifyBtn.addEventListener('click', verify)
+  els.resend.addEventListener('click', () => send(opts.currentTarget(), { isResend: true }))
+
+  return { send, startTicker, stopTicker, otp }
+}
+
+/* ─── EMAIL STAGE ─── */
+const emailAddr = user.email || ''
+$('emailTarget').textContent = maskEmail(emailAddr)
+
+const emailStage = createOtpStage({
+  channel: 'email',
+  sendFn: sendEmailOtp,
+  verifyFn: verifyEmailOtp,
+  currentTarget: () => emailAddr,
+  maskTarget: maskEmail,
+  els: {
+    row: $('emailOtpRow'),
+    otpBlock: $('emailOtpBlock'),
+    loading: $('emailLoading'),
+    status: $('emailStatus'),
+    countdown: $('emailCountdown'),
+    resend: $('emailResend'),
+    verifyBtn: $('emailVerifyBtn'),
+  },
+  onVerified: () => {
+    store.markEmailVerified()
+    setStep($('stepEmail'), 'done')
+    goToPhoneStage()
+  },
+})
+
+// Manual (re)send via the target row link, plus auto-send on load.
+$('emailEditBtn').addEventListener('click', () => emailStage.send(emailAddr, { isResend: true }))
+
+/* ─── PHONE STAGE ─── */
+let phoneNumber = (mfa.phone && mfa.phone.number) || ''
+
+const phoneStage = createOtpStage({
+  channel: 'phone',
+  sendFn: sendPhoneOtp,
+  verifyFn: verifyPhoneOtp,
+  currentTarget: () => phoneNumber,
+  maskTarget: maskPhone,
+  els: {
+    row: $('phoneOtpRow'),
+    otpBlock: $('phoneOtpBlock'),
+    loading: $('phoneLoading'),
+    status: $('phoneStatus'),
+    countdown: $('phoneCountdown'),
+    resend: $('phoneResend'),
+    verifyBtn: $('phoneVerifyBtn'),
+  },
+  onVerified: () => {
+    store.markPhoneVerified(phoneNumber)
+    setStep($('stepPhone'), 'done')
+    finishMfa()
+  },
+})
+
+$('phoneSendBtn').addEventListener('click', async () => {
+  const value = $('phoneInput').value.trim()
+  setStatus($('phoneSendStatus'), 'error', '')
+  $('phoneSendStatus').classList.remove('show')
+  if (value.replace(/\D/g, '').length < 7) {
+    setStatus($('phoneSendStatus'), 'error', 'Please enter a valid mobile number.')
+    return
+  }
+  phoneNumber = value
+  $('phoneLoadingSend').classList.add('show')
+  $('phoneSendBtn').disabled = true
+
+  $('phoneTarget').textContent = maskPhone(phoneNumber)
+  const ok = await phoneStage.send(phoneNumber)
+  $('phoneLoadingSend').classList.remove('show')
+  $('phoneSendBtn').disabled = false
+  if (ok) {
+    $('phoneEntryBlock').style.display = 'none'
+    $('phoneOtpBlock').style.display = 'block'
+  } else {
+    setStatus($('phoneSendStatus'), 'error', 'We couldn’t send a code to that number. Check it and try again.')
+  }
+})
+
+$('phoneEditBtn').addEventListener('click', () => {
+  phoneStage.stopTicker()
+  $('phoneOtpBlock').style.display = 'none'
+  $('phoneEntryBlock').style.display = 'block'
+  $('phoneInput').focus()
+})
+$('phoneInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('phoneSendBtn').click() } })
+
+/* ─── Stage transitions ─── */
+function showStage(id) {
+  document.querySelectorAll('.mfa-stage').forEach(s => s.classList.remove('active'))
+  $(id).classList.add('active')
+}
+
+function goToPhoneStage() {
+  showStage('phoneStage')
+  setStep($('stepEmail'), 'done')
+  setStep($('stepPhone'), 'active')
+  $('mfaTitle').textContent = 'Confirm your phone'
+  $('mfaSub').textContent = 'One more factor. Add a mobile number and we’ll text a 6-digit code.'
+  if (phoneNumber) {
+    // Returning to an already-entered number
+    $('phoneInput').value = phoneNumber
+  }
+  setTimeout(() => $('phoneInput').focus(), 200)
+}
+
+function finishMfa() {
+  const dest = store.completeMfa()
+  showStage('successStage')
+  setStep($('stepPhone'), 'done')
+  $('mfaHint').textContent = ''
+  setTimeout(() => window.location.replace(dest), 1400)
+}
+
+/* ─── Resume / boot ─────────────────────────────────────────────
+   In-memory OTP state is lost on refresh, so resume from whatever the
+   store already recorded as verified. */
+if (mfa.email && mfa.email.verified && !(mfa.phone && mfa.phone.verified)) {
+  setStep($('stepEmail'), 'done')
+  goToPhoneStage()
+} else if (mfa.phone && mfa.phone.verified && mfa.email && mfa.email.verified) {
+  finishMfa()
+} else {
+  // Fresh start — auto-send the email factor.
+  emailStage.send(emailAddr)
+}

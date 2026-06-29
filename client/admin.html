@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEVEL Admin</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="stylesheet" href="css/admin.css">
+  <!-- Chart.js v4 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body class="adm-body-root">
+
+  <div id="adm" class="adm-layout" style="display:none;">
+
+    <!-- ── Sidebar ─────────────────────────────────────────────── -->
+    <aside class="adm-sidebar" id="admSidebar">
+      <div class="adm-sidebar-logo">
+        <img src="assets/level-wordmark.png" alt="LEVEL" class="adm-logo-full" onerror="this.style.display='none'">
+        <span class="adm-logo-fallback">L</span>
+        <span class="adm-logo-badge">Admin</span>
+      </div>
+      <nav class="adm-sidebar-nav" id="admNav"></nav>
+      <button class="adm-sidebar-collapse" id="admCollapseBtn" title="Collapse sidebar">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        <span class="adm-collapse-label">Collapse</span>
+      </button>
+    </aside>
+
+    <!-- ── Main area ────────────────────────────────────────────── -->
+    <div class="adm-main">
+
+      <!-- Topbar -->
+      <header class="adm-topbar" id="admTopbar">
+        <div class="adm-topbar-left">
+          <div class="adm-breadcrumb" id="admBreadcrumb">Overview</div>
+        </div>
+        <div class="adm-topbar-right">
+          <div class="adm-session-timer" id="admTimer" title="Session time remaining"></div>
+          <div class="adm-admin-chip" id="admAdminChip"></div>
+          <button class="adm-logout-btn" id="admLogoutBtn" title="Sign out">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+              <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Sign out</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Panel content -->
+      <main class="adm-content" id="admPanel">
+        <div class="adm-loading" id="admPanelLoading">
+          <div class="adm-spinner"></div>
+        </div>
+      </main>
+
+    </div>
+  </div>
+
+  <!-- Modal portal -->
+  <div id="admModals"></div>
+
+  <!-- Toast container -->
+  <div id="admToasts"></div>
+
+  <!-- Session timeout warning -->
+  <div id="admTimeoutWarning" class="adm-timeout-warning" style="display:none;">
+    <div class="adm-timeout-box">
+      <div class="adm-timeout-icon">&#9203;</div>
+      <div class="adm-timeout-title">Session expiring soon</div>
+      <div class="adm-timeout-body">You will be signed out in <strong id="admTimeoutCountdown">2:00</strong> due to inactivity.</div>
+      <button class="adm-btn adm-btn-gold" id="admExtendBtn">Stay signed in</button>
+    </div>
+  </div>
+
+  <script type="module" src="js/admin/core.js"></script>
+</body>
+</html>

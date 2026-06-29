@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEVEL — Membership</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/design-system.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <style>
+    body { overflow-x: hidden; }
+
+    .app-sidebar {
+      background: rgba(1,15,36,0.85);
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: var(--sidebar-width);
+      display: flex;
+      flex-direction: column;
+      padding: var(--s-6) var(--s-4);
+      z-index: 100;
+      border-right: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .app-main { margin-left: var(--sidebar-width); min-height: 100vh; }
+
+    .app-topbar {
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid var(--border-light);
+      padding: 0 var(--s-10);
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(18px);
+    }
+
+    .topbar-title {
+      font-family: var(--font-serif);
+      font-size: 1.4rem;
+      font-weight: 400;
+      color: var(--cream-50);
+      letter-spacing: -0.01em;
+    }
+
+    .app-content {
+      padding: var(--s-10) var(--s-12) var(--s-16);
+      max-width: 1100px;
+    }
+
+    /* ─── Page header ─── */
+    .mem-header { margin-bottom: var(--s-2); }
+    .mem-eyebrow {
+      display: inline-flex; align-items: center; gap: 12px;
+      font-family: var(--font-sans);
+      font-size: 0.7rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--gold-300);
+      margin-bottom: 14px;
+      font-weight: 500;
+    }
+    .mem-eyebrow::before {
+      content: '';
+      width: 32px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold-400));
+    }
+    .mem-title {
+      font-family: var(--font-serif);
+      font-size: clamp(2rem, 3.6vw, 3rem);
+      font-weight: 300;
+      color: var(--cream-50);
+      letter-spacing: -0.025em;
+      line-height: 1.08;
+    }
+    .mem-title em {
+      font-family: 'Instrument Serif','Fraunces',Georgia,serif;
+      font-style: italic;
+      background: linear-gradient(135deg, var(--gold-300), var(--gold-400));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .mem-subtitle {
+      margin-top: var(--s-4);
+      margin-bottom: var(--s-2);
+      font-family: var(--font-sans);
+      font-size: 0.95rem;
+      color: rgba(255,255,255,0.55);
+      max-width: 560px;
+      line-height: 1.65;
+      font-weight: 300;
+    }
+
+    /* ─── Current plan banner ─── */
+    .mem-current-plan {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 16px;
+      background: rgba(193,164,100,0.08);
+      border: 1px solid rgba(193,164,100,0.28);
+      border-radius: 999px;
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--gold-300);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: var(--s-8);
+    }
+    .mem-current-plan::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--gold-400);
+      box-shadow: 0 0 8px var(--gold-400);
+    }
+
+    /* ─── Comparison table ─── */
+    .mem-compare {
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 32px 28px;
+      margin-top: 48px;
+    }
+    .mem-compare-title {
+      font-family: var(--font-serif);
+      font-size: 1.5rem;
+      font-weight: 300;
+      color: var(--cream-50);
+      letter-spacing: -0.015em;
+      margin-bottom: 24px;
+    }
+    .mem-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .mem-table th {
+      font-family: var(--font-sans);
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: rgba(255,255,255,0.45);
+      text-align: left;
+      padding: 0 16px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .mem-table th:first-child { padding-left: 0; }
+    .mem-table td {
+      font-family: var(--font-sans);
+      font-size: 0.86rem;
+      font-weight: 300;
+      color: rgba(255,255,255,0.7);
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      vertical-align: top;
+    }
+    .mem-table td:first-child {
+      padding-left: 0;
+      color: rgba(255,255,255,0.5);
+      font-size: 0.8rem;
+    }
+    .mem-table tr:last-child td { border-bottom: 0; }
+    .mem-check { color: var(--gold-300); font-size: 14px; }
+    .mem-dash  { color: rgba(255,255,255,0.2); }
+
+    @media (max-width: 1024px) {
+      :root { --sidebar-width: 0px; }
+      .app-sidebar { display: none; }
+      .app-main { margin-left: 0; }
+      .app-content { padding: var(--s-6); }
+      .mem-grid { grid-template-columns: 1fr; }
+      .mem-compare { overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-glows">
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
+    <div class="bg-glow bg-glow-4"></div>
+  </div>
+
+  <div class="app-layout" style="position:relative;z-index:1;">
+    <aside class="app-sidebar" id="sidebar"></aside>
+
+    <main class="app-main">
+      <div class="app-topbar">
+        <div class="topbar-title">Membership</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span id="topbarTier" class="mem-current-plan" style="margin:0;"></span>
+        </div>
+      </div>
+
+      <div class="app-content">
+        <div class="mem-header">
+          <div class="mem-eyebrow">Membership</div>
+          <h1 class="mem-title">
+            Access shaped<br>
+            <em>by your intentions.</em>
+          </h1>
+          <p class="mem-subtitle">
+            Each tier unlocks a broader set of tools — geographic reach, execution access,
+            and priority placement — designed for how seriously you're pursuing partnership.
+          </p>
+        </div>
+
+        <div id="currentPlanBadge" class="mem-current-plan"></div>
+
+        <!-- ─── Tier Cards ─── -->
+        <div class="mem-grid" id="tierGrid">
+
+          <!-- BASE -->
+          <div class="mem-card" id="card-base">
+            <div class="mem-badge">Base</div>
+            <div class="mem-price">Free<span></span></div>
+            <div class="mem-name">LEVEL Base</div>
+            <div class="mem-divider"></div>
+            <ul class="mem-features">
+              <li class="mem-feature">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                10 profiles per 24-hour cycle
+              </li>
+              <li class="mem-feature">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                Local region matches
+              </li>
+              <li class="mem-feature">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                3 concurrent message threads
+              </li>
+              <li class="mem-feature">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                Venue suggestions for dates
+              </li>
+              <li class="mem-feature mem-feature--locked">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+                </svg>
+                Expanded geographic reach
+              </li>
+              <li class="mem-feature mem-feature--locked">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+                </svg>
+                In-app reservations
+              </li>
+              <li class="mem-feature mem-feature--locked">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+                </svg>
+                Community &amp; mixer access
+              </li>
+            </ul>
+            <div class="mem-cta" id="cta-base"></div>
+          </div>
+
+          <!-- PLUS -->
+          <div class="mem-card" id="card-plus">
+            <div class="mem-badge">Plus</div>
+            <div class="mem-price">₱499<span>/month</span></div>
+            <div class="mem-name">LEVEL Plus</div>
+            <div class="mem-divider"></div>
+            <ul class="mem-features">
+              <li class="mem-feature">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                Unlimited profile delivery
+              </li>
+              <li class="mem-feature">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                National &amp; cross-regional reach
+              </li>
+              <li class="mem-feature">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                Unlimited threads + unmatch history
+              </li>
+              <li class="mem-feature">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                In-app scheduling &amp; reservations
+              </li>
+              <li class="mem-feature">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                RSVP to standard mixer events
+              </li>
+              <li class="mem-feature">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                Enhanced visibility in the match matrix
+              </li>
+              <li class="mem-feature mem-feature--locked">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+                </svg>
+                Global reach &amp; VIP events
+              </li>
+            </ul>
+            <div class="mem-cta" id="cta-plus"></div>
+          </div>
+
+          <!-- PRIME -->
+          <div class="mem-card mem-card--prime" id="card-prime">
+            <div class="mem-badge">Prime</div>
+            <div class="mem-price">₱1,990<span>/month</span></div>
+            <div class="mem-name">LEVEL Prime</div>
+            <div class="mem-divider"></div>
+            <ul class="mem-features">
+              <li class="mem-feature">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                Unlimited · real-time priority ranking
+              </li>
+              <li class="mem-feature">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                Global reach &amp; high-travel mobility
+              </li>
+              <li class="mem-feature">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                Unlimited threads &amp; priority thread pinning
+              </li>
+              <li class="mem-feature">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                Premium concierge booking
+              </li>
+              <li class="mem-feature">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                Personal date assistance
+              </li>
+              <li class="mem-feature">
+                <svg class="mem-feature-icon" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                Full entry to VIP meetups &amp; networking events
+              </li>
+            </ul>
+            <div class="mem-cta" id="cta-prime"></div>
+          </div>
+
+        </div><!-- /mem-grid -->
+
+        <!-- ─── Comparison table ─── -->
+        <div class="mem-compare">
+          <div class="mem-compare-title">Feature comparison</div>
+          <table class="mem-table">
+            <thead>
+              <tr>
+                <th style="width:35%;">Feature</th>
+                <th>Base</th>
+                <th>Plus</th>
+                <th>Prime</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Match delivery</td>
+                <td>10 / day</td>
+                <td>Unlimited</td>
+                <td>Unlimited</td>
+              </tr>
+              <tr>
+                <td>Geographic reach</td>
+                <td>Local region</td>
+                <td>National hubs</td>
+                <td>Global</td>
+              </tr>
+              <tr>
+                <td>Algorithm priority</td>
+                <td>Standard FIFO</td>
+                <td>Enhanced visibility</td>
+                <td>Real-time · priority queue</td>
+              </tr>
+              <tr>
+                <td>Messaging threads</td>
+                <td>3 concurrent</td>
+                <td>Unlimited + history</td>
+                <td>Unlimited + thread pinning</td>
+              </tr>
+              <tr>
+                <td>Execution layer</td>
+                <td>Venue suggestions</td>
+                <td>In-app scheduling</td>
+                <td>Concierge + personal assistance</td>
+              </tr>
+              <tr>
+                <td>Community events</td>
+                <td><span class="mem-dash">—</span></td>
+                <td>Standard mixers (RSVP)</td>
+                <td>VIP meetups &amp; networking</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div><!-- /app-content -->
+    </main>
+  </div>
+
+  <script type="module">
+    import { requireAuth, initBodyFade, hydrateUser } from './js/app.js'
+    import { store } from './js/store.js'
+    import { TIER_META } from './js/membership.js'
+
+    requireAuth()
+    initBodyFade()
+    hydrateUser()
+
+    const tier = store.getTier()
+
+    /* ─ Current plan badge ─ */
+    const meta = TIER_META[tier] || TIER_META.base
+    const badgeText = `Current plan: ${meta.name}`
+    document.getElementById('currentPlanBadge').textContent = badgeText
+    document.getElementById('topbarTier').textContent = meta.name
+
+    /* ─ Highlight active card ─ */
+    document.getElementById(`card-${tier}`)?.classList.add('mem-card--active')
+
+    /* ─ Render CTAs ─ */
+    function renderCta(cardTier, currentTier) {
+      const el = document.getElementById(`cta-${cardTier}`)
+      if (!el) return
+
+      if (cardTier === currentTier) {
+        el.innerHTML = `<div class="mem-current-label">✦ &nbsp;Current plan</div>`
+        return
+      }
+
+      const cardMeta = TIER_META[cardTier]
+      const tiers    = ['base', 'plus', 'prime']
+      const isUpgrade = tiers.indexOf(cardTier) > tiers.indexOf(currentTier)
+
+      if (isUpgrade) {
+        el.innerHTML = `
+          <button class="btn btn-gold" style="width:100%;justify-content:center;"
+            onclick="changeTier('${cardTier}')">
+            Upgrade to ${cardMeta.shortName}
+          </button>`
+      } else {
+        el.innerHTML = `
+          <button class="btn btn-outline-dark" style="width:100%;justify-content:center;"
+            onclick="changeTier('${cardTier}')">
+            Downgrade to ${cardMeta.shortName}
+          </button>`
+      }
+    }
+
+    renderCta('base',  tier)
+    renderCta('plus',  tier)
+    renderCta('prime', tier)
+
+    /* ─ Tier switch (demo only — writes directly to session store) ─ */
+    window.changeTier = function(newTier) {
+      if (newTier === store.getTier()) return
+      store.setTier(newTier)
+      /* Clear the match cycle so the new tier's quota takes effect immediately */
+      localStorage.removeItem('level_match_cycle')
+
+      const newMeta = TIER_META[newTier] || TIER_META.base
+      const msg     = `Switched to ${newMeta.name}. Reloading…`
+
+      /* Brief confirmation then reload to apply all gate changes */
+      const toast = document.createElement('div')
+      toast.className = 'toast animate-fadeUp'
+      toast.innerHTML = `<span style="font-size:18px">✦</span><span>${msg}</span>`
+      document.body.appendChild(toast)
+      setTimeout(() => window.location.reload(), 1200)
+    }
+  </script>
+
+  <script type="module" src="js/sidebar.js"></script>
+</body>
+</html>

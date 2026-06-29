@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEVEL</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <!--
+    The user-facing "Alignment Engine" console has been retired. Exposing
+    scoring weights, zero-out gates, raw point values, and breakdown math is
+    internal logic only and should never appear in the member UI.
+
+    The scoring engine itself lives on in js/alignment-engine.js as internal
+    logic used by the matching system. This route now redirects to the
+    dashboard so no internal configuration surface is user-reachable.
+  -->
+  <meta http-equiv="refresh" content="0; url=dashboard.html">
+  <script>window.location.replace('dashboard.html')</script>
+</head>
+<body>
+  <p style="font-family:sans-serif;color:#ccc;background:#0B0819;height:100vh;margin:0;display:flex;align-items:center;justify-content:center;">
+    Redirecting… <a href="dashboard.html" style="color:#E8C7A0;margin-left:6px;">Continue to dashboard</a>
+  </p>
+</body>
+</html>

@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEVEL — Settings</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/design-system.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <style>
+    body { overflow-x: hidden; }
+    .app-layout { min-height: 100vh; }
+
+    .app-sidebar {
+      background: rgba(1,15,36,0.85);
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: var(--sidebar-width);
+      display: flex;
+      flex-direction: column;
+      padding: var(--s-6) var(--s-4);
+      z-index: 100;
+      border-right: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .app-main { margin-left: var(--sidebar-width); min-height: 100vh; }
+
+    .app-topbar {
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid var(--border-light);
+      padding: 0 var(--s-10);
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(18px);
+    }
+
+    .topbar-title {
+      font-family: var(--font-serif);
+      font-size: 1.4rem;
+      font-weight: 400;
+      color: var(--cream-50);
+      letter-spacing: -0.01em;
+    }
+
+    .app-content { padding: var(--s-10) var(--s-12) var(--s-16); max-width: 880px; }
+
+    .set-header { margin-bottom: var(--s-10); }
+    .set-eyebrow {
+      display: inline-flex; align-items: center; gap: 12px;
+      font-family: var(--font-sans);
+      font-size: 0.7rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--gold-300);
+      margin-bottom: 14px;
+      font-weight: 500;
+    }
+    .set-eyebrow::before {
+      content: '';
+      width: 32px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold-400));
+    }
+    .set-title {
+      font-family: var(--font-serif);
+      font-size: clamp(2rem, 3.6vw, 3rem);
+      font-weight: 300;
+      color: var(--cream-50);
+      letter-spacing: -0.025em;
+      line-height: 1.05;
+    }
+    .set-title em {
+      font-family: 'Instrument Serif','Fraunces',Georgia,serif;
+      font-style: italic;
+      background: linear-gradient(135deg, var(--gold-300), var(--gold-400));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .set-subtitle {
+      margin-top: var(--s-4);
+      font-family: var(--font-sans);
+      font-size: 0.95rem;
+      color: rgba(255,255,255,0.55);
+      max-width: 560px;
+      line-height: 1.65;
+      font-weight: 300;
+    }
+
+    /* Section card */
+    .set-section {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 28px 28px var(--s-5);
+      margin-bottom: var(--s-6);
+      position: relative;
+      overflow: hidden;
+    }
+    .set-section::before {
+      content: '';
+      position: absolute;
+      left: 28px; right: 28px; top: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(212,168,67,0.32), transparent);
+      opacity: 0.6;
+    }
+    .set-section-head {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      gap: var(--s-4);
+      margin-bottom: var(--s-5);
+    }
+    .set-section-label {
+      font-family: var(--font-sans);
+      font-size: 0.66rem;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--gold-300);
+      font-weight: 500;
+    }
+    .set-section-title {
+      font-family: var(--font-serif);
+      font-size: 1.45rem;
+      font-weight: 400;
+      color: var(--cream-50);
+      letter-spacing: -0.012em;
+      margin-top: 6px;
+      line-height: 1.15;
+    }
+    .set-section-sub {
+      font-family: var(--font-sans);
+      font-size: 0.82rem;
+      color: rgba(255,255,255,0.50);
+      font-weight: 300;
+      max-width: 480px;
+      line-height: 1.55;
+      margin-top: 4px;
+    }
+
+    /* Row */
+    .set-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 24px;
+      padding: 16px 0;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .set-row:first-of-type { border-top: 0; padding-top: 4px; }
+    .set-row-text {
+      min-width: 0;
+    }
+    .set-row-title {
+      font-family: var(--font-sans);
+      font-size: 0.92rem;
+      color: var(--cream-50);
+      font-weight: 500;
+    }
+    .set-row-sub {
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.50);
+      font-weight: 300;
+      margin-top: 3px;
+      line-height: 1.5;
+    }
+    .set-row-value {
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.78);
+      font-weight: 400;
+    }
+
+    /* iOS-style toggle */
+    .set-toggle {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 26px;
+      flex-shrink: 0;
+    }
+    .set-toggle input {
+      opacity: 0;
+      width: 0; height: 0;
+    }
+    .set-toggle-track {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 999px;
+      transition: background 0.3s ease, border-color 0.3s ease;
+    }
+    .set-toggle-track::before {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 3px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.85);
+      border-radius: 50%;
+      transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), background 0.3s ease;
+    }
+    .set-toggle input:checked + .set-toggle-track {
+      background: linear-gradient(135deg, rgba(212,168,67,0.40), rgba(212,168,67,0.20));
+      border-color: rgba(212,168,67,0.55);
+    }
+    .set-toggle input:checked + .set-toggle-track::before {
+      transform: translateY(-50%) translateX(18px);
+      background: var(--gold-300);
+    }
+    .set-toggle input:focus-visible + .set-toggle-track {
+      box-shadow: 0 0 0 3px rgba(212,168,67,0.25);
+    }
+
+    /* Action buttons (Sign out, Pause, Delete) */
+    .set-btn {
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      font-weight: 500;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      padding: 9px 18px;
+      border-radius: 999px;
+      cursor: pointer;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.14);
+      color: rgba(255,255,255,0.82);
+      transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+    }
+    .set-btn:hover {
+      background: rgba(255,255,255,0.06);
+      color: var(--cream-50);
+    }
+    .set-btn.danger {
+      border-color: rgba(239,68,68,0.40);
+      color: #F87171;
+    }
+    .set-btn.danger:hover {
+      background: rgba(239,68,68,0.12);
+      border-color: rgba(239,68,68,0.65);
+      color: #FCA5A5;
+    }
+    .set-btn.gold {
+      border-color: rgba(212,168,67,0.50);
+      color: var(--gold-300);
+      background: linear-gradient(135deg, rgba(212,168,67,0.14), rgba(212,168,67,0.04));
+    }
+    .set-btn.gold:hover {
+      background: linear-gradient(135deg, rgba(212,168,67,0.24), rgba(212,168,67,0.08));
+      color: var(--gold-200);
+    }
+
+    /* Membership snapshot */
+    .set-tier {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(212,168,67,0.20), rgba(212,168,67,0.06));
+      border: 1px solid rgba(212,168,67,0.45);
+      color: var(--gold-300);
+      font-family: var(--font-sans);
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .set-tier::before {
+      content: '';
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--gold-400);
+      box-shadow: 0 0 8px var(--gold-400);
+    }
+
+    /* Save toast */
+    .set-toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      padding: 12px 18px;
+      border-radius: 12px;
+      background: rgba(8,15,30,0.92);
+      border: 1px solid rgba(212,168,67,0.35);
+      color: var(--cream-50);
+      font-family: var(--font-sans);
+      font-size: 0.82rem;
+      letter-spacing: 0.04em;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.45);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 200;
+      pointer-events: none;
+    }
+    .set-toast.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .set-toast::before {
+      content: '✓';
+      margin-right: 8px;
+      color: var(--gold-300);
+    }
+
+    @media (max-width: 1024px) {
+      :root { --sidebar-width: 0px; }
+      .app-sidebar { display: none; }
+      .app-main { margin-left: 0; }
+      .app-content { padding: var(--s-6); }
+      .set-section { padding: var(--s-5); }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-glows">
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
+    <div class="bg-glow bg-glow-4"></div>
+  </div>
+
+  <div class="app-layout" style="position:relative;z-index:1;">
+    <aside class="app-sidebar"></aside>
+
+    <main class="app-main">
+      <div class="app-topbar">
+        <div class="topbar-title">Settings</div>
+      </div>
+
+      <div class="app-content">
+        <div class="set-header">
+          <div class="set-eyebrow">Preferences</div>
+          <h1 class="set-title">
+            Tune the experience<br>
+            <em>to how you want it.</em>
+          </h1>
+          <p class="set-subtitle">
+            Privacy, notifications, and account controls. Changes save the moment you make them.
+          </p>
+        </div>
+
+        <!-- ─── Account ─── -->
+        <section class="set-section">
+          <div class="set-section-head">
+            <div>
+              <div class="set-section-label">Section 01</div>
+              <div class="set-section-title">Account</div>
+              <div class="set-section-sub">The identity behind your profile. Visible only to the LEVEL membership team.</div>
+            </div>
+            <span class="set-tier" id="setTier">Select</span>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">Name</div>
+              <div class="set-row-sub" id="setName">—</div>
+            </div>
+            <span class="set-row-value">Verified</span>
+          </div>
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">Email</div>
+              <div class="set-row-sub" id="setEmail">—</div>
+            </div>
+            <button class="set-btn" onclick="alert('Email change requires verification through your concierge.')">Change</button>
+          </div>
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">Password</div>
+              <div class="set-row-sub">Last updated when you joined LEVEL.</div>
+            </div>
+            <button class="set-btn" onclick="alert('Password reset link sent to your email.')">Reset</button>
+          </div>
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">Sign out</div>
+              <div class="set-row-sub">End this session on this device.</div>
+            </div>
+            <button class="set-btn" onclick="signOut()">Sign out</button>
+          </div>
+        </section>
+
+        <!-- ─── Privacy ─── -->
+        <section class="set-section">
+          <div class="set-section-head">
+            <div>
+              <div class="set-section-label">Section 02</div>
+              <div class="set-section-title">Privacy</div>
+              <div class="set-section-sub">Control who can see you, what they see, and what you broadcast.</div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">Discretion mode</div>
+              <div class="set-row-sub">Browse without appearing in other members' "recently viewed" lists.</div>
+            </div>
+            <label class="set-toggle">
+              <input type="checkbox" data-setting="privacy.discretionMode">
+              <span class="set-toggle-track"></span>
+            </label>
+          </div>
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">Block colleagues</div>
+              <div class="set-row-sub">Anyone at your current employer will not see your profile in their queue.</div>
+            </div>
+            <label class="set-toggle">
+              <input type="checkbox" data-setting="privacy.blockColleagues">
+              <span class="set-toggle-track"></span>
+            </label>
+          </div>
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">Mutual-only visibility</div>
+              <div class="set-row-sub">Only members you've connected with can see your full profile.</div>
+            </div>
+            <label class="set-toggle">
+              <input type="checkbox" data-setting="privacy.mutualOnlyVisibility">
+              <span class="set-toggle-track"></span>
+            </label>
+          </div>
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">Read receipts</div>
+              <div class="set-row-sub">Let matches see when you've read their messages.</div>
+            </div>
+            <label class="set-toggle">
+              <input type="checkbox" data-setting="privacy.readReceipts">
+              <span class="set-toggle-track"></span>
+            </label>
+          </div>
+        </section>
+
+        <!-- ─── Notifications ─── -->
+        <section class="set-section">
+          <div class="set-section-head">
+            <div>
+              <div class="set-section-label">Section 03</div>
+              <div class="set-section-title">Notifications</div>
+              <div class="set-section-sub">Decide which updates land in your feed. We never send push noise.</div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">New matches</div>
+              <div class="set-row-sub">When the team curates a new high-alignment introduction.</div>
+            </div>
+            <label class="set-toggle">
+              <input type="checkbox" data-setting="notifications.matches">
+              <span class="set-toggle-track"></span>
+            </label>
+          </div>
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">New messages</div>
+              <div class="set-row-sub">A reply or a fresh thread from a connection.</div>
+            </div>
+            <label class="set-toggle">
+              <input type="checkbox" data-setting="notifications.messages">
+              <span class="set-toggle-track"></span>
+            </label>
+          </div>
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">Connection requests</div>
+              <div class="set-row-sub">When another member asks to connect with you.</div>
+            </div>
+            <label class="set-toggle">
+              <input type="checkbox" data-setting="notifications.requests">
+              <span class="set-toggle-track"></span>
+            </label>
+          </div>
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">Concierge updates</div>
+              <div class="set-row-sub">Reservation confirmations, changes, and recommendations.</div>
+            </div>
+            <label class="set-toggle">
+              <input type="checkbox" data-setting="notifications.concierge">
+              <span class="set-toggle-track"></span>
+            </label>
+          </div>
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">System announcements</div>
+              <div class="set-row-sub">Product changes, policy updates, and rare LEVEL news.</div>
+            </div>
+            <label class="set-toggle">
+              <input type="checkbox" data-setting="notifications.system">
+              <span class="set-toggle-track"></span>
+            </label>
+          </div>
+        </section>
+
+        <!-- ─── Appearance ─── -->
+        <section class="set-section">
+          <div class="set-section-head">
+            <div>
+              <div class="set-section-label">Section 04</div>
+              <div class="set-section-title">Appearance</div>
+              <div class="set-section-sub">Visual and motion preferences for this device.</div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">Theme</div>
+              <div class="set-row-sub">LEVEL is designed for dark surroundings — light mode is coming soon.</div>
+            </div>
+            <span class="set-row-value">Dark</span>
+          </div>
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">Reduce motion</div>
+              <div class="set-row-sub">Soften transitions and disable parallax/auto-play animations.</div>
+            </div>
+            <label class="set-toggle">
+              <input type="checkbox" data-setting="appearance.reduceMotion">
+              <span class="set-toggle-track"></span>
+            </label>
+          </div>
+        </section>
+
+        <!-- ─── Danger ─── -->
+        <section class="set-section">
+          <div class="set-section-head">
+            <div>
+              <div class="set-section-label">Section 05</div>
+              <div class="set-section-title">Account controls</div>
+              <div class="set-section-sub">Step away from LEVEL — quietly or permanently.</div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">Pause my account</div>
+              <div class="set-row-sub">Hide your profile from every queue and silence notifications. You can resume anytime.</div>
+            </div>
+            <label class="set-toggle">
+              <input type="checkbox" data-setting="account.paused">
+              <span class="set-toggle-track"></span>
+            </label>
+          </div>
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">Delete my account</div>
+              <div class="set-row-sub">Remove your profile, messages, and matches permanently. This cannot be undone.</div>
+            </div>
+            <button class="set-btn danger" onclick="deleteAccount()">Delete</button>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="set-toast" id="setToast">Saved</div>
+
+  <script src="/js/sidebar.js"></script>
+  <script type="module" src="/js/settings.js"></script>
+</body>
+</html>

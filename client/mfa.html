@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEVEL — Identity Verification</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/design-system.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <style>
+    .mfa-shell {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--s-8) var(--s-5);
+    }
+
+    .mfa-card {
+      width: 100%;
+      max-width: 480px;
+      background: rgba(6,12,26,0.62);
+      backdrop-filter: blur(28px) saturate(160%);
+      -webkit-backdrop-filter: blur(28px) saturate(160%);
+      border: 1px solid var(--border-mid);
+      border-radius: var(--radius-2xl);
+      padding: var(--s-10) var(--s-10) var(--s-8);
+      box-shadow: var(--shadow-2xl);
+      animation: fadeUp var(--dur-slow) var(--ease-elegant) both;
+    }
+
+    /* ─── Brand + heading ─── */
+    .mfa-brand {
+      display: flex;
+      align-items: center;
+      gap: var(--s-3);
+      margin-bottom: var(--s-8);
+    }
+    .mfa-lockmark {
+      width: 38px; height: 38px;
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, rgba(212,165,116,0.18), rgba(212,165,116,0.04));
+      border: 1px solid var(--border-gold);
+      color: var(--gold-400);
+    }
+    .mfa-lockmark svg { width: 18px; height: 18px; }
+    .mfa-wordmark {
+      font-family: var(--font-serif);
+      font-size: var(--text-lg);
+      letter-spacing: var(--tracking-widest);
+      color: var(--cream-50);
+    }
+    .mfa-eyebrow {
+      font-family: var(--font-sans);
+      font-size: var(--text-2xs);
+      font-weight: 500;
+      letter-spacing: var(--tracking-widest);
+      text-transform: uppercase;
+      color: var(--gold-400);
+    }
+
+    .mfa-title {
+      font-family: var(--font-serif);
+      font-size: var(--text-3xl);
+      font-weight: 300;
+      color: var(--text-primary);
+      line-height: 1.15;
+      margin-top: var(--s-2);
+    }
+    .mfa-sub {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-top: var(--s-3);
+    }
+    .mfa-sub strong { color: var(--text-primary); font-weight: 500; }
+
+    /* ─── Stepper ─── */
+    .mfa-steps {
+      display: flex;
+      gap: var(--s-3);
+      margin: var(--s-7) 0;
+    }
+    .mfa-step {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: var(--s-3);
+      padding: var(--s-3) var(--s-4);
+      border-radius: var(--radius-lg);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border-light);
+      transition: border-color var(--dur-normal) var(--ease-smooth),
+                  background var(--dur-normal) var(--ease-smooth);
+    }
+    .mfa-step[data-state="active"] {
+      border-color: var(--border-gold);
+      background: rgba(212,165,116,0.06);
+    }
+    .mfa-step[data-state="done"] { border-color: rgba(123,181,155,0.40); }
+    .mfa-step-dot {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      background: rgba(255,255,255,0.06);
+      color: var(--text-muted);
+      border: 1px solid var(--border-mid);
+    }
+    .mfa-step[data-state="active"] .mfa-step-dot {
+      background: var(--gold-400); color: var(--obsidian-900); border-color: transparent;
+    }
+    .mfa-step[data-state="done"] .mfa-step-dot {
+      background: var(--jade-500, #7BB59B); color: var(--obsidian-900); border-color: transparent;
+    }
+    .mfa-step-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      color: var(--text-secondary);
+    }
+    .mfa-step[data-state="active"] .mfa-step-label { color: var(--text-primary); }
+
+    /* ─── Stage ─── */
+    .mfa-stage { display: none; }
+    .mfa-stage.active { display: block; animation: fadeIn var(--dur-normal) var(--ease-smooth) both; }
+
+    .mfa-field-label {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: var(--s-2);
+    }
+
+    .mfa-input {
+      width: 100%;
+      height: 52px;
+      padding: 0 var(--s-4);
+      font-family: var(--font-sans);
+      font-size: var(--text-base);
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.04);
+      border: 1.5px solid var(--border-mid);
+      border-radius: var(--radius-md);
+      outline: none;
+      transition: all var(--dur-fast) var(--ease-smooth);
+    }
+    .mfa-input:focus {
+      border-color: rgba(4,150,199,0.55);
+      background: rgba(4,150,199,0.06);
+      box-shadow: 0 0 0 4px rgba(4,150,199,0.10);
+    }
+    .mfa-target-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: var(--s-3);
+      padding: var(--s-4) var(--s-5);
+      border-radius: var(--radius-md);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border-light);
+      margin-bottom: var(--s-5);
+    }
+    .mfa-target-val {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+    }
+    .mfa-target-edit {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--ocean-300);
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    /* OTP code inputs */
+    .otp-row { display: flex; gap: var(--s-2); margin-bottom: var(--s-4); }
+    .verify-input {
+      flex: 1; min-width: 0; width: 100%; height: 58px;
+      text-align: center;
+      font-family: var(--font-serif);
+      font-size: 1.65rem; font-weight: 400;
+      color: #FDFCF8;
+      background: rgba(255,255,255,0.04);
+      border: 1.5px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      outline: none;
+      transition: all 0.25s ease;
+    }
+    .verify-input:focus {
+      border-color: rgba(4,150,199,0.55);
+      background: rgba(4,150,199,0.06);
+      box-shadow: 0 0 0 4px rgba(4,150,199,0.10);
+    }
+    .verify-input.filled {
+      border-color: rgba(212,168,67,0.55);
+      background: rgba(212,168,67,0.06);
+      color: #F0DFA8;
+    }
+    .verify-input:disabled { opacity: 0.5; }
+    .otp-row[data-error="true"] .verify-input {
+      border-color: rgba(239,68,68,0.55);
+      background: rgba(239,68,68,0.06);
+    }
+
+    /* Meta row: expiry countdown + resend */
+    .mfa-meta {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: var(--s-3);
+      min-height: 22px;
+      margin-bottom: var(--s-5);
+    }
+    .mfa-countdown {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+    .mfa-countdown.expired { color: #FCA5A5; }
+    .mfa-resend {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      color: var(--ocean-300);
+      background: none; cursor: pointer;
+      transition: opacity var(--dur-fast);
+    }
+    .mfa-resend:disabled { color: var(--text-muted); cursor: default; opacity: 0.7; }
+
+    /* Status message (error / success / info) */
+    .mfa-status {
+      display: none;
+      align-items: center; gap: var(--s-2);
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      margin-bottom: var(--s-5);
+      line-height: 1.5;
+    }
+    .mfa-status.show { display: flex; }
+    .mfa-status[data-kind="error"]   { background: rgba(239,68,68,0.10); border: 1px solid rgba(239,68,68,0.32); color: #FCA5A5; }
+    .mfa-status[data-kind="success"] { background: rgba(123,181,155,0.10); border: 1px solid rgba(123,181,155,0.32); color: #A7E0C8; }
+    .mfa-status[data-kind="info"]    { background: rgba(85,226,233,0.08); border: 1px solid rgba(85,226,233,0.28); color: #A8F0F4; }
+
+    /* Subtle inline loading bar shown while sending/verifying */
+    .mfa-loading { margin-bottom: var(--s-5); display: none; }
+    .mfa-loading.show { display: block; }
+
+    .mfa-btn-full { width: 100%; justify-content: center; }
+    .mfa-btn-full[disabled] { opacity: 0.55; cursor: default; }
+
+    .mfa-hint {
+      font-family: var(--font-sans);
+      font-size: var(--text-2xs);
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: var(--s-5);
+      line-height: 1.6;
+    }
+    .mfa-demo-code { color: var(--gold-400); font-weight: 600; letter-spacing: 0.08em; }
+
+    /* Success stage */
+    .mfa-success-mark {
+      width: 64px; height: 64px;
+      margin: 0 auto var(--s-5);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, rgba(123,181,155,0.22), rgba(123,181,155,0.06));
+      border: 1px solid rgba(123,181,155,0.45);
+      color: #A7E0C8;
+    }
+    .mfa-success-mark svg { width: 30px; height: 30px; }
+    #successStage { text-align: center; }
+
+    .mfa-foot {
+      display: flex; align-items: center; justify-content: center; gap: var(--s-2);
+      margin-top: var(--s-8);
+      padding-top: var(--s-6);
+      border-top: 1px solid var(--border-light);
+      font-family: var(--font-sans);
+      font-size: var(--text-2xs);
+      color: var(--text-muted);
+    }
+    .mfa-foot svg { width: 13px; height: 13px; color: var(--gold-600); }
+
+    @media (max-width: 520px) {
+      .mfa-card { padding: var(--s-8) var(--s-6) var(--s-6); }
+      .verify-input { height: 50px; font-size: 1.4rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-glows">
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
+    <div class="bg-glow bg-glow-4"></div>
+  </div>
+
+  <div class="mfa-shell">
+    <div class="mfa-card">
+      <div class="mfa-brand">
+        <div class="mfa-lockmark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="11" width="16" height="9" rx="2"/>
+            <path d="M8 11V8a4 4 0 018 0v3"/>
+            <circle cx="12" cy="15.5" r="1.2" fill="currentColor" stroke="none"/>
+          </svg>
+        </div>
+        <div>
+          <div class="mfa-eyebrow">LEVEL Identity Gateway</div>
+          <div class="mfa-wordmark">Verify it's you</div>
+        </div>
+      </div>
+
+      <h1 class="mfa-title" id="mfaTitle">Two-step verification</h1>
+      <p class="mfa-sub" id="mfaSub">
+        For the trust of our community, every member confirms two factors before entering. This takes about a minute.
+      </p>
+
+      <!-- Stepper -->
+      <div class="mfa-steps">
+        <div class="mfa-step" id="stepEmail" data-state="active">
+          <div class="mfa-step-dot">1</div>
+          <div class="mfa-step-label">Email</div>
+        </div>
+        <div class="mfa-step" id="stepPhone" data-state="todo">
+          <div class="mfa-step-dot">2</div>
+          <div class="mfa-step-label">Phone</div>
+        </div>
+      </div>
+
+      <!-- ═══ STAGE 1: EMAIL OTP ═══ -->
+      <div class="mfa-stage active" id="emailStage">
+        <div class="mfa-field-label">Verification email</div>
+        <div class="mfa-target-row">
+          <span class="mfa-target-val" id="emailTarget">—</span>
+          <span class="mfa-target-edit" id="emailEditBtn">Send code</span>
+        </div>
+
+        <div class="mfa-loading" id="emailLoading"><div class="loading-bar"><span></span></div></div>
+        <div class="mfa-status" id="emailStatus" data-kind="info" role="status" aria-live="polite"></div>
+
+        <div id="emailOtpBlock" style="display:none;">
+          <div class="mfa-field-label">Enter the 6-digit code</div>
+          <div class="otp-row" id="emailOtpRow">
+            <input class="verify-input" type="text" inputmode="numeric" maxlength="1" aria-label="Email code digit 1">
+            <input class="verify-input" type="text" inputmode="numeric" maxlength="1" aria-label="Email code digit 2">
+            <input class="verify-input" type="text" inputmode="numeric" maxlength="1" aria-label="Email code digit 3">
+            <input class="verify-input" type="text" inputmode="numeric" maxlength="1" aria-label="Email code digit 4">
+            <input class="verify-input" type="text" inputmode="numeric" maxlength="1" aria-label="Email code digit 5">
+            <input class="verify-input" type="text" inputmode="numeric" maxlength="1" aria-label="Email code digit 6">
+          </div>
+          <div class="mfa-meta">
+            <span class="mfa-countdown" id="emailCountdown"></span>
+            <button class="mfa-resend" id="emailResend" type="button" disabled>Resend code</button>
+          </div>
+          <button class="btn btn-gold mfa-btn-full" id="emailVerifyBtn" type="button">Verify email</button>
+        </div>
+      </div>
+
+      <!-- ═══ STAGE 2: PHONE OTP ═══ -->
+      <div class="mfa-stage" id="phoneStage">
+        <div id="phoneEntryBlock">
+          <div class="mfa-field-label">Mobile number</div>
+          <input class="mfa-input" id="phoneInput" type="tel" inputmode="tel" placeholder="+1 (555) 010-2934" autocomplete="tel" style="margin-bottom:var(--s-5);">
+          <div class="mfa-loading" id="phoneLoadingSend"><div class="loading-bar"><span></span></div></div>
+          <button class="btn btn-gold mfa-btn-full" id="phoneSendBtn" type="button">Send code</button>
+        </div>
+
+        <div id="phoneOtpBlock" style="display:none;">
+          <div class="mfa-field-label">Verification number</div>
+          <div class="mfa-target-row">
+            <span class="mfa-target-val" id="phoneTarget">—</span>
+            <span class="mfa-target-edit" id="phoneEditBtn">Change</span>
+          </div>
+
+          <div class="mfa-loading" id="phoneLoading"><div class="loading-bar"><span></span></div></div>
+          <div class="mfa-status" id="phoneStatus" data-kind="info" role="status" aria-live="polite"></div>
+
+          <div class="mfa-field-label">Enter the 6-digit code</div>
+          <div class="otp-row" id="phoneOtpRow">
+            <input class="verify-input" type="text" inputmode="numeric" maxlength="1" aria-label="Phone code digit 1">
+            <input class="verify-input" type="text" inputmode="numeric" maxlength="1" aria-label="Phone code digit 2">
+            <input class="verify-input" type="text" inputmode="numeric" maxlength="1" aria-label="Phone code digit 3">
+            <input class="verify-input" type="text" inputmode="numeric" maxlength="1" aria-label="Phone code digit 4">
+            <input class="verify-input" type="text" inputmode="numeric" maxlength="1" aria-label="Phone code digit 5">
+            <input class="verify-input" type="text" inputmode="numeric" maxlength="1" aria-label="Phone code digit 6">
+          </div>
+          <div class="mfa-meta">
+            <span class="mfa-countdown" id="phoneCountdown"></span>
+            <button class="mfa-resend" id="phoneResend" type="button" disabled>Resend code</button>
+          </div>
+          <button class="btn btn-gold mfa-btn-full" id="phoneVerifyBtn" type="button">Verify phone</button>
+        </div>
+
+        <!-- status for the phone-entry sub-step -->
+        <div class="mfa-status" id="phoneSendStatus" data-kind="error" role="status" aria-live="polite" style="margin-top:var(--s-4);"></div>
+      </div>
+
+      <!-- ═══ SUCCESS ═══ -->
+      <div class="mfa-stage" id="successStage">
+        <div class="mfa-success-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        </div>
+        <h2 class="mfa-title" style="text-align:center;">You're verified</h2>
+        <p class="mfa-sub" style="text-align:center;">Both factors confirmed. Welcome to LEVEL — taking you in…</p>
+        <div class="mfa-loading show" style="margin-top:var(--s-6);"><div class="loading-bar"><span></span></div></div>
+      </div>
+
+      <div class="mfa-hint" id="mfaHint"></div>
+
+      <div class="mfa-foot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+        Protected by the LEVEL Identity Gateway · End-to-end encrypted
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/mfa.js"></script>
+</body>
+</html>

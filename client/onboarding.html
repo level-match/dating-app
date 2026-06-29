@@ -1,0 +1,1644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEVEL — Your Personal Profile</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/design-system.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <style>
+    /* ─── Onboarding — LEVEL Identity ─── */
+
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    .onboarding-wrapper {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Sidebar ───────────────────────────────────────────── */
+    .ob-sidebar {
+      background:
+        linear-gradient(180deg, rgba(11,8,25,0.92) 0%, rgba(11,8,25,0.78) 100%);
+      backdrop-filter: blur(20px);
+      padding: 44px 38px;
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: hidden;
+      border-right: 1px solid rgba(245,237,224,0.06);
+    }
+
+    .ob-prism-ribbon {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 2px;
+      background: linear-gradient(180deg,
+        transparent 0%,
+        rgba(232,199,160,0.6) 18%,
+        rgba(229,181,181,0.6) 36%,
+        rgba(184,168,212,0.6) 56%,
+        rgba(155,203,180,0.6) 78%,
+        transparent 100%);
+    }
+
+    .ob-sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 56px;
+    }
+
+    .ob-sidebar-logo .prism-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: conic-gradient(from 220deg, #E8C7A0, #E5B5B5, #B8A8D4, #9BCBB4, #E8C7A0);
+      box-shadow: 0 0 12px rgba(212,165,116,0.55);
+    }
+
+    .ob-sidebar-logo .wordmark {
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 1.05rem;
+      letter-spacing: 0.32em;
+      color: #FBF7EE;
+      text-transform: uppercase;
+    }
+
+    .ob-sidebar-title {
+      font-family: 'Fraunces', serif;
+      font-size: 1.5rem;
+      font-weight: 400;
+      letter-spacing: -0.01em;
+      color: #FBF7EE;
+      line-height: 1.2;
+      margin-bottom: 14px;
+    }
+    .ob-sidebar-title em {
+      font-family: 'Instrument Serif', 'Fraunces', serif;
+      font-style: italic;
+      background: linear-gradient(96deg, #E8C7A0, #E5B5B5, #B8A8D4, #9BCBB4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .ob-sidebar-desc {
+      font-size: 0.86rem;
+      font-weight: 300;
+      color: rgba(245,237,224,0.50);
+      line-height: 1.75;
+    }
+
+    .ob-steps-list {
+      margin-top: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 6px;
+    }
+    .ob-steps-list::-webkit-scrollbar { width: 2px; }
+    .ob-steps-list::-webkit-scrollbar-thumb { background: rgba(232,199,160,0.18); }
+
+    .ob-step-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
+      border: 1px solid transparent;
+    }
+
+    .ob-step-item.active {
+      background: rgba(212,165,116,0.06);
+      border-color: rgba(212,165,116,0.22);
+    }
+
+    .ob-step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1px solid rgba(245,237,224,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: rgba(245,237,224,0.40);
+      flex-shrink: 0;
+      transition: all 0.4s cubic-bezier(0.16,1,0.3,1);
+      font-family: 'Inter', sans-serif;
+    }
+
+    .ob-step-item.active .ob-step-num {
+      background: linear-gradient(135deg, #E8C7A0, #D4A574);
+      border-color: transparent;
+      color: #1A1335;
+      font-weight: 600;
+    }
+
+    .ob-step-item.completed .ob-step-num {
+      background: rgba(155,203,180,0.20);
+      border-color: rgba(155,203,180,0.5);
+      color: #9BCBB4;
+    }
+
+    .ob-step-label {
+      font-size: 0.82rem;
+      color: rgba(245,237,224,0.45);
+      transition: color 0.3s;
+      letter-spacing: 0.01em;
+    }
+    .ob-step-item.active .ob-step-label { color: rgba(245,237,224,0.92); }
+    .ob-step-item.completed .ob-step-label { color: rgba(245,237,224,0.60); }
+
+    /* Progress bar */
+    .ob-progress {
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(245,237,224,0.06);
+    }
+
+    .ob-progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(245,237,224,0.40);
+      margin-bottom: 10px;
+    }
+    .ob-progress-label .pct { color: #E8C7A0; }
+
+    .ob-progress-track {
+      height: 3px;
+      width: 100%;
+      background: rgba(245,237,224,0.07);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .ob-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #E8C7A0, #E5B5B5, #B8A8D4, #9BCBB4);
+      border-radius: 999px;
+      transition: width 0.6s cubic-bezier(0.16,1,0.3,1);
+    }
+
+    /* ── Main content ──────────────────────────────────────── */
+    .ob-main {
+      padding: 56px 80px;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    .ob-top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 64px;
+    }
+
+    .ob-back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.84rem;
+      color: rgba(245,237,224,0.50);
+      cursor: pointer;
+      transition: color 0.3s;
+      background: none;
+      border: none;
+      padding: 0;
+    }
+    .ob-back-btn:hover { color: #FBF7EE; }
+
+    .ob-step-counter {
+      font-size: 0.72rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(245,237,224,0.45);
+      font-weight: 500;
+    }
+    .ob-step-counter span { color: #E8C7A0; font-weight: 600; }
+
+    /* Question panel */
+    .ob-question-panel {
+      max-width: 720px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 24px 0;
+    }
+    .ob-question-panel.hidden { display: none; }
+
+    .ob-question-category {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      color: #E8C7A0;
+      margin-bottom: 18px;
+    }
+    .ob-question-category::before {
+      content: '';
+      width: 32px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #E8C7A0);
+    }
+
+    .ob-question-title {
+      font-family: 'Fraunces', serif;
+      font-size: clamp(2.2rem, 4vw, 3.4rem);
+      font-weight: 300;
+      color: #FBF7EE;
+      line-height: 1.05;
+      letter-spacing: -0.025em;
+      margin-bottom: 16px;
+    }
+    .ob-question-title em {
+      font-family: 'Instrument Serif', 'Fraunces', serif;
+      font-style: italic;
+      background: linear-gradient(96deg, #E8C7A0, #E5B5B5, #B8A8D4, #9BCBB4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .ob-question-subtitle {
+      font-size: 1rem;
+      font-weight: 300;
+      color: rgba(245,237,224,0.65);
+      line-height: 1.85;
+      margin-bottom: 44px;
+      max-width: 580px;
+    }
+
+    /* Answer options */
+    .ob-options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .ob-options-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .ob-option {
+      padding: 22px 24px;
+      border: 1px solid rgba(245,237,224,0.10);
+      border-radius: 18px;
+      cursor: pointer;
+      background: rgba(245,237,224,0.025);
+      transition: all 0.4s cubic-bezier(0.16,1,0.3,1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ob-option::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top right, rgba(232,199,160,0.10), transparent 60%);
+      opacity: 0;
+      transition: opacity 0.4s;
+      pointer-events: none;
+    }
+
+    .ob-option:hover {
+      border-color: rgba(212,165,116,0.32);
+      background: rgba(245,237,224,0.04);
+      transform: translateY(-2px);
+      box-shadow: 0 16px 40px rgba(7,6,17,0.4);
+    }
+    .ob-option:hover::before { opacity: 1; }
+
+    .ob-option.selected {
+      border-color: rgba(212,165,116,0.55);
+      background: rgba(212,165,116,0.07);
+      box-shadow: 0 0 0 2px rgba(212,165,116,0.10),
+                  0 16px 40px rgba(7,6,17,0.4),
+                  0 0 28px rgba(232,199,160,0.10);
+    }
+
+    .ob-option-icon {
+      font-size: 22px;
+      margin-bottom: 10px;
+      display: block;
+      opacity: 0.85;
+    }
+
+    .ob-option-label {
+      font-family: 'Fraunces', serif;
+      font-size: 1.2rem;
+      font-weight: 400;
+      color: #FBF7EE;
+      display: block;
+      letter-spacing: -0.005em;
+    }
+
+    .ob-option-desc {
+      margin-top: 5px;
+      font-size: 0.82rem;
+      font-weight: 300;
+      color: rgba(245,237,224,0.50);
+      display: block;
+      line-height: 1.55;
+    }
+
+    .ob-option-check {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 1px solid rgba(245,237,224,0.18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+      font-size: 11px;
+      color: transparent;
+    }
+
+    .ob-option.selected .ob-option-check {
+      background: linear-gradient(135deg, #E8C7A0, #D4A574);
+      border-color: transparent;
+      color: #1A1335;
+    }
+
+    /* Custom option (for "Add your own") */
+    .ob-option.custom {
+      border-style: dashed;
+      border-color: rgba(184,168,212,0.4);
+      background: transparent;
+    }
+    .ob-option.custom .ob-option-label {
+      color: rgba(184,168,212,0.95);
+      font-style: italic;
+    }
+    .ob-option.custom .ob-option-check {
+      border-color: rgba(184,168,212,0.4);
+      color: rgba(184,168,212,0.7);
+    }
+    .ob-option.custom .ob-option-check::before {
+      content: '+';
+      color: rgba(184,168,212,0.85);
+    }
+
+    /* Chips */
+    .ob-chips-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .ob-chip {
+      padding: 10px 20px;
+      border: 1px solid rgba(245,237,224,0.12);
+      border-radius: 999px;
+      font-size: 0.86rem;
+      font-weight: 400;
+      color: rgba(245,237,224,0.78);
+      cursor: pointer;
+      background: rgba(245,237,224,0.025);
+      transition: all 0.3s;
+      font-family: 'Inter', sans-serif;
+    }
+    .ob-chip:hover {
+      border-color: rgba(212,165,116,0.40);
+      background: rgba(212,165,116,0.07);
+      color: #FBF7EE;
+    }
+    .ob-chip.selected {
+      background: rgba(212,165,116,0.14);
+      color: #E8C7A0;
+      border-color: rgba(212,165,116,0.55);
+      box-shadow: 0 0 18px rgba(212,165,116,0.18);
+    }
+
+    /* Age slider */
+    .ob-age-slider {
+      margin-top: 24px;
+      padding: 32px 24px;
+      background: rgba(245,237,224,0.04);
+      border: 1px solid rgba(245,237,224,0.10);
+      border-radius: 20px;
+    }
+    .ob-age-display {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 28px;
+    }
+    .ob-age-display .ob-age-val {
+      font-family: 'Fraunces', serif;
+      font-size: 2.4rem;
+      font-weight: 300;
+      color: #E8C7A0;
+      letter-spacing: -0.02em;
+    }
+    .ob-age-display .ob-age-label {
+      display: block;
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(245,237,224,0.4);
+      margin-top: 6px;
+    }
+    .ob-age-range {
+      width: 100%;
+      appearance: none;
+      height: 4px;
+      background: linear-gradient(90deg, #E8C7A0, #E5B5B5, #B8A8D4, #9BCBB4);
+      border-radius: 999px;
+      outline: none;
+    }
+    .ob-age-range::-webkit-slider-thumb {
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #FBF7EE;
+      border: 2px solid #E8C7A0;
+      box-shadow: 0 0 16px rgba(212,165,116,0.45);
+      cursor: pointer;
+    }
+
+    /* Textarea step */
+    .ob-textarea {
+      width: 100%;
+      padding: 22px;
+      background: rgba(245,237,224,0.04);
+      border: 1px solid rgba(245,237,224,0.10);
+      border-radius: 18px;
+      color: #FBF7EE;
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      font-weight: 300;
+      line-height: 1.8;
+      min-height: 200px;
+      resize: vertical;
+      outline: none;
+      transition: all 0.3s;
+    }
+    .ob-textarea:focus {
+      border-color: rgba(212,165,116,0.45);
+      background: rgba(245,237,224,0.055);
+      box-shadow: 0 0 0 4px rgba(212,165,116,0.08);
+    }
+    .ob-char-count {
+      text-align: right;
+      margin-top: 8px;
+      font-size: 0.78rem;
+      color: rgba(245,237,224,0.40);
+    }
+
+    /* Footer */
+    .ob-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 36px;
+      margin-top: 36px;
+      border-top: 1px solid rgba(245,237,224,0.06);
+    }
+
+    .ob-skip {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.84rem;
+      color: rgba(245,237,224,0.45);
+      transition: color 0.3s;
+      font-family: 'Inter', sans-serif;
+    }
+    .ob-skip:hover { color: #FBF7EE; }
+
+    .ob-next-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 36px;
+      background: linear-gradient(135deg, #9B6E3F 0%, #D4A574 45%, #E8C7A0 100%);
+      color: #1A1335;
+      border-radius: 999px;
+      border: none;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.35s cubic-bezier(0.16,1,0.3,1);
+      box-shadow: 0 4px 22px rgba(212,165,116,0.28);
+    }
+    .ob-next-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(212,165,116,0.40),
+                  0 0 30px rgba(232,199,160,0.25);
+    }
+
+    .ob-next-arrow {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: rgba(26,19,53,0.18);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+    }
+
+    /* Completion */
+    .ob-complete {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      flex: 1;
+      animation: fadeUp 0.9s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    .ob-complete-icon {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background:
+        conic-gradient(from 200deg, rgba(232,199,160,0.4), rgba(229,181,181,0.4), rgba(184,168,212,0.4), rgba(155,203,180,0.4), rgba(232,199,160,0.4)),
+        radial-gradient(circle, rgba(11,8,25,0.92), rgba(11,8,25,0.92));
+      background-blend-mode: normal, normal;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 44px;
+      color: #FBF7EE;
+      margin-bottom: 32px;
+      box-shadow: 0 0 60px rgba(212,165,116,0.30);
+    }
+
+    .ob-inclusive-note {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+      padding: 12px 18px;
+      background: linear-gradient(110deg, rgba(232,199,160,0.06), rgba(184,168,212,0.06), rgba(155,203,180,0.06));
+      border: 1px solid rgba(245,237,224,0.10);
+      border-radius: 999px;
+      font-size: 0.78rem;
+      color: rgba(245,237,224,0.65);
+      font-style: italic;
+      max-width: 100%;
+    }
+    .ob-inclusive-note .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: conic-gradient(from 220deg, #E8C7A0, #E5B5B5, #B8A8D4, #9BCBB4, #E8C7A0);
+      box-shadow: 0 0 10px rgba(212,165,116,0.5);
+      flex-shrink: 0;
+    }
+
+    /* ─── Verification flow (Step 1) ─── */
+    .ob-verify-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      max-width: 620px;
+      margin-top: 4px;
+    }
+    .ob-verify-card {
+      background: linear-gradient(155deg, rgba(245,237,224,0.04) 0%, rgba(245,237,224,0.02) 60%, rgba(245,237,224,0.04) 100%);
+      border: 1px solid rgba(245,237,224,0.10);
+      border-radius: 20px;
+      padding: 22px 24px;
+      transition: border-color 0.4s, background 0.4s, box-shadow 0.4s, transform 0.4s cubic-bezier(0.16,1,0.3,1);
+      position: relative;
+      overflow: hidden;
+    }
+    .ob-verify-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(ellipse 60% 50% at 0% 0%, rgba(85,226,233,0.05), transparent 60%);
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+    .ob-verify-card:hover { border-color: rgba(245,237,224,0.18); transform: translateY(-1px); }
+    .ob-verify-card:hover::before { opacity: 1; }
+    .ob-verify-card[data-state="verified"] {
+      border-color: rgba(155,203,180,0.40);
+      background: linear-gradient(155deg, rgba(155,203,180,0.05), rgba(245,237,224,0.02));
+      box-shadow: 0 0 0 1px rgba(155,203,180,0.18) inset, 0 12px 30px rgba(7,6,17,0.30);
+    }
+    .ob-verify-card[data-state="pending"] {
+      border-color: rgba(232,199,160,0.40);
+    }
+
+    .ob-verify-head {
+      display: grid;
+      grid-template-columns: 44px 1fr auto;
+      gap: 16px;
+      align-items: center;
+    }
+    .ob-verify-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(245,237,224,0.04);
+      border: 1px solid rgba(245,237,224,0.12);
+      color: rgba(245,237,224,0.78);
+      transition: all 0.4s;
+    }
+    .ob-verify-icon[data-tone="email"]    { color: #E8C7A0; background: rgba(232,199,160,0.08); border-color: rgba(232,199,160,0.28); }
+    .ob-verify-icon[data-tone="linkedin"] { color: #55E2E9; background: rgba(85,226,233,0.08); border-color: rgba(85,226,233,0.28); }
+    .ob-verify-icon[data-tone="id"]       { color: #B8A8D4; background: rgba(184,168,212,0.08); border-color: rgba(184,168,212,0.28); }
+    .ob-verify-icon[data-tone="selfie"]   { color: #9BCBB4; background: rgba(155,203,180,0.10); border-color: rgba(155,203,180,0.32); }
+
+    .ob-verify-card[data-state="verified"] .ob-verify-icon {
+      background: rgba(155,203,180,0.18);
+      border-color: rgba(155,203,180,0.55);
+      color: #9BCBB4;
+    }
+
+    .ob-verify-step {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.62rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(245,237,224,0.42);
+      font-weight: 500;
+    }
+    .ob-verify-title {
+      font-family: 'Fraunces', serif;
+      font-size: 1.18rem;
+      font-weight: 400;
+      color: #FBF7EE;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+      margin-top: 2px;
+    }
+    .ob-verify-sub {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 300;
+      color: rgba(245,237,224,0.55);
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+    .ob-verify-status {
+      align-self: center;
+      padding: 6px 13px;
+      border-radius: 999px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.66rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-weight: 500;
+      background: rgba(245,237,224,0.05);
+      border: 1px solid rgba(245,237,224,0.12);
+      color: rgba(245,237,224,0.55);
+      white-space: nowrap;
+      transition: all 0.4s;
+    }
+    .ob-verify-status[data-state="pending"] {
+      background: rgba(232,199,160,0.10);
+      border-color: rgba(232,199,160,0.40);
+      color: #E8C7A0;
+    }
+    .ob-verify-status[data-state="verified"] {
+      background: rgba(155,203,180,0.14);
+      border-color: rgba(155,203,180,0.55);
+      color: #9BCBB4;
+    }
+    .ob-verify-status[data-state="verified"]::before {
+      content: '✓';
+      margin-right: 6px;
+      font-weight: 700;
+    }
+
+    .ob-verify-body {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(245,237,224,0.05);
+    }
+    .ob-verify-input {
+      width: 100%;
+      padding: 13px 130px 13px 16px;
+      background: rgba(245,237,224,0.04);
+      border: 1px solid rgba(245,237,224,0.10);
+      border-radius: 12px;
+      color: #FBF7EE;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      outline: none;
+      transition: all 0.3s;
+    }
+    .ob-verify-input:focus {
+      border-color: rgba(232,199,160,0.45);
+      background: rgba(245,237,224,0.06);
+      box-shadow: 0 0 0 4px rgba(232,199,160,0.08);
+    }
+    .ob-verify-action {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 8px 16px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(245,237,224,0.78);
+      background: rgba(245,237,224,0.06);
+      border: 1px solid rgba(245,237,224,0.14);
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.25s;
+    }
+    .ob-verify-action:hover {
+      background: rgba(232,199,160,0.12);
+      border-color: rgba(232,199,160,0.40);
+      color: #E8C7A0;
+    }
+    .ob-verify-action.ob-verify-action-primary {
+      position: static;
+      transform: none;
+      background: linear-gradient(135deg, #9B6E3F, #D4A574, #E8C7A0);
+      color: #1A1335;
+      border-color: transparent;
+      font-weight: 600;
+      box-shadow: 0 4px 18px rgba(212,165,116,0.28);
+    }
+    .ob-verify-action.ob-verify-action-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 28px rgba(212,165,116,0.45);
+      color: #1A1335;
+    }
+
+    /* Drop zone for ID upload */
+    .ob-verify-drop {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 22px;
+      border-radius: 14px;
+      border: 1.5px dashed rgba(184,168,212,0.38);
+      background: rgba(184,168,212,0.04);
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .ob-verify-drop:hover {
+      border-color: rgba(184,168,212,0.65);
+      background: rgba(184,168,212,0.07);
+      transform: translateY(-1px);
+    }
+    .ob-verify-drop.is-dragging {
+      border-color: rgba(184,168,212,0.85);
+      background: rgba(184,168,212,0.12);
+      box-shadow: 0 0 0 4px rgba(184,168,212,0.10);
+    }
+    .ob-verify-drop-orb {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: rgba(184,168,212,0.16);
+      border: 1px solid rgba(184,168,212,0.40);
+      display: flex; align-items: center; justify-content: center;
+      color: #D4C8E5;
+      flex-shrink: 0;
+    }
+    .ob-verify-drop-title {
+      font-family: 'Fraunces', serif;
+      font-size: 1rem;
+      color: #FBF7EE;
+      letter-spacing: -0.005em;
+      font-weight: 400;
+    }
+    .ob-verify-drop-sub {
+      margin-top: 3px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.74rem;
+      color: rgba(245,237,224,0.45);
+      font-weight: 300;
+      letter-spacing: 0.02em;
+    }
+
+    /* Trust note */
+    .ob-verify-trust {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      max-width: 620px;
+      margin-top: 22px;
+      padding: 18px 22px;
+      background: linear-gradient(110deg, rgba(232,199,160,0.06), rgba(184,168,212,0.06), rgba(155,203,180,0.06));
+      border: 1px solid rgba(245,237,224,0.10);
+      border-radius: 16px;
+    }
+    .ob-verify-trust-dot {
+      width: 8px; height: 8px;
+      flex-shrink: 0; margin-top: 5px;
+      border-radius: 50%;
+      background: conic-gradient(from 220deg, #E8C7A0, #E5B5B5, #B8A8D4, #9BCBB4, #E8C7A0);
+      box-shadow: 0 0 10px rgba(212,165,116,0.5);
+    }
+    .ob-verify-trust-eyebrow {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.66rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #E8C7A0;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .ob-verify-trust-body {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.86rem;
+      font-weight: 300;
+      color: rgba(245,237,224,0.72);
+      line-height: 1.65;
+    }
+
+    @media (max-width: 960px) {
+      .ob-sidebar { display: none; }
+      .onboarding-wrapper { grid-template-columns: 1fr; }
+      .ob-main { padding: 32px 24px; }
+      .ob-options-grid { grid-template-columns: 1fr; }
+      .ob-verify-head { grid-template-columns: 40px 1fr; row-gap: 8px; }
+      .ob-verify-status { grid-column: 1 / -1; justify-self: start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-glows">
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
+    <div class="bg-glow bg-glow-4"></div>
+  </div>
+
+  <div class="onboarding-wrapper">
+
+    <!-- ═══ SIDEBAR ═══ -->
+    <aside class="ob-sidebar">
+      <div class="ob-prism-ribbon"></div>
+
+      <div class="ob-sidebar-logo">
+        <img src="assets/level-wordmark.png" alt="LEVEL" style="height:26px;width:auto;display:block;">
+      </div>
+
+      <div>
+        <div class="ob-sidebar-title">A private space <br><em>for the next chapter.</em></div>
+        <p class="ob-sidebar-desc">
+          Fourteen considered questions — vetted identity, intentions and life-stage signals
+          that quietly inform every introduction we make. Edit any answer later.
+        </p>
+      </div>
+
+      <nav class="ob-steps-list" id="sidebarSteps">
+        <div class="ob-step-item active" data-step="0">
+          <div class="ob-step-num">1</div>
+          <div class="ob-step-label">Verify your identity</div>
+        </div>
+        <div class="ob-step-item" data-step="1">
+          <div class="ob-step-num">2</div>
+          <div class="ob-step-label">Gender identity</div>
+        </div>
+        <div class="ob-step-item" data-step="2">
+          <div class="ob-step-num">3</div>
+          <div class="ob-step-label">Pronouns</div>
+        </div>
+        <div class="ob-step-item" data-step="3">
+          <div class="ob-step-num">4</div>
+          <div class="ob-step-label">Orientation</div>
+        </div>
+        <div class="ob-step-item" data-step="4">
+          <div class="ob-step-num">5</div>
+          <div class="ob-step-label">Preferred genders</div>
+        </div>
+        <div class="ob-step-item" data-step="5">
+          <div class="ob-step-num">6</div>
+          <div class="ob-step-label">Age range</div>
+        </div>
+        <div class="ob-step-item" data-step="6">
+          <div class="ob-step-num">7</div>
+          <div class="ob-step-label">Primary intent</div>
+        </div>
+        <div class="ob-step-item" data-step="7">
+          <div class="ob-step-num">8</div>
+          <div class="ob-step-label">Long-term vision</div>
+        </div>
+        <div class="ob-step-item" data-step="8">
+          <div class="ob-step-num">9</div>
+          <div class="ob-step-label">Career chapter</div>
+        </div>
+        <div class="ob-step-item" data-step="9">
+          <div class="ob-step-num">10</div>
+          <div class="ob-step-label">Life integration</div>
+        </div>
+        <div class="ob-step-item" data-step="10">
+          <div class="ob-step-num">11</div>
+          <div class="ob-step-label">Mobility profile</div>
+        </div>
+        <div class="ob-step-item" data-step="11">
+          <div class="ob-step-num">12</div>
+          <div class="ob-step-label">Emotional compatibility</div>
+        </div>
+        <!-- Faith & religion step temporarily hidden -->
+        <div class="ob-step-item" data-step="12">
+          <div class="ob-step-num">13</div>
+          <div class="ob-step-label">Lifestyle &amp; values</div>
+        </div>
+        <div class="ob-step-item" data-step="13">
+          <div class="ob-step-num">14</div>
+          <div class="ob-step-label">Legacy &amp; vision</div>
+        </div>
+      </nav>
+
+      <div class="ob-progress">
+        <div class="ob-progress-label">
+          <span>Progress</span>
+          <span class="pct" id="progressPercent">9%</span>
+        </div>
+        <div class="ob-progress-track">
+          <div class="ob-progress-fill" id="progressFill" style="width:9%;"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ═══ MAIN ═══ -->
+    <main class="ob-main">
+      <div class="ob-top-bar">
+        <button class="ob-back-btn" onclick="prevStep()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Back
+        </button>
+        <div class="ob-step-counter">Step <span id="currentStepNum">1</span> of 15</div>
+      </div>
+
+      <!-- ─── STEP 1: Identity Verification ─── -->
+      <div class="ob-question-panel" id="stepVerify">
+        <div class="ob-question-category">Verification · 01</div>
+        <h2 class="ob-question-title">A private<br><em>screening process.</em></h2>
+        <p class="ob-question-subtitle">
+          Every LEVEL applicant completes a two-step trust check before
+          introductions begin. Held in confidence. Reviewed by a real person.
+          Used solely for matching.
+        </p>
+
+        <div class="ob-verify-stack">
+          <!-- ────── 1. Government ID ─────── -->
+          <article class="ob-verify-card" id="vcID">
+            <div class="ob-verify-head">
+              <div class="ob-verify-icon" data-tone="id">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="5" width="18" height="14" rx="2"/>
+                  <circle cx="9" cy="12" r="2.2"/>
+                  <path d="M14 10h4M14 13h3M6 17h12"/>
+                </svg>
+              </div>
+              <div class="ob-verify-meta">
+                <div class="ob-verify-step">Step 1 of 2</div>
+                <div class="ob-verify-title">Government ID</div>
+                <div class="ob-verify-sub">Passport, driver's licence or national ID.</div>
+              </div>
+              <span class="ob-verify-status" data-state="idle">Not started</span>
+            </div>
+            <div class="ob-verify-body">
+              <label for="verifyIdFile" class="ob-verify-drop" id="verifyIdDrop">
+                <div class="ob-verify-drop-orb">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 19V5"/>
+                    <path d="M5 12l7-7 7 7"/>
+                  </svg>
+                </div>
+                <div>
+                  <div class="ob-verify-drop-title" id="verifyIdDropTitle">Drag your ID here, or browse</div>
+                  <div class="ob-verify-drop-sub">PNG · JPG · PDF · Max 8MB · Encrypted at rest</div>
+                </div>
+                <input type="file" id="verifyIdFile" accept="image/png,image/jpeg,application/pdf" hidden onchange="onVerifyIdFile(event)" />
+              </label>
+            </div>
+          </article>
+
+          <!-- ────── 2. Selfie ─────── -->
+          <article class="ob-verify-card" id="vcSelfie">
+            <div class="ob-verify-head">
+              <div class="ob-verify-icon" data-tone="selfie">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="11" r="3.5"/>
+                  <path d="M5 19h14a1 1 0 001-1v-9a1 1 0 00-1-1h-2.5l-1.5-2h-6L8 8H5a1 1 0 00-1 1v9a1 1 0 001 1z"/>
+                </svg>
+              </div>
+              <div class="ob-verify-meta">
+                <div class="ob-verify-step">Step 2 of 2</div>
+                <div class="ob-verify-title">Selfie match</div>
+                <div class="ob-verify-sub">Confirms the ID is yours.</div>
+              </div>
+              <span class="ob-verify-status" data-state="idle">Not started</span>
+            </div>
+            <div class="ob-verify-body">
+              <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+                <button type="button" class="ob-verify-action ob-verify-action-primary" onclick="captureSelfie()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;">
+                    <circle cx="12" cy="13" r="3"/>
+                    <path d="M5 7h3l2-3h4l2 3h3v12H5z"/>
+                  </svg>
+                  Open secure camera
+                </button>
+                <span style="font-size:0.78rem;color:rgba(245,237,224,0.55);">
+                  We compare the photo to your ID in real-time.
+                </span>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <!-- Trust note -->
+        <div class="ob-verify-trust">
+          <span class="ob-verify-trust-dot"></span>
+          <div>
+            <div class="ob-verify-trust-eyebrow">Held in confidence</div>
+            <p class="ob-verify-trust-body">
+              Your documents are encrypted and reviewed by a member of our membership team — never an algorithm.
+              They are stored only as long as your membership is active and are never sold, shared, or displayed publicly.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── STEP 2: Gender Identity ─── -->
+      <div class="ob-question-panel hidden" id="step0">
+        <div class="ob-question-category">Identity · 02</div>
+        <h2 class="ob-question-title">How do you<br><em>identify?</em></h2>
+        <p class="ob-question-subtitle">
+          Choose what feels true to you. This is visible to your matches —
+          who'll only see what helps you connect, never more.
+        </p>
+        <div class="ob-options-grid">
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Male</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Female</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Non-binary</span>
+            <span class="ob-option-desc">Genderqueer, genderfluid, agender — and more</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Transgender</span>
+            <span class="ob-option-desc">Trans woman, trans man, two-spirit</span>
+          </div>
+          <div class="ob-option custom" onclick="selectCustom(this, 'identity')">
+            <div class="ob-option-check"></div>
+            <span class="ob-option-label">Add your own</span>
+            <span class="ob-option-desc">Type it the way you'd describe yourself</span>
+            <input type="text" class="ob-custom-input" placeholder="Type and press enter" style="display:none;margin-top:10px;width:100%;background:transparent;border:none;border-bottom:1px solid rgba(184,168,212,0.5);color:#FBF7EE;padding:6px 0;font-family:Inter,sans-serif;font-size:0.92rem;outline:none;"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── STEP 3: Pronouns ─── -->
+      <div class="ob-question-panel hidden" id="step1">
+        <div class="ob-question-category">Identity · 03</div>
+        <h2 class="ob-question-title">What pronouns<br><em>do you go by?</em></h2>
+        <p class="ob-question-subtitle">
+          Pick one or more — and we'll make sure your matches see them and use them
+          from the very first message.
+        </p>
+        <div class="ob-chips-grid">
+          <div class="ob-chip" onclick="toggleChip(this)">she / her</div>
+          <div class="ob-chip" onclick="toggleChip(this)">he / him</div>
+          <div class="ob-chip" onclick="toggleChip(this)">they / them</div>
+          <div class="ob-chip" onclick="toggleChip(this)">she / they</div>
+          <div class="ob-chip" onclick="toggleChip(this)">he / they</div>
+          <div class="ob-chip" onclick="toggleChip(this)">ze / zir</div>
+          <div class="ob-chip" onclick="toggleChip(this)">xe / xem</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Just my name</div>
+        </div>
+        <p style="margin-top:24px;font-size:0.82rem;color:rgba(245,237,224,0.45);font-style:italic;">
+          + Need something different? <a href="#" style="color:#B8A8D4;" onclick="openCustom('pronouns');return false;">Add your own pronouns →</a>
+        </p>
+      </div>
+
+      <!-- ─── STEP 4: Orientation ─── -->
+      <div class="ob-question-panel hidden" id="step2">
+        <div class="ob-question-category">Identity · 04</div>
+        <h2 class="ob-question-title">What is your<br><em>orientation?</em></h2>
+        <p class="ob-question-subtitle">
+          We use this to honour your matches, never to filter or rank you.
+          You decide whether this appears on your profile.
+        </p>
+        <div class="ob-options-grid">
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Straight</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Gay</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Lesbian</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Bisexual</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Pansexual</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Asexual</span>
+            <span class="ob-option-desc">Including demi-, grey-, and the wider spectrum</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Queer</span>
+          </div>
+          <div class="ob-option custom" onclick="selectCustom(this, 'orientation')">
+            <div class="ob-option-check"></div>
+            <span class="ob-option-label">Add your own</span>
+            <input type="text" class="ob-custom-input" placeholder="Type and press enter" style="display:none;margin-top:10px;width:100%;background:transparent;border:none;border-bottom:1px solid rgba(184,168,212,0.5);color:#FBF7EE;padding:6px 0;font-family:Inter,sans-serif;font-size:0.92rem;outline:none;"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── STEP 5: Preferred Genders ─── -->
+      <div class="ob-question-panel hidden" id="step3">
+        <div class="ob-question-category">Matching · 05</div>
+        <h2 class="ob-question-title">Who would<br><em>you like to meet?</em></h2>
+        <p class="ob-question-subtitle">
+          Select any combination — you can adjust these later, and we'll only
+          surface matches who are open to you in return.
+        </p>
+        <div class="ob-chips-grid">
+          <div class="ob-chip" onclick="toggleChip(this)">Men</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Women</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Non-binary people</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Trans women</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Trans men</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Genderqueer people</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Everyone</div>
+        </div>
+      </div>
+
+      <!-- ─── STEP 6: Age range ─── -->
+      <div class="ob-question-panel hidden" id="step4">
+        <div class="ob-question-category">Matching · 06</div>
+        <h2 class="ob-question-title">What ages<br><em>feel right?</em></h2>
+        <p class="ob-question-subtitle">
+          Set a range that feels honest. We'll prioritise emotional and
+          life-stage compatibility within it, not strict number-matching.
+        </p>
+        <div class="ob-age-slider">
+          <div class="ob-age-display">
+            <div>
+              <div class="ob-age-val"><span id="ageMin">28</span></div>
+              <span class="ob-age-label">Minimum</span>
+            </div>
+            <div style="text-align:right;">
+              <div class="ob-age-val"><span id="ageMax">42</span></div>
+              <span class="ob-age-label">Maximum</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:14px;align-items:center;">
+            <input class="ob-age-range" type="range" min="21" max="75" value="28" id="rangeMin" oninput="syncAge('min')" />
+            <input class="ob-age-range" type="range" min="21" max="75" value="42" id="rangeMax" oninput="syncAge('max')" />
+          </div>
+          <p style="margin-top:18px;font-size:0.78rem;color:rgba(245,237,224,0.45);">
+            21 — 75. Want to be more flexible? You can open the range any time.
+          </p>
+        </div>
+      </div>
+
+      <!-- ─── STEP 7: Primary Intent ─── -->
+      <div class="ob-question-panel hidden" id="step5">
+        <div class="ob-question-category">Primary intent · 07</div>
+        <h2 class="ob-question-title">What partnership<br><em>are you architecting?</em></h2>
+        <p class="ob-question-subtitle">
+          LEVEL is built for serious, long-term, intentional partnership. This is
+          the foundation of every match — members aren't surfaced to each other
+          unless their intentions align.
+        </p>
+
+        <style>
+          .ob-option[data-intent] { position: relative; }
+          .ob-option--preferred {
+            border-color: rgba(212,165,116,0.45) !important;
+            background: rgba(212,165,116,0.05);
+          }
+          .ob-option--preferred:hover { border-color: rgba(212,165,116,0.65) !important; }
+          .ob-pref-tag {
+            position: absolute;
+            top: 12px; right: 12px;
+            font-family: var(--font-sans);
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--obsidian-900);
+            background: linear-gradient(135deg, #D4A574, #E8C7A0);
+            padding: 3px 8px;
+            border-radius: 999px;
+          }
+          .ob-intent-group-label {
+            grid-column: 1 / -1;
+            font-family: var(--font-sans);
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: rgba(245,237,224,0.40);
+            margin: 8px 0 -4px;
+          }
+        </style>
+
+        <div class="ob-options-grid">
+          <div class="ob-intent-group-label">Preferred alignment paths</div>
+
+          <div class="ob-option ob-option--preferred" data-intent="legacy_builder" onclick="selectSingle(this)">
+            <span class="ob-pref-tag">Preferred</span>
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">◆</span>
+            <span class="ob-option-label">Legacy Builder</span>
+            <span class="ob-option-desc">Seeking a partner to build a meaningful future, shared legacy, and long-term life vision.</span>
+          </div>
+          <div class="ob-option ob-option--preferred" data-intent="intentional_partner" onclick="selectSingle(this)">
+            <span class="ob-pref-tag">Preferred</span>
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">◈</span>
+            <span class="ob-option-label">Intentional Partner</span>
+            <span class="ob-option-desc">Seeking a committed relationship grounded in growth, alignment, and emotional maturity.</span>
+          </div>
+
+          <div class="ob-intent-group-label">Long-term &amp; intentional</div>
+
+          <div class="ob-option" data-intent="family" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">⬡</span>
+            <span class="ob-option-label">Marriage &amp; family</span>
+            <span class="ob-option-desc">Building a life and, in time, a family.</span>
+          </div>
+          <div class="ob-option" data-intent="life_partnership" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">◇</span>
+            <span class="ob-option-label">Life partnership</span>
+            <span class="ob-option-desc">A true life partner — marriage optional.</span>
+          </div>
+          <div class="ob-option" data-intent="enm" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">◐</span>
+            <span class="ob-option-label">Ethical non-monogamy</span>
+            <span class="ob-option-desc">Open or poly partnerships, held with care and intention.</span>
+          </div>
+
+          <div class="ob-intent-group-label">Exploring for now</div>
+
+          <div class="ob-option" data-intent="casual" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">○</span>
+            <span class="ob-option-label">Casual dating</span>
+            <span class="ob-option-desc">Keeping things light and unattached for now.</span>
+          </div>
+          <div class="ob-option" data-intent="exploring" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">○</span>
+            <span class="ob-option-label">Short-term &amp; still exploring</span>
+            <span class="ob-option-desc">Open and undefined — not seeking long-term right now.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── STEP 8: Long-term vision ─── -->
+      <div class="ob-question-panel hidden" id="step6">
+        <div class="ob-question-category">Long-term vision · 08</div>
+        <h2 class="ob-question-title">What does the<br><em>next chapter</em> hold?</h2>
+        <p class="ob-question-subtitle">
+          Marriage timing, family planning, where you'd live — alignment here
+          predicts long-term happiness more than almost anything else.
+        </p>
+        <div class="ob-options-list">
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Settled, building a family — possibly relocating</span>
+            <span class="ob-option-desc" style="margin-top:4px;">Partnership and family are this season's priority</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Peak career alongside a serious partner</span>
+            <span class="ob-option-desc" style="margin-top:4px;">Momentum and depth — both at once</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Exploring and growing together</span>
+            <span class="ob-option-desc" style="margin-top:4px;">Intentional, not yet fully settled</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Scaled back, focused on what matters</span>
+            <span class="ob-option-desc" style="margin-top:4px;">I've built what I set out to — depth over ambition</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Chosen family — by design, not default</span>
+            <span class="ob-option-desc" style="margin-top:4px;">Love and community above conventional milestones</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── STEP 9: Career Chapter ─── -->
+      <div class="ob-question-panel hidden" id="step7">
+        <div class="ob-question-category">Career chapter · 09</div>
+        <h2 class="ob-question-title">Which chapter<br><em>are you in?</em></h2>
+        <p class="ob-question-subtitle">
+          Where you are in your career shapes your rhythm, energy and partnership
+          needs. We use this to align you with someone at a compatible pace.
+        </p>
+        <div class="ob-options-list">
+          <div class="ob-option" onclick="selectSingle(this)" data-chapter="scaling">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Scaling</span>
+            <span class="ob-option-desc" style="margin-top:4px;">Building momentum at the top of my field — clear vision, relentless execution.</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)" data-chapter="established">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Established</span>
+            <span class="ob-option-desc" style="margin-top:4px;">I've built what I set out to. Now optimising for excellence and integrated balance.</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)" data-chapter="transitioning">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Transitioning</span>
+            <span class="ob-option-desc" style="margin-top:4px;">An intentional inflection — pivoting, founding, or stepping into the next chapter.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── STEP 10: Life Integration Style ─── -->
+      <div class="ob-question-panel hidden" id="stepLifeInt">
+        <div class="ob-question-category">Life integration · 10</div>
+        <h2 class="ob-question-title">Work and life —<br><em>how do they meet?</em></h2>
+        <p class="ob-question-subtitle">
+          The way you integrate professional and personal life reveals a lot
+          about partnership rhythm. Choose the one that's most true today.
+        </p>
+        <div class="ob-options-grid">
+          <div class="ob-option" onclick="selectSingle(this)" data-integration="blended">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">◐</span>
+            <span class="ob-option-label">Blended</span>
+            <span class="ob-option-desc">Work, life and partnership flow together. I bring my partner into my world.</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)" data-integration="segmented">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">◑</span>
+            <span class="ob-option-label">Segmented</span>
+            <span class="ob-option-desc">Clear lines between professional and personal. Evenings and weekends are sacred.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── STEP 11: Mobility Profile ─── -->
+      <div class="ob-question-panel hidden" id="stepMobility">
+        <div class="ob-question-category">Mobility profile · 11</div>
+        <h2 class="ob-question-title">How does your<br><em>life move?</em></h2>
+        <p class="ob-question-subtitle">
+          Geographic compatibility is one of the strongest predictors of a
+          partnership that lasts. Tell us how rooted — or how global — your life is.
+        </p>
+        <div class="ob-options-list">
+          <div class="ob-option" onclick="selectSingle(this)" data-mobility="rooted">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Rooted</span>
+            <span class="ob-option-desc" style="margin-top:4px;">Anchored in one city, building a home. I value continuity, community and a place that knows me.</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)" data-mobility="frequent">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Frequent traveller</span>
+            <span class="ob-option-desc" style="margin-top:4px;">A home base I love, with regular travel for work or pleasure. Bicoastal or international cadence.</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)" data-mobility="global">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Global citizen</span>
+            <span class="ob-option-desc" style="margin-top:4px;">Multiple cities, fluid base. Comfortable building life and partnership across borders.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── STEP 12: Emotional compatibility ─── -->
+      <div class="ob-question-panel hidden" id="step8">
+        <div class="ob-question-category">Emotional compatibility · 12</div>
+        <h2 class="ob-question-title">In conflict,<br><em>how do you show up?</em></h2>
+        <p class="ob-question-subtitle">
+          Emotional fluency is the strongest predictor of relationships that
+          last. There's no right answer — only self-awareness.
+        </p>
+        <div class="ob-options-grid">
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">⊙</span>
+            <span class="ob-option-label">I address it directly but calmly</span>
+            <span class="ob-option-desc">I value honest resolution over avoidance</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">⊚</span>
+            <span class="ob-option-label">I need space to process first</span>
+            <span class="ob-option-desc">My responses are deliberate, not reactive</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">⊕</span>
+            <span class="ob-option-label">I seek to understand first</span>
+            <span class="ob-option-desc">Empathy before reaction</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-icon">⊘</span>
+            <span class="ob-option-label">I step back and de-escalate</span>
+            <span class="ob-option-desc">Peace preserves what we've built</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── STEP 13: Faith & religion ─── -->
+      <div class="ob-question-panel hidden" id="stepReligion">
+        <div class="ob-question-category">Faith &amp; religion · 13</div>
+        <h2 class="ob-question-title">What is your<br><em>faith or religion?</em></h2>
+        <p class="ob-question-subtitle">
+          Shared — or respected — beliefs shape a partnership. We use this to align values,
+          never to filter you out. You decide whether it appears on your profile.
+        </p>
+        <div class="ob-options-grid">
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Christianity</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Catholicism</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Judaism</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Islam</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Hinduism</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Buddhism</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Sikhism</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Spiritual, not religious</span>
+            <span class="ob-option-desc">A sense of the sacred outside organised faith</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Agnostic</span>
+          </div>
+          <div class="ob-option" onclick="selectSingle(this)">
+            <div class="ob-option-check">✓</div>
+            <span class="ob-option-label">Atheist</span>
+          </div>
+          <div class="ob-option custom" onclick="selectCustom(this, 'faith')">
+            <div class="ob-option-check"></div>
+            <span class="ob-option-label">Add your own</span>
+            <input type="text" class="ob-custom-input" placeholder="Type and press enter" style="display:none;margin-top:10px;width:100%;background:transparent;border:none;border-bottom:1px solid rgba(184,168,212,0.5);color:#FBF7EE;padding:6px 0;font-family:Inter,sans-serif;font-size:0.92rem;outline:none;"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── STEP 14: Lifestyle & values ─── -->
+      <div class="ob-question-panel hidden" id="step9">
+        <div class="ob-question-category">Lifestyle &amp; values · 14</div>
+        <h2 class="ob-question-title">How do you live<br><em>your best life?</em></h2>
+        <p class="ob-question-subtitle">
+          Select anything that genuinely reflects how you like to spend your time
+          and energy outside of work.
+        </p>
+        <div class="ob-chips-grid">
+          <div class="ob-chip" onclick="toggleChip(this)">Fine dining</div>
+          <div class="ob-chip" onclick="toggleChip(this)">International travel</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Art &amp; culture</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Fitness &amp; wellness</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Live music &amp; theatre</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Outdoor adventures</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Wine &amp; spirits</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Philosophy &amp; ideas</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Philanthropy</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Cooking</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Meditation</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Sober &amp; curious</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Reading &amp; literature</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Architecture</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Fashion &amp; style</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Sailing &amp; water</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Single-parent life</div>
+          <div class="ob-chip" onclick="toggleChip(this)">LGBTQIA+ community</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Faith &amp; spirituality</div>
+          <div class="ob-chip" onclick="toggleChip(this)">Collecting</div>
+        </div>
+      </div>
+
+      <!-- ─── STEP 15: Legacy & Vision ─── -->
+      <div class="ob-question-panel hidden" id="step10">
+        <div class="ob-question-category">Legacy &amp; vision · 15</div>
+        <h2 class="ob-question-title">Legacy<br><em>&amp; vision.</em></h2>
+        <p class="ob-question-subtitle">
+          In your own words: describe the lifestyle and partnership you are
+          architecting for your next chapter. What matters most. What you're
+          building. What you'd want someone to recognise about you on the first
+          read.
+        </p>
+        <textarea
+          class="ob-textarea"
+          placeholder="I'm building toward a life where excellence in my field and depth at home reinforce each other — not compete. My next chapter is anchored in a city I love, with a partner who shares my belief that real partnership is the highest form of leverage. I value quiet ambition, considered taste, and the long view…"
+          rows="6"
+        ></textarea>
+        <div class="ob-char-count">0 / 500 characters</div>
+        <p style="margin-top:14px;font-family:'Inter',sans-serif;font-size:0.78rem;font-weight:300;color:rgba(245,237,224,0.42);line-height:1.65;max-width:580px;">
+          Read by every match before they reach out. Write with the same care you'd bring to a private note.
+        </p>
+      </div>
+
+      <!-- ─── COMPLETE ─── -->
+      <div class="ob-complete" id="completionScreen">
+        <div class="ob-complete-icon">✦</div>
+        <div style="font-size:0.7rem;font-weight:500;letter-spacing:0.26em;text-transform:uppercase;color:#E8C7A0;margin-bottom:18px;">
+          Assessment complete
+        </div>
+        <h2 style="font-family:'Fraunces',serif;font-size:clamp(2.4rem,4vw,3.8rem);font-weight:300;color:#FBF7EE;line-height:1.05;letter-spacing:-0.025em;margin-bottom:22px;">
+          Your profile is<br>
+          <em style="font-family:'Instrument Serif',serif;font-style:italic;background:linear-gradient(96deg,#E8C7A0,#E5B5B5,#B8A8D4,#9BCBB4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">being prepared.</em>
+        </h2>
+        <p style="font-size:1.05rem;font-weight:300;color:rgba(245,237,224,0.65);line-height:1.85;max-width:520px;margin-bottom:40px;">
+          Our membership team will review your answers and prepare your first
+          curated introductions within 24 hours. Welcome to LEVEL.
+        </p>
+        <a href="profile-setup.html" class="ob-next-btn" style="text-decoration:none;">
+          Complete your profile
+          <div class="ob-next-arrow">→</div>
+        </a>
+        <div class="ob-inclusive-note">
+          <span class="dot"></span>
+          Your identity, pronouns and orientation are protected — visible only to mutual matches.
+        </div>
+      </div>
+
+      <!-- Footer Nav -->
+      <div class="ob-footer" id="obFooter">
+        <button class="ob-skip" onclick="nextStep()">Skip this question</button>
+        <button class="ob-next-btn" onclick="nextStep()">
+          Continue
+          <div class="ob-next-arrow">→</div>
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="/js/onboarding.js"></script>
+</body>
+</html>

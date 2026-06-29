@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEVEL — Your Reservations</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/design-system.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <style>
+    body { overflow-x: hidden; }
+
+    .app-layout { min-height: 100vh; }
+
+    .app-sidebar {
+      background: rgba(1,15,36,0.85);
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: var(--sidebar-width);
+      display: flex;
+      flex-direction: column;
+      padding: var(--s-6) var(--s-4);
+      z-index: 100;
+      border-right: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .app-main { margin-left: var(--sidebar-width); min-height: 100vh; }
+
+    .app-topbar {
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid var(--border-light);
+      padding: 0 var(--s-10);
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(18px);
+    }
+
+    .topbar-title {
+      font-family: var(--font-serif);
+      font-size: 1.4rem;
+      font-weight: 400;
+      color: var(--cream-50);
+      letter-spacing: -0.01em;
+    }
+
+    .topbar-actions { display: flex; align-items: center; gap: var(--s-3); }
+    .topbar-icon-btn {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(255,255,255,0.65);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .topbar-icon-btn:hover { background: rgba(255,255,255,0.08); color: var(--cream-50); }
+
+    .app-content { padding: var(--s-10) var(--s-12) var(--s-16); max-width: 1200px; }
+
+    /* ─── Header ─── */
+    .res-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: var(--s-12);
+      flex-wrap: wrap;
+      gap: var(--s-6);
+    }
+
+    .res-eyebrow {
+      display: inline-flex; align-items: center; gap: 12px;
+      font-family: var(--font-sans);
+      font-size: 0.7rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--gold-300);
+      margin-bottom: 14px;
+      font-weight: 500;
+    }
+    .res-eyebrow::before {
+      content: '';
+      width: 32px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold-400));
+    }
+
+    .res-title {
+      font-family: var(--font-serif);
+      font-size: clamp(2.2rem, 4vw, 3.4rem);
+      font-weight: 300;
+      color: var(--cream-50);
+      letter-spacing: -0.025em;
+      line-height: 1.05;
+    }
+    .res-title em {
+      font-family: 'Instrument Serif','Fraunces',Georgia,serif;
+      font-style: italic;
+      background: linear-gradient(135deg, var(--gold-300), var(--gold-400));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .res-subtitle {
+      margin-top: 12px;
+      font-family: var(--font-sans);
+      font-size: 0.96rem;
+      font-weight: 300;
+      color: rgba(255,255,255,0.55);
+      max-width: 540px;
+      line-height: 1.7;
+    }
+
+    .res-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 22px;
+      border-radius: 999px;
+      background: rgba(1,15,36,0.72);
+      color: var(--cream-50);
+      border: 1px solid rgba(212,168,67,0.32);
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .res-cta:hover {
+      background: rgba(4,150,199,0.18);
+      border-color: rgba(85,226,233,0.45);
+      box-shadow: 0 0 28px rgba(4,150,199,0.18);
+      transform: translateY(-1px);
+    }
+
+    /* ─── Filters ─── */
+    .res-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: var(--s-8);
+      flex-wrap: wrap;
+    }
+    .res-tab {
+      padding: 8px 18px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.55);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .res-tab.active {
+      background: rgba(212,168,67,0.10);
+      border-color: rgba(212,168,67,0.42);
+      color: var(--gold-300);
+    }
+    .res-tab:not(.active):hover {
+      background: rgba(255,255,255,0.06);
+      color: var(--cream-50);
+    }
+
+    /* ─── Reservation cards ─── */
+    .res-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+      gap: var(--s-5);
+    }
+
+    .res-card {
+      position: relative;
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.07);
+      backdrop-filter: blur(16px);
+      border-radius: 24px;
+      padding: 28px 30px;
+      transition: all 0.4s cubic-bezier(0.16,1,0.3,1);
+      animation: fadeUp 0.6s cubic-bezier(0.16,1,0.3,1) both;
+      overflow: hidden;
+    }
+    .res-card::before {
+      content: '';
+      position: absolute;
+      left: 24px; right: 24px; top: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(212,168,67,0.40), transparent);
+    }
+    .res-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(212,168,67,0.32);
+      box-shadow: 0 20px 56px rgba(0,0,0,0.35),
+                  0 0 36px rgba(212,168,67,0.08);
+    }
+
+    .res-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .res-name {
+      font-family: var(--font-serif);
+      font-size: 1.6rem;
+      font-weight: 400;
+      color: var(--cream-50);
+      letter-spacing: -0.015em;
+      line-height: 1.15;
+    }
+
+    .res-cuisine {
+      margin-top: 6px;
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.50);
+      letter-spacing: 0.01em;
+    }
+
+    .res-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: rgba(34,197,94,0.10);
+      border: 1px solid rgba(34,197,94,0.32);
+      font-family: var(--font-sans);
+      font-size: 0.66rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #4ADE80;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+    .res-status::before {
+      content: '';
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: #4ADE80;
+      box-shadow: 0 0 8px #4ADE80;
+    }
+
+    .res-stars {
+      margin-top: 6px;
+      font-size: 0.74rem;
+      color: var(--gold-300);
+      letter-spacing: 0.04em;
+    }
+
+    /* Detail rows */
+    .res-detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      padding: 18px 0;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .res-detail-cell .label {
+      font-family: var(--font-sans);
+      font-size: 0.62rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.40);
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+
+    .res-detail-cell .value {
+      font-family: var(--font-serif);
+      font-size: 1.05rem;
+      color: var(--cream-50);
+      font-weight: 400;
+      letter-spacing: -0.005em;
+    }
+
+    .res-notes {
+      margin-top: 18px;
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.025);
+      border-left: 2px solid rgba(212,168,67,0.45);
+      border-radius: 6px;
+      font-family: var(--font-sans);
+      font-size: 0.86rem;
+      color: rgba(255,255,255,0.65);
+      font-style: italic;
+      line-height: 1.6;
+    }
+    .res-notes::before {
+      content: 'Note';
+      display: block;
+      font-family: var(--font-sans);
+      font-size: 0.6rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold-300);
+      font-style: normal;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .res-footer {
+      margin-top: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .res-confirmation {
+      font-family: var(--font-sans);
+      font-size: 0.7rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.45);
+    }
+    .res-confirmation strong {
+      color: var(--cream-50);
+      letter-spacing: 0.16em;
+      font-weight: 500;
+      margin-left: 4px;
+    }
+
+    .res-actions { display: flex; gap: 8px; }
+
+    .res-btn {
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-family: var(--font-sans);
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: transparent;
+      color: rgba(255,255,255,0.65);
+      border: 1px solid rgba(255,255,255,0.14);
+    }
+    .res-btn:hover {
+      background: rgba(255,255,255,0.05);
+      color: var(--cream-50);
+      border-color: rgba(255,255,255,0.30);
+    }
+    .res-btn.danger:hover {
+      background: rgba(239,68,68,0.08);
+      border-color: rgba(239,68,68,0.40);
+      color: #FCA5A5;
+    }
+
+    /* ─── Empty state ─── */
+    .res-empty {
+      text-align: center;
+      padding: 100px 24px;
+      background: rgba(255,255,255,0.025);
+      border: 1px dashed rgba(255,255,255,0.10);
+      border-radius: 24px;
+    }
+    .res-empty-orb {
+      width: 80px; height: 80px;
+      margin: 0 auto 28px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 35% 30%, rgba(255,255,255,0.20) 0%, transparent 50%),
+        linear-gradient(135deg, rgba(4,150,199,0.35), rgba(2,54,123,0.45));
+      box-shadow: 0 0 40px rgba(4,150,199,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+    }
+    .res-empty h3 {
+      font-family: var(--font-serif);
+      font-size: 1.8rem;
+      font-weight: 300;
+      color: var(--cream-50);
+      letter-spacing: -0.015em;
+      margin-bottom: 10px;
+    }
+    .res-empty p {
+      font-family: var(--font-sans);
+      font-size: 0.95rem;
+      color: rgba(255,255,255,0.55);
+      max-width: 420px;
+      margin: 0 auto 26px;
+      line-height: 1.75;
+      font-weight: 300;
+    }
+
+    @media (max-width: 1024px) {
+      :root { --sidebar-width: 0px; }
+      .app-sidebar { display: none; }
+      .app-main { margin-left: 0; }
+      .app-content { padding: var(--s-6); }
+      .res-grid { grid-template-columns: 1fr; }
+      .res-detail-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-glows">
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
+    <div class="bg-glow bg-glow-4"></div>
+  </div>
+
+  <div class="app-layout" style="position:relative;z-index:1;">
+
+    <!-- ═══ SIDEBAR ═══ -->
+    <aside class="app-sidebar"></aside>
+
+    <!-- ═══ MAIN ═══ -->
+    <main class="app-main">
+
+      <div class="app-topbar">
+        <div class="topbar-title">Your Reservations</div>
+        <div class="topbar-actions">
+          <a href="restaurants.html" class="res-cta">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+            New reservation
+          </a>
+        </div>
+      </div>
+
+      <div class="app-content">
+        <!-- Header -->
+        <div class="res-header">
+          <div>
+            <div class="res-eyebrow">Concierge · Experiences</div>
+            <h1 class="res-title">
+              The tables<br>
+              <em>you've chosen.</em>
+            </h1>
+            <p class="res-subtitle">
+              Every reservation booked through LEVEL — confirmed instantly with our
+              partner restaurants, with a private concierge available to adjust
+              anything you need.
+            </p>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="res-tabs">
+          <div class="res-tab active" onclick="setResTab(this, 'upcoming')">Upcoming</div>
+          <div class="res-tab" onclick="setResTab(this, 'past')">Past</div>
+          <div class="res-tab" onclick="setResTab(this, 'all')">All</div>
+        </div>
+
+        <!-- List -->
+        <div id="resList"></div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="/js/sidebar.js"></script>
+  <script type="module" src="/js/reservations.js"></script>
+</body>
+</html>

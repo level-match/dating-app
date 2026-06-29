@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEVEL — Admin Portal</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="stylesheet" href="css/admin.css">
+  <style>
+    body { display:flex; align-items:center; justify-content:center; min-height:100vh; background:var(--adm-bg); }
+    .alog-wrap { width:100%; max-width:420px; padding:24px; }
+    .alog-logo { display:flex; align-items:center; gap:12px; margin-bottom:32px; }
+    .alog-logo img { height:26px; filter:brightness(1.1); }
+    .alog-logo-badge {
+      font-family:var(--adm-font-sans); font-size:0.6rem; font-weight:600;
+      letter-spacing:0.2em; text-transform:uppercase; color:var(--adm-gold);
+      background:rgba(193,164,100,0.12); border:1px solid rgba(193,164,100,0.28);
+      border-radius:4px; padding:3px 8px;
+    }
+    .alog-card {
+      background:rgba(255,255,255,0.03);
+      border:1px solid var(--adm-border);
+      border-radius:16px;
+      padding:36px 32px;
+    }
+    .alog-heading {
+      font-family:var(--adm-font-serif); font-size:1.75rem; font-weight:300;
+      color:var(--adm-text); letter-spacing:-0.02em; margin-bottom:6px;
+    }
+    .alog-sub {
+      font-size:0.82rem; color:var(--adm-text-dim); font-weight:300; margin-bottom:28px;
+    }
+    .alog-field { margin-bottom:16px; }
+    .alog-label {
+      display:block; font-size:0.72rem; font-weight:500; letter-spacing:0.1em;
+      text-transform:uppercase; color:var(--adm-text-dim); margin-bottom:8px;
+    }
+    .alog-input-wrap { position:relative; }
+    .alog-input {
+      width:100%; padding:12px 14px; background:rgba(255,255,255,0.04);
+      border:1px solid var(--adm-border); border-radius:10px;
+      color:var(--adm-text); font-family:var(--adm-font-sans); font-size:0.9rem;
+      outline:none; transition:border-color 0.2s; box-sizing:border-box;
+    }
+    .alog-input:focus { border-color:rgba(193,164,100,0.5); }
+    .alog-input.error { border-color:rgba(239,68,68,0.6); }
+    .alog-eye {
+      position:absolute; right:12px; top:50%; transform:translateY(-50%);
+      background:none; border:none; color:var(--adm-text-dim); cursor:pointer;
+      display:flex; align-items:center; padding:4px;
+    }
+    .alog-eye:hover { color:var(--adm-text); }
+    .alog-error {
+      display:none; margin-top:16px; padding:12px 14px;
+      background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3);
+      border-radius:10px; color:#fca5a5; font-size:0.82rem; line-height:1.5;
+    }
+    .alog-error.visible { display:block; }
+    .alog-lockout {
+      display:none; margin-top:16px; padding:12px 14px;
+      background:rgba(249,115,22,0.1); border:1px solid rgba(249,115,22,0.3);
+      border-radius:10px; color:#fdba74; font-size:0.82rem; line-height:1.5;
+    }
+    .alog-lockout.visible { display:block; }
+    .alog-btn {
+      width:100%; margin-top:20px; padding:13px;
+      background:linear-gradient(135deg,#C1A464,#A88840);
+      border:none; border-radius:10px; color:#0A0C10;
+      font-family:var(--adm-font-sans); font-size:0.85rem; font-weight:600;
+      letter-spacing:0.08em; cursor:pointer; transition:opacity 0.2s;
+    }
+    .alog-btn:hover:not(:disabled) { opacity:0.88; }
+    .alog-btn:disabled { opacity:0.5; cursor:not-allowed; }
+    .alog-footer { margin-top:24px; text-align:center; font-size:0.75rem; color:var(--adm-text-faint); }
+    .alog-attempt-bar {
+      display:none; margin-top:12px;
+    }
+    .alog-attempt-bar.visible { display:block; }
+    .alog-attempt-label {
+      font-size:0.72rem; color:var(--adm-text-faint); margin-bottom:6px;
+    }
+    .alog-attempt-track {
+      height:3px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden;
+    }
+    .alog-attempt-fill {
+      height:100%; border-radius:2px; transition:width 0.4s, background 0.4s;
+    }
+  </style>
+</head>
+<body>
+  <div class="alog-wrap">
+    <div class="alog-logo">
+      <img src="assets/level-wordmark.png" alt="LEVEL" onerror="this.style.display='none'">
+      <span class="alog-logo-badge">Admin Portal</span>
+    </div>
+    <div class="alog-card">
+      <div class="alog-heading">Sign in</div>
+      <div class="alog-sub">Restricted access — authorised personnel only.</div>
+
+      <form id="loginForm" novalidate>
+        <div class="alog-field">
+          <label class="alog-label" for="emailInput">Email address</label>
+          <input class="alog-input" id="emailInput" type="email" placeholder="admin@level.app" autocomplete="username" required>
+        </div>
+        <div class="alog-field">
+          <label class="alog-label" for="passwordInput">Password</label>
+          <div class="alog-input-wrap">
+            <input class="alog-input" id="passwordInput" type="password" placeholder="••••••••••••" autocomplete="current-password" required>
+            <button type="button" class="alog-eye" id="eyeBtn" aria-label="Toggle password visibility">
+              <svg id="eyeShow" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="12" r="3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <svg id="eyeHide" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24" style="display:none">
+                <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/>
+                <line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="alog-attempt-bar" id="attemptBar">
+          <div class="alog-attempt-label" id="attemptLabel">Failed attempts: <span id="attemptCount">0</span> / 5</div>
+          <div class="alog-attempt-track"><div class="alog-attempt-fill" id="attemptFill" style="width:0%;background:#ef4444;"></div></div>
+        </div>
+
+        <div class="alog-error" id="errorBox"></div>
+        <div class="alog-lockout" id="lockoutBox"></div>
+
+        <button class="alog-btn" id="submitBtn" type="submit">Sign in to Admin Portal</button>
+      </form>
+    </div>
+    <div class="alog-footer">LEVEL Admin Portal &middot; Protected system &middot; All activity is logged.</div>
+  </div>
+
+  <script>
+    const API = (window.location.hostname === 'localhost' ? 'http://localhost:4000' : '')
+
+    const form        = document.getElementById('loginForm')
+    const emailInput  = document.getElementById('emailInput')
+    const passInput   = document.getElementById('passwordInput')
+    const submitBtn   = document.getElementById('submitBtn')
+    const errorBox    = document.getElementById('errorBox')
+    const lockoutBox  = document.getElementById('lockoutBox')
+    const attemptBar  = document.getElementById('attemptBar')
+    const attemptFill = document.getElementById('attemptFill')
+    const attemptCount = document.getElementById('attemptCount')
+    let failures = 0
+
+    // Toggle password visibility
+    document.getElementById('eyeBtn').addEventListener('click', () => {
+      const isPass = passInput.type === 'password'
+      passInput.type = isPass ? 'text' : 'password'
+      document.getElementById('eyeShow').style.display = isPass ? 'none'  : ''
+      document.getElementById('eyeHide').style.display = isPass ? ''      : 'none'
+    })
+
+    function showError(msg) {
+      errorBox.textContent = msg
+      errorBox.classList.add('visible')
+      lockoutBox.classList.remove('visible')
+      emailInput.classList.add('error')
+      passInput.classList.add('error')
+    }
+
+    function showLockout(msg) {
+      lockoutBox.innerHTML = `&#128274; ${msg}`
+      lockoutBox.classList.add('visible')
+      errorBox.classList.remove('visible')
+      submitBtn.disabled = true
+    }
+
+    function clearErrors() {
+      errorBox.classList.remove('visible')
+      lockoutBox.classList.remove('visible')
+      emailInput.classList.remove('error')
+      passInput.classList.remove('error')
+    }
+
+    function updateAttemptBar(count) {
+      failures = count
+      if (count > 0) {
+        attemptBar.classList.add('visible')
+        attemptCount.textContent = count
+        attemptFill.style.width = `${(count / 5) * 100}%`
+        const color = count >= 4 ? '#ef4444' : count >= 2 ? '#f97316' : '#eab308'
+        attemptFill.style.background = color
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault()
+      clearErrors()
+
+      const email    = emailInput.value.trim()
+      const password = passInput.value
+
+      if (!email || !password) { showError('Please enter your email and password.'); return }
+
+      submitBtn.disabled  = true
+      submitBtn.textContent = 'Signing in…'
+
+      try {
+        const res = await fetch(`${API}/admin/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email, password }),
+        })
+        const data = await res.json()
+
+        if (res.status === 429 && data.error === 'ACCOUNT_LOCKED') {
+          const mins = Math.ceil((data.retryAfterSeconds || 1800) / 60)
+          showLockout(`Account locked after too many failed attempts. Try again in ${mins} minutes.`)
+          return
+        }
+
+        if (res.status === 401) {
+          updateAttemptBar(failures + 1)
+          showError('Invalid email or password. Please try again.')
+          passInput.value = ''
+          return
+        }
+
+        if (!res.ok) {
+          showError(data.message || 'Login failed. Please try again.')
+          return
+        }
+
+        // Store access token in sessionStorage
+        sessionStorage.setItem('adm_token', data.accessToken)
+        sessionStorage.setItem('adm_admin', JSON.stringify(data.admin))
+
+        window.location.href = 'admin.html'
+      } catch (err) {
+        showError('Cannot connect to the admin server. Please check your connection.')
+      } finally {
+        submitBtn.disabled   = false
+        submitBtn.textContent = 'Sign in to Admin Portal'
+      }
+    })
+
+    // Redirect if already logged in
+    if (sessionStorage.getItem('adm_token')) window.location.href = 'admin.html'
+  </script>
+</body>
+</html>

@@ -1,0 +1,712 @@
+/* ============================================================
+   LEVEL — Design System
+   Design tokens, base reset, typography, spacing, utilities
+   ============================================================ */
+
+/* Typography: 3 families, 3 weights (300 Light · 400 Regular · 500 Medium).
+   Fraunces — headings/editorial · Inter — body/labels/buttons/UI ·
+   Instrument Serif — italic accent only. 600/700 are intentionally not
+   loaded; font-synthesis:none (below) collapses any stray heavier weight
+   to the nearest loaded weight instead of faux-bolding. */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..500;1,9..144,300..500&family=Inter:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap');
+
+/* ─── Design Tokens ─── */
+:root {
+  /* ─── NEW IDENTITY (the active palette) ─── */
+  /* Obsidian — warm-leaning deep aubergine surface */
+  --obsidian-950: #070611;
+  --obsidian-900: #0B0819;
+  --obsidian-800: #120D26;
+  --obsidian-700: #1A1335;
+  --obsidian-600: #241B47;
+
+  /* Champagne — primary brand accent (warm honey) */
+  --champagne-900: #5C3F22;
+  --champagne-800: #7A552F;
+  --champagne-700: #9B6E3F;
+  --champagne-600: #B8854D;
+  --champagne-500: #D4A574;
+  --champagne-400: #E8C7A0;
+  --champagne-300: #F2DCB8;
+  --champagne-100: #FBF3E2;
+
+  /* Prism — inclusivity spectrum (rose · gold · lavender · jade) */
+  --bloom-500:    #D4929B;
+  --bloom-400:    #E5B5B5;
+  --lavender-500: #9789BD;
+  --lavender-400: #B8A8D4;
+  --jade-500:     #7BB59B;
+  --jade-400:     #9BCBB4;
+
+  --ink-100: #FBF7EE;
+  --ink-80:  rgba(245,237,224,0.82);
+  --ink-60:  rgba(245,237,224,0.58);
+  --ink-40:  rgba(245,237,224,0.38);
+
+  /* ─── LEGACY (aliased for backward compatibility) ─── */
+  --ocean-900:  var(--obsidian-800);
+  --ocean-700:  var(--champagne-700);
+  --ocean-500:  var(--champagne-500);
+  --ocean-300:  var(--champagne-400);
+  --ocean-100:  var(--champagne-300);
+
+  --navy-950:   var(--obsidian-950);
+  --navy-900:   var(--obsidian-900);
+  --navy-800:   var(--obsidian-800);
+  --navy-700:   var(--obsidian-700);
+  --navy-600:   var(--obsidian-600);
+
+  --cream-50:   #FBF7EE;
+  --cream-100:  #F5EDE0;
+  --cream-200:  #E8DBC2;
+  --cream-300:  #D4C3A0;
+  --cream-400:  #9B92A8;
+
+  --gold-800:   var(--champagne-800);
+  --gold-700:   var(--champagne-700);
+  --gold-600:   var(--champagne-600);
+  --gold-500:   var(--champagne-500);
+  --gold-400:   var(--champagne-400);
+  --gold-300:   var(--champagne-400);
+  --gold-200:   var(--champagne-300);
+  --gold-100:   var(--champagne-100);
+
+  /* Neutral — remapped for dark ocean theme */
+  --charcoal:   rgba(240, 223, 168, 0.92);
+  --slate-800:  rgba(255, 255, 255, 0.80);
+  --slate-700:  rgba(255, 255, 255, 0.68);
+  --slate-600:  rgba(255, 255, 255, 0.58);
+  --slate-500:  rgba(255, 255, 255, 0.48);
+  --slate-400:  rgba(255, 255, 255, 0.40);
+  --slate-300:  rgba(255, 255, 255, 0.28);
+  --slate-200:  rgba(255, 255, 255, 0.14);
+  --slate-100:  rgba(255, 255, 255, 0.07);
+
+  /* Semantic */
+  --text-primary:    var(--ink-100);
+  --text-secondary:  var(--ink-80);
+  --text-muted:      var(--ink-40);
+  --text-inverse:    var(--obsidian-800);
+  --text-gold:       var(--champagne-400);
+
+  --bg-primary:   rgba(245, 237, 224, 0.04);
+  --bg-secondary: rgba(245, 237, 224, 0.06);
+  --bg-dark:      rgba(11, 8, 25, 0.72);
+  --bg-darker:    rgba(11, 8, 25, 0.88);
+
+  --border-light:  rgba(245, 237, 224, 0.07);
+  --border-mid:    rgba(245, 237, 224, 0.12);
+  --border-gold:   rgba(212, 165, 116, 0.32);
+  --border-white:  rgba(245, 237, 224, 0.14);
+
+  /* ─── Typography ─── */
+  --font-serif:  'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-accent: 'Instrument Serif', 'Fraunces', Georgia, serif;
+  --font-sans:   'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Type Scale */
+  --text-2xs: 0.6875rem;  /* 11px */
+  --text-xs:  0.75rem;    /* 12px */
+  --text-sm:  0.875rem;   /* 14px */
+  --text-base: 1rem;      /* 16px */
+  --text-md:  1.0625rem;  /* 17px */
+  --text-lg:  1.125rem;   /* 18px */
+  --text-xl:  1.25rem;    /* 20px */
+  --text-2xl: 1.5rem;     /* 24px */
+  --text-3xl: 1.875rem;   /* 30px */
+  --text-4xl: 2.25rem;    /* 36px */
+  --text-5xl: 3rem;       /* 48px */
+  --text-6xl: 3.75rem;    /* 60px */
+  --text-7xl: 4.5rem;     /* 72px */
+  --text-8xl: 5.625rem;   /* 90px */
+  --text-9xl: 7rem;       /* 112px */
+
+  /* Line Heights */
+  --leading-tight:  1.1;
+  --leading-snug:   1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed:1.65;
+  --leading-loose:  1.8;
+
+  /* Letter Spacing */
+  --tracking-tighter: -0.03em;
+  --tracking-tight:   -0.015em;
+  --tracking-normal:   0;
+  --tracking-wide:     0.05em;
+  --tracking-wider:    0.1em;
+  --tracking-widest:   0.18em;
+
+  /* ─── Spacing Scale ─── */
+  --s-1:  0.25rem;   /* 4px */
+  --s-2:  0.5rem;    /* 8px */
+  --s-3:  0.75rem;   /* 12px */
+  --s-4:  1rem;      /* 16px */
+  --s-5:  1.25rem;   /* 20px */
+  --s-6:  1.5rem;    /* 24px */
+  --s-8:  2rem;      /* 32px */
+  --s-10: 2.5rem;    /* 40px */
+  --s-12: 3rem;      /* 48px */
+  --s-16: 4rem;      /* 64px */
+  --s-20: 5rem;      /* 80px */
+  --s-24: 6rem;      /* 96px */
+  --s-32: 8rem;      /* 128px */
+  --s-40: 10rem;     /* 160px */
+  --s-48: 12rem;     /* 192px */
+
+  /* ─── Shadows ─── */
+  --shadow-xs:    0 1px 2px rgba(0,0,0,0.05);
+  --shadow-sm:    0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:    0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg:    0 10px 32px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-xl:    0 20px 56px rgba(0,0,0,0.13), 0 8px 20px rgba(0,0,0,0.08);
+  --shadow-2xl:   0 40px 80px rgba(0,0,0,0.18), 0 16px 32px rgba(0,0,0,0.10);
+  --shadow-gold:  0 4px 24px rgba(212, 168, 67, 0.18), 0 1px 4px rgba(212, 168, 67, 0.10);
+  --shadow-ocean: 0 8px 32px rgba(4, 150, 199, 0.20), 0 2px 8px rgba(2, 54, 123, 0.12);
+  --shadow-inset: inset 0 1px 2px rgba(0,0,0,0.08);
+
+  /* ─── Border Radius ─── */
+  --radius-xs:   3px;
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   16px;
+  --radius-xl:   24px;
+  --radius-2xl:  32px;
+  --radius-3xl:  48px;
+  --radius-full: 9999px;
+
+  /* ─── Transitions ─── */
+  --ease-luxury:   cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-elegant:  cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth:   cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring:   cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-in:       cubic-bezier(0.4, 0, 1, 1);
+  --ease-out:      cubic-bezier(0, 0, 0.2, 1);
+
+  --dur-instant: 80ms;
+  --dur-fast:   150ms;
+  --dur-normal: 280ms;
+  --dur-slow:   500ms;
+  --dur-slower: 800ms;
+  --dur-slowest:1200ms;
+
+  /* ─── Layout ─── */
+  --max-w-xs:  480px;
+  --max-w-sm:  640px;
+  --max-w-md:  768px;
+  --max-w-lg:  1024px;
+  --max-w-xl:  1200px;
+  --max-w-2xl: 1400px;
+  --max-w-3xl: 1600px;
+
+  --nav-height: 80px;
+  --sidebar-width: 280px;
+}
+
+/* ─── CSS Reset ─── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  color-scheme: dark;
+  /* Enforce the 3-weight system: never fake bold/italic — fall back to the
+     nearest loaded weight so stray 600/700 declarations render as 500. */
+  font-synthesis: none;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: 400;
+  line-height: var(--leading-relaxed);
+  color: var(--text-primary);
+  background:
+    linear-gradient(180deg, #010F24 0%, #02367B 28%, #006CA5 55%, #02367B 78%, #010F24 100%);
+  background-attachment: fixed;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  opacity: 0.025;
+  pointer-events: none;
+  z-index: 0;
+  /* Static film grain — the perpetual jitter was distracting; texture stays. */
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 40%, transparent 45%, rgba(1, 15, 36, 0.65) 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+img, svg, video {
+  display: block;
+  max-width: 100%;
+}
+
+input, button, textarea, select {
+  font: inherit;
+}
+
+/* ─── Universal Dark Theme Text Defaults ─── */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary);
+}
+
+p, span, li, td, th, label, figcaption {
+  color: inherit;
+}
+
+a {
+  color: var(--ocean-300);
+}
+
+a:hover {
+  color: var(--ocean-100);
+}
+
+input, textarea, select {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+input::placeholder, textarea::placeholder {
+  color: rgba(255, 255, 255, 0.30);
+}
+
+/* Prevent forced-colors browser override from making text invisible */
+@media (forced-colors: active) {
+  body, h1, h2, h3, h4, h5, h6, p, span, div {
+    forced-color-adjust: none;
+  }
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul, ol {
+  list-style: none;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+/* ─── Typography Classes ─── */
+.serif { font-family: var(--font-serif); }
+.sans  { font-family: var(--font-sans); }
+
+.text-display {
+  font-family: var(--font-serif);
+  font-size: clamp(var(--text-6xl), 8vw, var(--text-9xl));
+  font-weight: 300;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+}
+
+.text-headline {
+  font-family: var(--font-serif);
+  font-size: clamp(var(--text-4xl), 5vw, var(--text-7xl));
+  font-weight: 400;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+}
+
+.text-title {
+  font-family: var(--font-serif);
+  font-size: clamp(var(--text-3xl), 3.5vw, var(--text-5xl));
+  font-weight: 400;
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+}
+
+.text-subtitle {
+  font-family: var(--font-serif);
+  font-size: clamp(var(--text-xl), 2vw, var(--text-3xl));
+  font-weight: 400;
+  line-height: var(--leading-snug);
+}
+
+.text-eyebrow {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--gold-400);
+}
+
+.text-body-lg {
+  font-family: var(--font-sans);
+  font-size: var(--text-lg);
+  font-weight: 300;
+  line-height: var(--leading-loose);
+}
+
+.text-body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: 400;
+  line-height: var(--leading-relaxed);
+}
+
+.text-caption {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+}
+
+.text-label {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+}
+
+/* ─── Color Utilities ─── */
+.text-cream   { color: var(--cream-50); }
+.text-gold    { color: var(--gold-400); }
+.text-navy    { color: var(--navy-900); }
+.text-muted   { color: var(--text-muted); }
+.text-ocean   { color: var(--ocean-500); }
+
+.bg-cream     { background-color: var(--cream-50); }
+.bg-cream-100 { background-color: var(--cream-100); }
+.bg-dark      { background-color: var(--navy-900); }
+.bg-darker    { background-color: var(--navy-950); }
+
+/* ─── Gradient Utilities ─── */
+.gradient-ocean {
+  background: linear-gradient(135deg, var(--ocean-900) 0%, var(--ocean-500) 50%, var(--ocean-300) 100%);
+}
+
+.gradient-navy {
+  background: linear-gradient(135deg, var(--navy-950) 0%, var(--navy-800) 100%);
+}
+
+.gradient-luxury {
+  background: linear-gradient(
+    135deg,
+    var(--navy-950) 0%,
+    var(--navy-800) 40%,
+    rgba(2, 54, 123, 0.8) 100%
+  );
+}
+
+.gradient-gold {
+  background: linear-gradient(135deg, var(--gold-700) 0%, var(--gold-400) 50%, var(--gold-300) 100%);
+}
+
+.gradient-text-ocean {
+  background: linear-gradient(135deg, var(--ocean-300) 0%, var(--ocean-100) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-gold {
+  background: linear-gradient(135deg, var(--gold-400) 0%, var(--gold-200) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Layout Utilities ─── */
+.container {
+  width: 100%;
+  max-width: var(--max-w-xl);
+  margin-inline: auto;
+  padding-inline: var(--s-8);
+}
+
+.container-wide {
+  width: 100%;
+  max-width: var(--max-w-2xl);
+  margin-inline: auto;
+  padding-inline: var(--s-8);
+}
+
+.container-narrow {
+  width: 100%;
+  max-width: var(--max-w-sm);
+  margin-inline: auto;
+  padding-inline: var(--s-8);
+}
+
+.section {
+  padding-block: var(--s-32);
+}
+
+.section-lg {
+  padding-block: var(--s-40);
+}
+
+.section-sm {
+  padding-block: var(--s-20);
+}
+
+/* Flex utilities */
+.flex       { display: flex; }
+.flex-col   { display: flex; flex-direction: column; }
+.items-center { align-items: center; }
+.items-start  { align-items: flex-start; }
+.items-end    { align-items: flex-end; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.justify-end    { justify-content: flex-end; }
+.gap-2   { gap: var(--s-2); }
+.gap-3   { gap: var(--s-3); }
+.gap-4   { gap: var(--s-4); }
+.gap-6   { gap: var(--s-6); }
+.gap-8   { gap: var(--s-8); }
+.gap-12  { gap: var(--s-12); }
+.gap-16  { gap: var(--s-16); }
+
+/* Grid utilities */
+.grid { display: grid; }
+.grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+/* Spacing utilities */
+.mt-2  { margin-top: var(--s-2); }
+.mt-4  { margin-top: var(--s-4); }
+.mt-6  { margin-top: var(--s-6); }
+.mt-8  { margin-top: var(--s-8); }
+.mt-12 { margin-top: var(--s-12); }
+.mt-16 { margin-top: var(--s-16); }
+.mb-2  { margin-bottom: var(--s-2); }
+.mb-4  { margin-bottom: var(--s-4); }
+.mb-6  { margin-bottom: var(--s-6); }
+.mb-8  { margin-bottom: var(--s-8); }
+.mb-12 { margin-bottom: var(--s-12); }
+
+/* Dividers */
+.divider {
+  width: 100%;
+  height: 1px;
+  background: var(--border-light);
+}
+
+.divider-gold {
+  width: 60px;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--gold-400), transparent);
+}
+
+/* Grain texture overlay */
+.grain::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.018;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 200px;
+}
+
+/* ─── Scroll Reveal (base state) ─── */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity var(--dur-slow) var(--ease-elegant),
+              transform var(--dur-slow) var(--ease-elegant);
+}
+
+.reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-delay-1 { transition-delay: 100ms; }
+.reveal-delay-2 { transition-delay: 200ms; }
+.reveal-delay-3 { transition-delay: 300ms; }
+.reveal-delay-4 { transition-delay: 400ms; }
+.reveal-delay-5 { transition-delay: 500ms; }
+
+/* ─── Responsive ─── */
+@media (max-width: 1024px) {
+  :root { --nav-height: 72px; }
+  .container { padding-inline: var(--s-6); }
+  .section { padding-block: var(--s-24); }
+  .section-lg { padding-block: var(--s-32); }
+  .grid-cols-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-cols-3 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  :root { --nav-height: 64px; }
+  .container { padding-inline: var(--s-5); }
+  .section { padding-block: var(--s-16); }
+  .section-lg { padding-block: var(--s-20); }
+  .grid-cols-2,
+  .grid-cols-3,
+  .grid-cols-4 { grid-template-columns: 1fr; }
+}
+
+/* ╔══════════════════════════════════════════════════════════════
+   ║ LEVEL — Verification Badge System
+   ║
+   ║ Premium line-style trust markers shown on profiles, cards,
+   ║ and popovers. Restrained — never gamified, never decorative.
+   ║
+   ║   .lvl-vbadge                  base
+   ║   .lvl-vbadge--id              ID Verified         (navy)
+   ║   .lvl-vbadge--career          Career Verified     (gold)
+   ║   .lvl-vbadge--photo           Photo Verified      (cyan)
+   ║   .lvl-vbadge--premium         Premium Member      (gold gradient)
+   ║   .lvl-vbadge--sm              dense / compact variant
+   ║   .lvl-vbadge-cluster          inline row helper
+   ╚══════════════════════════════════════════════════════════════ */
+
+.lvl-vbadge-cluster {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.lvl-vbadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px 6px 10px;
+  border-radius: 999px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  line-height: 1;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: transform 0.3s cubic-bezier(0.16,1,0.3,1),
+              box-shadow 0.3s ease,
+              background 0.3s ease,
+              border-color 0.3s ease;
+  cursor: default;
+  white-space: nowrap;
+}
+.lvl-vbadge svg {
+  width: 13px; height: 13px;
+  stroke-width: 1.7;
+  flex-shrink: 0;
+}
+.lvl-vbadge:hover {
+  transform: translateY(-1px);
+}
+
+/* ID Verified — navy / cream-cyan trust */
+.lvl-vbadge--id {
+  background: linear-gradient(135deg, rgba(2,54,123,0.22), rgba(2,54,123,0.10));
+  border-color: rgba(85,226,233,0.32);
+  color: #A8F0F4;
+  box-shadow: 0 0 0 1px rgba(85,226,233,0.10) inset,
+              0 0 16px rgba(4,150,199,0.08);
+}
+.lvl-vbadge--id:hover {
+  box-shadow: 0 0 0 1px rgba(85,226,233,0.22) inset,
+              0 0 28px rgba(4,150,199,0.20);
+}
+
+/* Career Verified — old-money gold */
+.lvl-vbadge--career {
+  background: linear-gradient(135deg, rgba(212,168,67,0.16), rgba(212,168,67,0.06));
+  border-color: rgba(212,168,67,0.40);
+  color: var(--gold-300, #E0BE6A);
+  box-shadow: 0 0 0 1px rgba(212,168,67,0.10) inset,
+              0 0 16px rgba(212,168,67,0.10);
+}
+.lvl-vbadge--career:hover {
+  box-shadow: 0 0 0 1px rgba(212,168,67,0.25) inset,
+              0 0 28px rgba(212,168,67,0.22);
+}
+
+/* Photo Verified — ocean cyan */
+.lvl-vbadge--photo {
+  background: linear-gradient(135deg, rgba(4,150,199,0.20), rgba(4,150,199,0.06));
+  border-color: rgba(85,226,233,0.42);
+  color: #55E2E9;
+  box-shadow: 0 0 0 1px rgba(85,226,233,0.10) inset,
+              0 0 16px rgba(4,186,222,0.10);
+}
+.lvl-vbadge--photo:hover {
+  box-shadow: 0 0 0 1px rgba(85,226,233,0.32) inset,
+              0 0 28px rgba(4,186,222,0.25);
+}
+
+/* Premium Member — luxury gold gradient, top of hierarchy */
+.lvl-vbadge--premium {
+  background: linear-gradient(135deg, #9A6F1A, #D4A843 50%, #E0BE6A);
+  border-color: rgba(232,212,144,0.55);
+  color: #03060F;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  box-shadow: 0 4px 20px rgba(212,168,67,0.30),
+              0 0 0 1px rgba(245,232,192,0.30) inset;
+}
+.lvl-vbadge--premium svg { stroke-width: 2; }
+.lvl-vbadge--premium:hover {
+  box-shadow: 0 8px 28px rgba(212,168,67,0.45),
+              0 0 0 1px rgba(245,232,192,0.55) inset,
+              0 0 36px rgba(232,212,144,0.30);
+}
+
+/* Compact / icon-only variant — for dense card surfaces */
+.lvl-vbadge--sm {
+  padding: 5px 9px;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  gap: 5px;
+}
+.lvl-vbadge--sm svg { width: 11px; height: 11px; }
+
+.lvl-vbadge--icon-only {
+  padding: 6px;
+  width: 26px; height: 26px;
+  justify-content: center;
+}
+.lvl-vbadge--icon-only svg { width: 13px; height: 13px; }
+
+/* Inline checkmark for paired text */
+.lvl-vbadge-check {
+  display: inline-flex;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  align-items: center; justify-content: center;
+  background: rgba(85,226,233,0.22);
+  border: 1px solid rgba(85,226,233,0.45);
+  color: #A8F0F4;
+  font-size: 9px;
+  font-weight: 500;
+  margin-left: 6px;
+}
+
