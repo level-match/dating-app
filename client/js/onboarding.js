@@ -1,39 +1,24 @@
 import { store } from './store.js'
 import { requireAuth, initBodyFade } from './app.js'
 import { evaluateEligibility } from './matching-policy.js'
+import { getRefData, warmRefData } from './ref-data.js'
+import { renderOptionGrid, renderChipGrid } from './ref-ui.js'
+import { apiFetch } from './sso.js'
 
-// Onboarding is a protected route — only reachable after MFA is complete.
 requireAuth()
 initBodyFade()
+warmRefData()
 
-/**
- * Step IDs in display order.
- *
- * Using named IDs instead of sequential step{N} keeps insertion stable —
- * adding a new step (Identity Verification, Life Integration, Mobility) doesn't
- * force renumbering of every existing panel element.
- */
 const STEP_IDS = [
-  'stepVerify',     //  1. Identity verification (Gov ID + Selfie)
-  'step0',          //  2. Gender identity
-  'step1',          //  3. Pronouns
-  'step2',          //  4. Orientation
-  'step3',          //  5. Preferred genders
-  'step4',          //  6. Age range
-  'step5',          //  7. Primary intent
-  'step6',          //  8. Long-term vision
-  'step7',          //  9. Career chapter
-  'stepLifeInt',    // 10. Life integration style
-  'stepMobility',   // 11. Mobility profile
-  'step8',          // 12. Emotional compatibility
-  // 'stepReligion',   // Faith & religion — temporarily hidden (re-add to restore)
-  'step9',          // 13. Lifestyle & values
-  'step10',         // 14. Legacy & vision
+  'stepVerify',
+  'step0', 'step1', 'step2', 'step3', 'step4', 'step5', 'step6', 'step7',
+  'stepLifeInt', 'stepMobility', 'step8', 'step9', 'step10',
 ]
 
 let currentStep = 0
 const totalSteps = STEP_IDS.length
-const answers = {}
+const answers = store.getOnboarding() || {}
+let refData = null
 
 function panelEl(i) {
   return document.getElementById(STEP_IDS[i])
@@ -51,12 +36,18 @@ function updateUI() {
   })
 }
 
+function showPanel(index) {
+  panelEl(currentStep)?.classList.add('hidden')
+  currentStep = index
+  panelEl(currentStep)?.classList.remove('hidden')
+  restorePanelSelections()
+  updateUI()
+}
+
 function saveCurrentStep() {
   const panel = panelEl(currentStep)
   if (!panel) return
   const key = STEP_IDS[currentStep]
-
-  // Verification step is handled via mock state on each card; no fields to save.
   if (key === 'stepVerify') return
 
   const textarea = panel.querySelector('textarea')
@@ -65,7 +56,6 @@ function saveCurrentStep() {
     return
   }
 
-  // Range step (age)
   const ageMin = panel.querySelector('#rangeMin')
   const ageMax = panel.querySelector('#rangeMax')
   if (ageMin && ageMax) {
@@ -73,36 +63,94 @@ function saveCurrentStep() {
     return
   }
 
-  // Options / chips
   const selected = panel.querySelectorAll('.ob-option.selected, .ob-chip.selected')
   answers[key] = Array.from(selected).map(el => {
     if (el.classList.contains('custom')) {
       const input = el.querySelector('.ob-custom-input')
       return input?.value?.trim() || 'Custom'
     }
-    return el.querySelector('.ob-option-label')?.textContent || el.textContent.trim()
+    return el.querySelector('.ob-option-label')?.textContent?.trim()
+      || el.dataset.label
+      || el.textContent.trim()
   })
 
-  // Relationship Goals → Intent Guardrail. Capture the selected intent
-  // category and refresh matching eligibility right away, so "update goals"
-  // takes effect even without re-completing the entire flow.
   if (key === 'step5') {
     const sel = panel.querySelector('.ob-option.selected')
-    const category = sel?.dataset.intent || answers[key]?.[0]
-    answers.intentCategory = category
-    store.setMatchingEligibility(evaluateEligibility(category))
+    answers.intentCategory = sel?.dataset.intent || answers[key]?.[0]
+    store.setMatchingEligibility(evaluateEligibility(answers.intentCategory))
   }
+}
+
+function restorePanelSelections() {
+  const key = STEP_IDS[currentStep]
+  const panel = panelEl(currentStep)
+  if (!panel || key === 'stepVerify' || key === 'step4') return
+
+  const saved = answers[key]
+  if (!saved) return
+
+  if (key === 'step10' && typeof saved === 'string') {
+    const ta = panel.querySelector('textarea')
+    if (ta) ta.value = saved
+    return
+  }
+
+  const labels = Array.isArray(saved) ? saved : [saved]
+  const norm = labels.map(l => String(l).trim().toLowerCase())
+
+  panel.querySelectorAll('.ob-option, .ob-chip').forEach(el => {
+    const label = (
+      el.querySelector('.ob-option-label')?.textContent
+      || el.dataset.label
+      || el.textContent
+    ).trim().toLowerCase()
+    el.classList.toggle('selected', norm.includes(label))
+  })
+}
+
+async function renderAllOptions() {
+  refData = await getRefData()
+
+  renderOptionGrid(document.getElementById('step0-options'), refData.genders, { withCustom: true, customKey: 'identity' })
+  renderChipGrid(document.getElementById('step1-options'), refData.pronouns)
+  renderOptionGrid(document.getElementById('step2-options'), refData.orientations, { withCustom: true, customKey: 'orientation' })
+  renderChipGrid(document.getElementById('step3-options'), refData.preferredGenders)
+
+  const intentContainer = document.getElementById('step5-options')
+  if (intentContainer) {
+    intentContainer.innerHTML = ''
+    const preferred = refData.intents.filter(i => ['legacy_builder', 'intentional_partner'].includes(i.category_slug))
+    const rest = refData.intents.filter(i => !['legacy_builder', 'intentional_partner'].includes(i.category_slug))
+    if (preferred.length) {
+      const lbl = document.createElement('div')
+      lbl.className = 'ob-intent-group-label'
+      lbl.textContent = 'Core LEVEL intents'
+      intentContainer.appendChild(lbl)
+      renderOptionGrid(intentContainer, preferred)
+    }
+    if (rest.length) {
+      const lbl = document.createElement('div')
+      lbl.className = 'ob-intent-group-label'
+      lbl.textContent = 'Other partnership styles'
+      intentContainer.appendChild(lbl)
+      renderOptionGrid(intentContainer, rest)
+    }
+  }
+
+  renderOptionGrid(document.getElementById('step6-options'), refData.longTermVisions)
+  renderOptionGrid(document.getElementById('step7-options'), refData.careerChapters)
+  renderOptionGrid(document.getElementById('stepLifeInt-options'), refData.lifeIntegrations)
+  renderOptionGrid(document.getElementById('stepMobility-options'), refData.mobilityProfiles)
+  renderOptionGrid(document.getElementById('step8-options'), refData.emotionalStyles)
+  renderChipGrid(document.getElementById('step9-options'), refData.lifestyleValues)
+
+  restorePanelSelections()
 }
 
 window.nextStep = function () {
   saveCurrentStep()
   if (currentStep < totalSteps - 1) {
-    panelEl(currentStep).classList.add('hidden')
-    currentStep++
-    const next = panelEl(currentStep)
-    next.classList.remove('hidden')
-    next.style.animation = 'fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both'
-    updateUI()
+    showPanel(currentStep + 1)
   } else {
     showCompletion()
   }
@@ -110,25 +158,29 @@ window.nextStep = function () {
 
 window.prevStep = function () {
   if (currentStep > 0) {
-    panelEl(currentStep).classList.add('hidden')
-    currentStep--
-    panelEl(currentStep).classList.remove('hidden')
-    updateUI()
+    showPanel(currentStep - 1)
   } else {
     window.history.back()
   }
 }
 
-function showCompletion() {
+async function showCompletion() {
   saveCurrentStep()
   store.setOnboarding(answers)
-  // Final eligibility decision from the protected matching policy.
-  store.setMatchingEligibility(evaluateEligibility(answers.intentCategory || answers['step5']?.[0]))
-  panelEl(totalSteps - 1).classList.add('hidden')
+  store.setMatchingEligibility(evaluateEligibility(answers.intentCategory || answers.step5?.[0]))
+
+  try {
+    await apiFetch('/api/auth/onboarding-complete', { method: 'POST', body: JSON.stringify({}) })
+  } catch (e) {
+    console.warn('[onboarding] onboarding-complete skipped:', e)
+  }
+
+  panelEl(totalSteps - 1)?.classList.add('hidden')
   document.getElementById('completionScreen').style.display = 'flex'
   document.getElementById('obFooter').style.display = 'none'
   document.querySelectorAll('.ob-step-item').forEach(el => {
-    el.classList.remove('active'); el.classList.add('completed')
+    el.classList.remove('active')
+    el.classList.add('completed')
   })
   document.getElementById('progressFill').style.width = '100%'
   document.getElementById('progressPercent').textContent = '100%'
@@ -137,25 +189,34 @@ function showCompletion() {
 window.selectOption = function (el) { el.classList.toggle('selected') }
 
 window.selectSingle = function (el) {
-  el.parentNode.querySelectorAll('.ob-option').forEach(s => s.classList.remove('selected'))
+  const parent = el.closest('.ob-options-grid, .ob-options-list') || el.parentNode
+  parent.querySelectorAll('.ob-option').forEach(s => s.classList.remove('selected'))
   el.classList.add('selected')
+  saveCurrentStep()
 }
 
 window.selectCustom = function (el) {
-  el.parentNode.querySelectorAll('.ob-option').forEach(s => s.classList.remove('selected'))
+  const parent = el.closest('.ob-options-grid, .ob-options-list') || el.parentNode
+  parent.querySelectorAll('.ob-option').forEach(s => s.classList.remove('selected'))
   el.classList.add('selected')
   const input = el.querySelector('.ob-custom-input')
   if (input) {
     input.style.display = 'block'
     setTimeout(() => input.focus(), 60)
+    input.oninput = () => saveCurrentStep()
+    input.onkeydown = (e) => { if (e.key === 'Enter') saveCurrentStep() }
   }
+  saveCurrentStep()
 }
 
 window.openCustom = function (key) {
   alert('Tap "Add your own" on the previous step to enter a custom ' + key + '.')
 }
 
-window.toggleChip = function (el) { el.classList.toggle('selected') }
+window.toggleChip = function (el) {
+  el.classList.toggle('selected')
+  saveCurrentStep()
+}
 
 window.syncAge = function (which) {
   const minEl = document.getElementById('rangeMin')
@@ -168,15 +229,10 @@ window.syncAge = function (which) {
   maxEl.value = max
   document.getElementById('ageMin').textContent = min
   document.getElementById('ageMax').textContent = max
+  saveCurrentStep()
 }
 
-/* ────────────────────────────────────────────────────────────
-   Step 1 — Verification flow
-   Two cards: government ID, selfie.
-   Each transitions idle → pending → verified.
-   Demo uses mock states (no real KYC integration here).
-   ──────────────────────────────────────────────────────────── */
-
+/* ─── Verification (mock KYC) ─── */
 function setVerifyState(cardId, state, label) {
   const card = document.getElementById(cardId)
   if (!card) return
@@ -210,32 +266,28 @@ window.resetIdType = function () {
 window.onVerifyIdFile = function (ev) {
   const file = ev.target.files?.[0]
   if (!file) return
-  const drop = document.getElementById('verifyIdDrop')
   const title = document.getElementById('verifyIdDropTitle')
   if (title) title.textContent = file.name + ' · uploaded'
   setVerifyState('vcID', 'pending', 'Reviewing')
-  if (drop) drop.classList.remove('is-dragging')
-  // Mock review: flips to verified after a beat
   setTimeout(() => setVerifyState('vcID', 'verified'), 1200)
 }
 
 window.captureSelfie = async function () {
-  const modal   = document.getElementById('cameraModal')
-  const video   = document.getElementById('cameraVideo')
+  const modal = document.getElementById('cameraModal')
+  const video = document.getElementById('cameraVideo')
   const preview = document.getElementById('selfiePreview')
-  const capBtn  = document.getElementById('cameraCaptureBtn')
+  const capBtn = document.getElementById('cameraCaptureBtn')
   const retakeBtn = document.getElementById('cameraRetakeBtn')
-  const useBtn  = document.getElementById('cameraUseBtn')
-  const guide   = document.getElementById('cameraGuide')
-  const status  = document.getElementById('cameraStatus')
+  const useBtn = document.getElementById('cameraUseBtn')
+  const guide = document.getElementById('cameraGuide')
+  const status = document.getElementById('cameraStatus')
   const closeBtn = document.getElementById('cameraCloseBtn')
-  const canvas  = document.createElement('canvas')
-  let stream    = null
+  const canvas = document.createElement('canvas')
+  let stream = null
 
   function stopStream() {
     if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null }
   }
-
   function closeCamera() {
     stopStream()
     modal.style.display = 'none'
@@ -243,15 +295,14 @@ window.captureSelfie = async function () {
   }
 
   async function startCamera() {
-    preview.style.display   = 'none'
-    video.style.display     = 'block'
-    capBtn.style.display    = 'inline-flex'
+    preview.style.display = 'none'
+    video.style.display = 'block'
+    capBtn.style.display = 'inline-flex'
     retakeBtn.style.display = 'none'
-    useBtn.style.display    = 'none'
-    guide.style.display     = 'flex'
-    capBtn.disabled         = true
-    status.textContent      = 'Requesting camera access…'
-
+    useBtn.style.display = 'none'
+    guide.style.display = 'flex'
+    capBtn.disabled = true
+    status.textContent = 'Requesting camera access…'
     try {
       stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -263,46 +314,40 @@ window.captureSelfie = async function () {
       capBtn.disabled = false
     } catch (err) {
       status.textContent = err.name === 'NotAllowedError'
-        ? 'Camera access was denied. Please allow camera access in your browser settings and try again.'
-        : 'Unable to access your camera. Make sure it is connected and not in use by another app.'
+        ? 'Camera access was denied.'
+        : 'Unable to access your camera.'
     }
   }
 
-  // Open modal
   modal.style.display = 'flex'
   await startCamera()
 
   capBtn.onclick = function () {
-    canvas.width  = video.videoWidth  || 640
+    canvas.width = video.videoWidth || 640
     canvas.height = video.videoHeight || 480
     const ctx = canvas.getContext('2d')
-    // Mirror to match the mirrored video feed
     ctx.translate(canvas.width, 0)
     ctx.scale(-1, 1)
     ctx.drawImage(video, 0, 0)
-    preview.src             = canvas.toDataURL('image/jpeg', 0.92)
-    preview.style.display   = 'block'
-    video.style.display     = 'none'
-    capBtn.style.display    = 'none'
+    preview.src = canvas.toDataURL('image/jpeg', 0.92)
+    preview.style.display = 'block'
+    video.style.display = 'none'
+    capBtn.style.display = 'none'
     retakeBtn.style.display = 'inline-flex'
-    useBtn.style.display    = 'inline-flex'
-    guide.style.display     = 'none'
-    status.textContent      = 'Looking good? Confirm or retake.'
+    useBtn.style.display = 'inline-flex'
+    guide.style.display = 'none'
+    status.textContent = 'Looking good? Confirm or retake.'
     stopStream()
   }
-
   retakeBtn.onclick = startCamera
-
   useBtn.onclick = function () {
     closeCamera()
     setVerifyState('vcSelfie', 'pending', 'Reviewing')
     setTimeout(() => setVerifyState('vcSelfie', 'verified'), 1800)
   }
-
   closeBtn.onclick = closeCamera
 }
 
-// Drag-drop handlers for the ID zone
 document.addEventListener('dragover', (e) => {
   const drop = e.target.closest?.('#verifyIdDrop')
   if (drop) { e.preventDefault(); drop.classList.add('is-dragging') }
@@ -326,39 +371,28 @@ document.addEventListener('drop', (e) => {
   }
 })
 
-// Character counter for textarea step
 document.querySelectorAll('.ob-textarea').forEach(ta => {
   ta.addEventListener('input', () => {
     const count = ta.nextElementSibling
-    if (count && count.classList.contains('ob-char-count')) {
+    if (count?.classList.contains('ob-char-count')) {
       count.textContent = ta.value.length + ' / 500 characters'
     }
+    saveCurrentStep()
   })
 })
 
-// Allow clicking sidebar steps to jump backwards (prevents skipping ahead)
 document.querySelectorAll('.ob-step-item').forEach((el, i) => {
   el.addEventListener('click', () => {
     if (i === currentStep) return
-    if (i < currentStep) {
-      panelEl(currentStep).classList.add('hidden')
-      currentStep = i
-      panelEl(currentStep).classList.remove('hidden')
-      updateUI()
-    }
+    if (i < currentStep) showPanel(i)
   })
 })
 
-// Deep-link: ?goals jumps straight to the Relationship Goals step so members
-// can update their intent (used by the Intent Mismatch panel's CTA).
 const obParams = new URLSearchParams(window.location.search)
 if (obParams.has('goals')) {
   const idx = STEP_IDS.indexOf('step5')
-  if (idx >= 0) {
-    panelEl(currentStep).classList.add('hidden')
-    currentStep = idx
-    panelEl(currentStep).classList.remove('hidden')
-  }
+  if (idx >= 0) showPanel(idx)
 }
 
+renderAllOptions().catch(err => console.error('[onboarding] ref data failed:', err))
 updateUI()

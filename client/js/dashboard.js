@@ -1,4 +1,4 @@
-import { requireAuth, hydrateUser, initBodyFade, initNav, initScrollReveal, initCompatBars } from './app.js'
+import { requireAuth, hydrateUser, hydrateFromProfile, initBodyFade, initNav, initScrollReveal, initCompatBars } from './app.js'
 import { getMembersByScore } from './members.js'
 import { store } from './store.js'
 
@@ -8,11 +8,12 @@ initNav()
 initScrollReveal()
 initCompatBars()
 
-const user = hydrateUser()
+async function bootDashboard() {
+  await hydrateFromProfile()
+  const user = hydrateUser()
 
-// A "new account" has no onboarding answers and hasn't sent any connection requests yet.
-const ob = store.getOnboarding() || {}
-const isNewAccount = Object.keys(ob).length === 0 && store.getSentRequestIds().length === 0
+  const hasSavedProfile = !!user.profileSavedToDb
+  const isNewAccount = !hasSavedProfile && store.getSentRequestIds().length === 0
 
 // Hydrate stats — real counts only; never synthetic fallbacks
 const statValues = document.querySelectorAll('.stat-value')
@@ -25,7 +26,7 @@ if (statValues[3]) statValues[3].textContent = user.connections || 0
 const hour = new Date().getHours()
 const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 const topbarTitle = document.querySelector('.topbar-title')
-if (topbarTitle) topbarTitle.textContent = `${greeting}, ${user.firstName}.`
+if (topbarTitle) topbarTitle.textContent = `${greeting}, ${user.firstName || 'there'}.`
 
 // Date line
 const welcomeDate = document.querySelector('.welcome-date')
@@ -150,3 +151,6 @@ window.setFilter = function(el) {
   document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'))
   el.classList.add('active')
 }
+}
+
+bootDashboard()

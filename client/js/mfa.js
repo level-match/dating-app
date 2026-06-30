@@ -4,6 +4,7 @@ import {
   sendEmailOtp, verifyEmailOtp, sendPhoneOtp, verifyPhoneOtp,
   getExpiresAt, getResendAt, OTP_CONFIG,
 } from './otp-service.js'
+import { supabase } from './supabase.js'
 
 initBodyFade()
 
@@ -50,7 +51,9 @@ function fmt(ms) {
 }
 
 if (OTP_CONFIG.exposeDemoCode) {
-  $('mfaHint').innerHTML = `Demo mode — use code <span class="mfa-demo-code">${OTP_CONFIG.demoCode}</span> for both factors.`
+  $('mfaHint').innerHTML = `Phone step — demo code <span class="mfa-demo-code">${OTP_CONFIG.demoCode}</span>. Email uses your real inbox when Supabase is configured.`
+} else if (OTP_CONFIG.useSupabaseEmail) {
+  $('mfaHint').textContent = 'A 6-digit code will be sent to your email. Check spam if it doesn’t arrive within a minute.'
 }
 
 /* ─── OTP code-input wiring (auto-advance, backspace, paste) ─── */
@@ -201,8 +204,7 @@ function createOtpStage(opts) {
 }
 
 /* ─── EMAIL STAGE ─── */
-const emailAddr = user.email || ''
-$('emailTarget').textContent = maskEmail(emailAddr)
+let emailAddr = user.email || ''
 
 const emailStage = createOtpStage({
   channel: 'email',
@@ -299,7 +301,6 @@ function goToPhoneStage() {
   $('mfaTitle').textContent = 'Confirm your phone'
   $('mfaSub').textContent = 'One more factor. Add a mobile number and we’ll text a 6-digit code.'
   if (phoneNumber) {
-    // Returning to an already-entered number
     $('phoneInput').value = phoneNumber
   }
   setTimeout(() => $('phoneInput').focus(), 200)
@@ -313,15 +314,27 @@ function finishMfa() {
   setTimeout(() => window.location.replace(dest), 1400)
 }
 
-/* ─── Resume / boot ─────────────────────────────────────────────
-   In-memory OTP state is lost on refresh, so resume from whatever the
-   store already recorded as verified. */
-if (mfa.email && mfa.email.verified && !(mfa.phone && mfa.phone.verified)) {
-  setStep($('stepEmail'), 'done')
-  goToPhoneStage()
-} else if (mfa.phone && mfa.phone.verified && mfa.email && mfa.email.verified) {
-  finishMfa()
-} else {
-  // Fresh start — auto-send the email factor.
-  emailStage.send(emailAddr)
+async function bootEmailStage() {
+  if (!emailAddr) {
+    const { data: { session } } = await supabase.auth.getSession()
+    emailAddr = session?.user?.email || ''
+  }
+
+  $('emailTarget').textContent = maskEmail(emailAddr)
+
+  if (!emailAddr) {
+    setStatus($('emailStatus'), 'error', 'No email on your account. Sign in again from the auth page.')
+    return
+  }
+
+  if (mfa.email && mfa.email.verified && !(mfa.phone && mfa.phone.verified)) {
+    setStep($('stepEmail'), 'done')
+    goToPhoneStage()
+  } else if (mfa.phone && mfa.phone.verified && mfa.email && mfa.email.verified) {
+    finishMfa()
+  } else {
+    emailStage.send(emailAddr)
+  }
 }
+
+bootEmailStage()

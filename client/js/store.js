@@ -2,6 +2,8 @@
    LEVEL — App State Store (localStorage-backed)
    ============================================================ */
 
+import { SEED_ACCOUNTS as DEMO_SEED_ACCOUNTS } from './demo-data.js'
+
 const KEYS = {
   USER:          'level_user',
   MATCHES:       'level_matches',
@@ -38,23 +40,7 @@ const DEFAULT_SETTINGS = {
   },
 }
 
-/* Seed demo accounts so the app is usable without registering first. */
-const SEED_ACCOUNTS = [
-  {
-    email: 'alexandra@level.app',
-    password: 'demo1234',
-    firstName: 'Alexandra',
-    lastName: 'R.',
-    profession: 'Finance',
-  },
-  {
-    email: 'demo@level.app',
-    password: 'demo1234',
-    firstName: 'Demo',
-    lastName: 'U.',
-    profession: 'Technology',
-  },
-]
+const SEED_ACCOUNTS = DEMO_SEED_ACCOUNTS
 
 /* geoTier drives geographic reach filtering per membership tier:
    local    → Base and above   (same metro)
