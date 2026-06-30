@@ -71,14 +71,58 @@ export function showToast(message, icon = '✓', duration = 4000) {
 // ─── User hydration (fill name etc. from store) ───
 export function hydrateUser() {
   const user = store.getUser() || store.getDefaultUser()
-  // Populate any [data-user-*] elements
-  document.querySelectorAll('[data-user-name]').forEach(el => { el.textContent = user.firstName })
-  document.querySelectorAll('[data-user-role]').forEach(el => { el.textContent = user.role })
+  const displayName = user.firstName || 'there'
+  document.querySelectorAll('[data-user-name]').forEach(el => { el.textContent = displayName })
+  document.querySelectorAll('[data-user-role]').forEach(el => { el.textContent = user.role || user.professionalTitle || '' })
   document.querySelectorAll('[data-user-tier]').forEach(el => {
     const meta = getTierMeta(user.tier)
     el.textContent = `${meta.shortName || user.tier} Member ✦`
   })
   return user
+}
+
+/** Load saved profile from API into the local store (real name, alignment fields). */
+export async function hydrateFromProfile() {
+  try {
+    const { apiFetch } = await import('./sso.js')
+    const res = await apiFetch('/api/auth/profile')
+    if (!res.ok) return null
+    const { profile: p } = await res.json()
+    const user = store.getUser() || store.getDefaultUser()
+
+    store.setUser({
+      ...user,
+      firstName: p.first_name || user.firstName,
+      lastName: p.last_name || user.lastName,
+      role: p.professional_title || user.role,
+      professionalTitle: p.professional_title,
+      location: p.location,
+      education: p.education,
+      industry: p.industry,
+      legacyVision: p.legacy_vision,
+      bio: p.legacy_vision,
+      genderIdentity: p.gender_identity,
+      pronouns: (p.pronouns || []).map(x => x.label).join(', '),
+      sexualOrientation: p.orientation,
+      preferredGenders: (p.preferred_genders || []).map(x => x.label),
+      primaryIntent: p.primary_intent,
+      longTermVision: p.long_term_vision,
+      careerChapter: p.career_chapter,
+      lifeIntegration: p.life_integration,
+      mobilityProfile: p.mobility_profile,
+      emotionalStyle: p.emotional_style,
+      lifestyleValues: (p.lifestyle_values || []).map(x => x.label),
+      ageRangeMin: p.age_range_min,
+      ageRangeMax: p.age_range_max,
+      profileSavedToDb: true,
+      profileLoadedFromApi: true,
+      profileComplete: 100,
+    })
+    return p
+  } catch (e) {
+    console.warn('[app] hydrateFromProfile skipped:', e.message)
+    return null
+  }
 }
 
 // ─── Body fade-in ───

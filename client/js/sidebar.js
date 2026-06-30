@@ -1014,7 +1014,7 @@
 
   function profileHTML() {
     const u = getUser();
-    const name = `${u.firstName || 'Alexandra'} ${u.lastName || 'R.'}`;
+    const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Your profile';
     const tier = u.tier || 'Select';
     const complete = u.profileComplete ?? 72;
     const photo = getUserPhoto();
@@ -1081,7 +1081,7 @@
         </div>
       </div>
       <div class="tbp-profile-actions">
-        <a href="profile.html?me=true">
+        <a href="profile.html?me=1">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round"/></svg>
           View full profile
         </a>
@@ -1140,7 +1140,7 @@
     });
 
     // Avatar: the round 40x40 div with a gold border wrapped in <a href="profile.html">
-    document.querySelectorAll('a[href="profile.html"]').forEach(a => {
+    document.querySelectorAll('a[href="profile.html?me=1"]').forEach(a => {
       if (a.dataset.tbpWired) return;
       const child = a.firstElementChild;
       if (!child) return;
@@ -1164,7 +1164,7 @@
   // Inject the user's main photo into every topbar avatar circle on the page
   function hydrateTopbarAvatars() {
     const photo = getUserPhoto();
-    document.querySelectorAll('a[href="profile.html"]').forEach(a => {
+    document.querySelectorAll('a[href="profile.html?me=1"]').forEach(a => {
       const outer = a.firstElementChild;
       if (!outer) return;
       const s = outer.getAttribute('style') || '';

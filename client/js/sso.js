@@ -8,9 +8,8 @@
      2. handleOAuthReturn() picks up the real session, bridges the identity into
         the app `store`, and routes straight to the destination.
 
-   OAuth is the SOLE factor — the second factor (email/phone OTP via mfa.html +
-   otp-service.js) is currently skipped. Those files remain in place so the gate
-   can be re-enabled later (see the note in handleOAuthReturn).
+   After OAuth, users pass through mfa.html for email + phone OTP before
+   protected routes open.
    ════════════════════════════════════════════════════════════════ */
 
 import { supabase } from './supabase.js'
@@ -111,7 +110,7 @@ export async function handleOAuthReturn() {
   }
 
   if (isReturning) {
-    // Returning user — sync silently and route to dashboard
+    let dest = 'dashboard.html'
     try {
       const res = await apiFetch('/api/auth/sync', {
         method: 'POST',
@@ -119,26 +118,26 @@ export async function handleOAuthReturn() {
       })
       if (res.ok) {
         const { needsOnboarding } = await res.json()
-        store.setUser({
-          ...store.getDefaultUser(),
-          firstName, lastName,
-          email: user.email || '',
-          avatarUrl: avatar,
-          authProvider: provider,
-          oauthFields: {
-            firstName: !!firstName,
-            lastName: !!lastName,
-            email: !!(user.email),
-            avatarUrl: !!avatar,
-          },
-        })
-        window.location.replace(needsOnboarding ? 'onboarding.html' : 'dashboard.html')
-        return true
+        dest = needsOnboarding ? 'onboarding.html' : 'dashboard.html'
       }
     } catch (e) {
       console.warn('[sso] sync skipped:', e)
     }
-    window.location.replace('dashboard.html')
+
+    store.startMfaSession({
+      ...store.getDefaultUser(),
+      firstName, lastName,
+      email: user.email || '',
+      avatarUrl: avatar,
+      authProvider: provider,
+      oauthFields: {
+        firstName: !!firstName,
+        lastName: !!lastName,
+        email: !!(user.email),
+        avatarUrl: !!avatar,
+      },
+    }, dest)
+    window.location.replace('mfa.html')
     return true
   }
 
@@ -247,13 +246,12 @@ function showOAuthConsentModal({ firstName, lastName, email, avatar, provider })
       console.warn('[sso] sync error during consent:', e)
     }
 
-    // Save to local store
-    store.setUser({
+    store.startMfaSession({
       ...store.getDefaultUser(),
-      firstName:   fn,
-      lastName:    ln,
-      email:       email,
-      avatarUrl:   avatar,
+      firstName: fn,
+      lastName: ln,
+      email,
+      avatarUrl: avatar,
       authProvider: provider,
       oauthPrefilled: true,
       oauthFields: {
@@ -262,10 +260,10 @@ function showOAuthConsentModal({ firstName, lastName, email, avatar, provider })
         email: !!email,
         avatarUrl: !!avatar,
       },
-    })
+    }, dest)
 
     overlay.remove()
-    window.location.replace(dest)
+    window.location.replace('mfa.html')
   })
 
   // ── Decline ─────────────────────────────────────────────────────────────────

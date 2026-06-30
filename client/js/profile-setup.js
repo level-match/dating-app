@@ -1,19 +1,27 @@
 import { store } from './store.js'
 import { evaluateEligibility } from './matching-policy.js'
-import { requireAuth, initBodyFade } from './app.js'
+import { requireAuth, initBodyFade, showToast, hydrateFromProfile } from './app.js'
+import { getRefData } from './ref-data.js'
+import { fillSelect, renderProfileChips, firstLabel, labelsFromAnswers } from './ref-ui.js'
+import { apiFetch } from './sso.js'
 
 requireAuth()
 initBodyFade()
 
+bootProfileSetup().catch(err => console.error('[profile-setup] init failed:', err))
+
 window.updatePreview = function() {
-  const name     = document.getElementById('firstNameInput')?.value.trim() || ''
-  const age      = document.getElementById('ageInput')?.value.trim() || ''
-  const title    = document.getElementById('titleInput')?.value.trim() || ''
+  const first = document.getElementById('firstNameInput')?.value.trim() || ''
+  const last = document.getElementById('lastNameInput')?.value.trim() || ''
+  const age = document.getElementById('ageInput')?.value.trim() || ''
+  const title = document.getElementById('titleInput')?.value.trim() || ''
   const location = document.getElementById('locationInput')?.value.trim() || ''
 
-  // Name
   const previewName = document.getElementById('previewName')
-  if (previewName) previewName.textContent = name || 'Your Name'
+  if (previewName) {
+    const lastInitial = last ? ` ${last.charAt(0)}.` : ''
+    previewName.textContent = (first + lastInitial) || 'Your Name'
+  }
 
   // Title · Age
   const previewRole = document.getElementById('previewRole')
@@ -45,7 +53,15 @@ window.updatePreviewBio = function(el) {
   if (count) count.textContent = el.value.length
 }
 
-window.toggleInterest = function(el) { el.classList.toggle('selected') }
+window.toggleInterest = function(el) {
+  const grid = el.closest('.interests-grid')
+  if (grid?.dataset.single === 'true') {
+    grid.querySelectorAll('.interest-chip').forEach(c => c.classList.remove('selected'))
+    el.classList.add('selected')
+    return
+  }
+  el.classList.toggle('selected')
+}
 
 /* ════════════════════════════════════════════════════════════
    Photo uploader — frontend-only with mock upload.
@@ -312,11 +328,15 @@ document.getElementById('photoFileInput')?.addEventListener('change', (e) => {
 // Keep the old API alive for any inline onclick still referencing it
 window.triggerUpload = openPickerForSlot
 
-/* ════════════════════════════════════════════════════════════
-   Identity & Pronouns — hydrate from onboarding answers.
-   Priority: saved profile values → onboarding step answers → blank.
-   Never defaults to a value the user didn't explicitly choose.
-   ════════════════════════════════════════════════════════════ */
+function chipLabels(group) {
+  return Array.from(document.querySelectorAll(`[data-group="${group}"].interest-chip.selected`))
+    .map(el => el.textContent.trim())
+}
+
+function singleChip(group) {
+  return chipLabels(group)[0] || null
+}
+
 function setSelectByText(selectEl, text) {
   if (!selectEl || !text) return
   const target = text.trim().toLowerCase()
@@ -326,73 +346,184 @@ function setSelectByText(selectEl, text) {
       return
     }
   }
+  if (text) {
+    const opt = document.createElement('option')
+    opt.value = text
+    opt.textContent = text
+    selectEl.appendChild(opt)
+    selectEl.value = text
+  }
 }
 
-function hydrateIdentitySection() {
-  const user = store.getUser()
-  const ob   = store.getOnboarding()
+async function bootProfileSetup() {
+  await hydrateFromProfile().catch(() => {})
+  const ref = await getRefData()
+  const ob = store.getOnboarding() || {}
+  const user = store.getUser() || {}
 
-  // Onboarding saves arrays; take the first selected value for single-choice fields
-  const genderVal    = user?.genderIdentity       || ob?.step0?.[0] || ''
-  const pronounsVal  = user?.pronouns             || ob?.step1?.[0] || ''
-  const orientVal    = user?.sexualOrientation    || ob?.step2?.[0] || ''
-  const orientVisVal = user?.orientationVisibility || ''
-  const prefGenders  = user?.preferredGenders     || ob?.step3      || []
-
-  setSelectByText(document.getElementById('genderIdentitySelect'),      genderVal)
-  setSelectByText(document.getElementById('pronounsSelect'),             pronounsVal)
-  setSelectByText(document.getElementById('orientationSelect'),          orientVal)
-  setSelectByText(document.getElementById('orientationVisibilitySelect'), orientVisVal)
-
-  // Mark preferred gender chips that match the onboarding/saved selection
-  document.querySelectorAll('[data-group="gender-pref"]').forEach(chip => {
-    const label = chip.textContent.trim().toLowerCase()
-    chip.classList.toggle('selected', prefGenders.some(g => g.trim().toLowerCase() === label))
+  fillSelect(document.getElementById('genderIdentitySelect'), ref.genders, {
+    selected: user.genderIdentity || firstLabel(ob.step0),
   })
+  fillSelect(document.getElementById('pronounsSelect'), ref.pronouns, {
+    selected: (typeof user.pronouns === 'string' ? user.pronouns : firstLabel(ob.step1)),
+  })
+  fillSelect(document.getElementById('orientationSelect'), ref.orientations, {
+    selected: user.sexualOrientation || firstLabel(ob.step2),
+  })
+
+  renderProfileChips(document.getElementById('preferredGendersChips'), ref.preferredGenders, {
+    group: 'gender-pref',
+    selected: user.preferredGenders?.length ? user.preferredGenders : labelsFromAnswers(ob.step3),
+  })
+  renderProfileChips(document.getElementById('primaryIntentChips'), ref.intents, {
+    group: 'primary-intent',
+    selected: user.primaryIntent ? [user.primaryIntent] : labelsFromAnswers(ob.step5),
+  })
+  renderProfileChips(document.getElementById('careerChapterChips'), ref.careerChapters, {
+    group: 'career-chapter',
+    selected: user.careerChapter ? [user.careerChapter] : labelsFromAnswers(ob.step7),
+  })
+  renderProfileChips(document.getElementById('lifeIntegrationChips'), ref.lifeIntegrations, {
+    group: 'life-integration',
+    selected: user.lifeIntegration ? [user.lifeIntegration] : labelsFromAnswers(ob.stepLifeInt),
+  })
+  renderProfileChips(document.getElementById('mobilityChips'), ref.mobilityProfiles, {
+    group: 'mobility',
+    selected: user.mobilityProfile ? [user.mobilityProfile] : labelsFromAnswers(ob.stepMobility),
+  })
+  renderProfileChips(document.getElementById('longTermVisionChips'), ref.longTermVisions, {
+    group: 'long-term-vision',
+    selected: user.longTermVision ? [user.longTermVision] : labelsFromAnswers(ob.step6),
+  })
+  renderProfileChips(document.getElementById('emotionalStyleChips'), ref.emotionalStyles, {
+    group: 'emotional-style',
+    selected: user.emotionalStyle ? [user.emotionalStyle] : labelsFromAnswers(ob.step8),
+  })
+  renderProfileChips(document.getElementById('lifestyleChips'), ref.lifestyleValues, {
+    group: 'lifestyle',
+    selected: user.lifestyleValues?.length ? user.lifestyleValues : labelsFromAnswers(ob.step9),
+  })
+
+  applyUserFieldsToForm(user, ob)
+  window.updatePreview()
+  updateCompletionRing()
 }
 
-hydrateIdentitySection()
+function applyUserFieldsToForm(user, ob) {
+  const fn = document.getElementById('firstNameInput')
+  const ln = document.getElementById('lastNameInput')
+  const email = document.getElementById('emailInput')
+  if (fn) fn.value = user.firstName || ''
+  if (ln) ln.value = user.lastName || ''
+  if (email) email.value = user.email || ''
 
-window.saveProfile = function(e) {
-  const user = store.getUser() || store.getDefaultUser()
-  const nameInput = document.getElementById('firstNameInput')
-  const roleInput = document.getElementById('titleInput')
-  const bioInput  = document.getElementById('bioInput')
+  const title = document.getElementById('titleInput')
+  if (title) title.value = user.professionalTitle || user.role || ''
 
-  // Lifestyle interest chips only — exclude the identity/gender-pref group
-  const interests = Array.from(
-    document.querySelectorAll('.interest-chip.selected:not([data-group="gender-pref"])')
-  ).map(el => el.textContent.trim())
+  const loc = document.getElementById('locationInput')
+  if (loc) loc.value = user.location || ''
 
-  const goals = document.getElementById('relationshipGoals')?.value
+  const edu = document.getElementById('educationInput')
+  if (edu) edu.value = user.education || ''
 
-  // Identity fields
-  const genderIdentity        = document.getElementById('genderIdentitySelect')?.value        || null
-  const pronouns              = document.getElementById('pronounsSelect')?.value              || null
-  const sexualOrientation     = document.getElementById('orientationSelect')?.value           || null
-  const orientationVisibility = document.getElementById('orientationVisibilitySelect')?.value || null
-  const preferredGenders      = Array.from(
-    document.querySelectorAll('[data-group="gender-pref"].interest-chip.selected')
-  ).map(el => el.textContent.trim())
+  const industry = document.getElementById('industrySelect')
+  if (industry && user.industry) industry.value = user.industry
 
-  store.setUser({
-    ...user,
-    firstName: nameInput?.value || user.firstName,
-    role: roleInput?.value || user.role,
-    bio: bioInput?.value || '',
-    interests,
-    genderIdentity:        genderIdentity        || user.genderIdentity        || null,
-    pronouns:              pronouns              || user.pronouns              || null,
-    sexualOrientation:     sexualOrientation     || user.sexualOrientation     || null,
-    orientationVisibility: orientationVisibility || user.orientationVisibility || null,
-    preferredGenders:      preferredGenders.length ? preferredGenders : (user.preferredGenders || []),
-    relationshipGoals: goals || user.relationshipGoals || null,
-    profileComplete: Math.min(100, (user.profileComplete || 72) + 15),
-  })
+  const bio = document.getElementById('bioInput')
+  const legacy = user.legacyVision || user.bio || ob.step10 || ''
+  if (bio && legacy) {
+    bio.value = legacy
+    window.updatePreviewBio(bio)
+  }
 
-  // Keep matching eligibility in sync with the same protected policy used by
-  // onboarding — editing goals here is a valid way to update intent.
-  if (goals) store.setMatchingEligibility(evaluateEligibility(goals))
+  if (!user.profileLoadedFromApi) {
+    setSelectByText(document.getElementById('genderIdentitySelect'), firstLabel(ob.step0))
+    setSelectByText(document.getElementById('pronounsSelect'), firstLabel(ob.step1))
+    setSelectByText(document.getElementById('orientationSelect'), firstLabel(ob.step2))
+  }
+}
+
+window.saveProfile = async function(e) {
+  if (e) e.preventDefault()
+
+  const user = store.getUser() || {}
+  const ob = store.getOnboarding() || {}
+  const bioInput = document.getElementById('bioInput')
+
+  const pronounVal = document.getElementById('pronounsSelect')?.value
+  const payload = {
+    firstName: document.getElementById('firstNameInput')?.value?.trim() || user.firstName || '',
+    lastName: document.getElementById('lastNameInput')?.value?.trim() || user.lastName || '',
+    avatarUrl: user.avatarUrl || user.mainPhoto || '',
+    professionalTitle: document.getElementById('titleInput')?.value?.trim() || '',
+    location: document.getElementById('locationInput')?.value?.trim() || '',
+    education: document.getElementById('educationInput')?.value?.trim() || '',
+    industry: document.getElementById('industrySelect')?.value || '',
+    legacyVision: bioInput?.value?.trim() || ob.step10 || '',
+    genderIdentity: document.getElementById('genderIdentitySelect')?.value || firstLabel(ob.step0) || null,
+    pronouns: pronounVal ? [pronounVal] : labelsFromAnswers(ob.step1),
+    orientation: document.getElementById('orientationSelect')?.value || firstLabel(ob.step2) || null,
+    preferredGenders: chipLabels('gender-pref').length ? chipLabels('gender-pref') : labelsFromAnswers(ob.step3),
+    ageRangeMin: ob.step4?.min ?? null,
+    ageRangeMax: ob.step4?.max ?? null,
+    primaryIntent: singleChip('primary-intent') || firstLabel(ob.step5) || null,
+    intentCategory: ob.intentCategory || null,
+    longTermVision: singleChip('long-term-vision') || firstLabel(ob.step6) || null,
+    careerChapter: singleChip('career-chapter') || firstLabel(ob.step7) || null,
+    lifeIntegration: singleChip('life-integration') || firstLabel(ob.stepLifeInt) || null,
+    mobilityProfile: singleChip('mobility') || firstLabel(ob.stepMobility) || null,
+    emotionalCompatibility: singleChip('emotional-style') || firstLabel(ob.step8) || null,
+    lifestyleValues: chipLabels('lifestyle').length ? chipLabels('lifestyle') : labelsFromAnswers(ob.step9),
+  }
+
+  const btn = document.getElementById('saveProfileBtn')
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…' }
+
+  try {
+    const res = await apiFetch('/api/auth/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      showToast(err.message || 'Could not save your profile.', '✕')
+      return
+    }
+
+    const goals = document.getElementById('relationshipGoals')?.value
+    store.setUser({
+      ...user,
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      email: user.email,
+      role: payload.professionalTitle,
+      professionalTitle: payload.professionalTitle,
+      bio: payload.legacyVision,
+      legacyVision: payload.legacyVision,
+      location: payload.location,
+      education: payload.education,
+      industry: payload.industry,
+      genderIdentity: payload.genderIdentity,
+      pronouns: pronounVal,
+      sexualOrientation: payload.orientation,
+      preferredGenders: payload.preferredGenders,
+      relationshipGoals: goals || user.relationshipGoals || null,
+      profileSavedToDb: true,
+      profileComplete: 100,
+    })
+    if (goals) store.setMatchingEligibility(evaluateEligibility(goals))
+
+    window.location.href = 'dashboard.html'
+  } catch (err) {
+    console.error('[profile-setup] save failed:', err)
+    showToast('Could not save your profile. Check your connection.', '✕')
+  } finally {
+    if (btn) {
+      btn.disabled = false
+      btn.textContent = 'Save & Go to Dashboard'
+    }
+  }
 }
 
 // Update completion ring based on filled fields
