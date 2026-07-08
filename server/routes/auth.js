@@ -1,37 +1,72 @@
 const express = require('express')
 const jwt     = require('jsonwebtoken')
+const { createRemoteJWKSet, jwtVerify } = require('jose')
 const pool    = require('../db/pool')
 
 const router = express.Router()
 
 /* ─── Helpers ───────────────────────────────────────────────────*/
 
+function authError(message, code) {
+  const err = new Error(message)
+  err.code = code
+  return err
+}
+
+/** Cached JWKS for Supabase asymmetric signing keys (ES256 / RS256). */
+let _jwks = null
+function getSupabaseJwks() {
+  const base = (process.env.SUPABASE_URL || '').replace(/\/$/, '')
+  if (!base) {
+    throw authError(
+      'SUPABASE_URL is not configured on the server (required for ES256 tokens).',
+      'SERVER_MISCONFIGURED',
+    )
+  }
+  if (!_jwks) {
+    _jwks = createRemoteJWKSet(new URL(`${base}/auth/v1/.well-known/jwks.json`))
+  }
+  return _jwks
+}
+
 /**
- * Verify a Supabase-issued JWT and return the decoded payload.
- * Supabase's JWT secret is base64-encoded — we decode it to raw
- * bytes before passing to jsonwebtoken so HMAC verification works.
+ * Verify a Supabase-issued access token.
+ * Supports legacy HS256 (SUPABASE_JWT_SECRET) and new ES256/RS256 (JWKS).
  */
-function verifySupabaseToken(authHeader) {
+async function verifySupabaseToken(authHeader) {
   if (!authHeader?.startsWith('Bearer ')) {
-    const err = new Error('Missing or malformed Authorization header.')
-    err.code = 'INVALID_TOKEN'
-    throw err
+    throw authError('Missing or malformed Authorization header.', 'INVALID_TOKEN')
   }
-  const token     = authHeader.slice(7)
-  const rawSecret = process.env.SUPABASE_JWT_SECRET
-  if (!rawSecret) {
-    const err = new Error('SUPABASE_JWT_SECRET is not configured on the server.')
-    err.code = 'SERVER_MISCONFIGURED'
-    throw err
+
+  const token = authHeader.slice(7)
+  const decoded = jwt.decode(token, { complete: true })
+  if (!decoded?.header) {
+    throw authError('Invalid or expired token.', 'INVALID_TOKEN')
   }
-  // Supabase signs JWTs with the raw secret string bytes (no base64 decode needed)
+
+  const alg = decoded.header.alg || ''
+
+  // Legacy shared-secret tokens (HS256)
+  if (alg.startsWith('HS')) {
+    const rawSecret = process.env.SUPABASE_JWT_SECRET
+    if (!rawSecret) {
+      throw authError('SUPABASE_JWT_SECRET is not configured on the server.', 'SERVER_MISCONFIGURED')
+    }
+    try {
+      return jwt.verify(token, rawSecret)
+    } catch (e) {
+      console.error('[auth] JWT verify failed (HS):', e.message)
+      throw authError('Invalid or expired token.', 'INVALID_TOKEN')
+    }
+  }
+
+  // New asymmetric signing keys (ES256 / RS256) via project JWKS
   try {
-    return jwt.verify(token, rawSecret)
+    const { payload } = await jwtVerify(token, getSupabaseJwks())
+    return payload
   } catch (e) {
-    console.error('[auth] JWT verify failed:', e.message)
-    const err = new Error('Invalid or expired token.')
-    err.code = 'INVALID_TOKEN'
-    throw err
+    console.error('[auth] JWT verify failed (JWKS):', e.message)
+    throw authError('Invalid or expired token.', 'INVALID_TOKEN')
   }
 }
 
@@ -43,7 +78,7 @@ function verifySupabaseToken(authHeader) {
        false → dashboard.html   (returning user, onboarding done)
 */
 router.post('/sync', async (req, res) => {
-  const payload = verifySupabaseToken(req.headers.authorization)
+  const payload = await verifySupabaseToken(req.headers.authorization)
 
   const supabaseId = payload.sub
   const email      = payload.email || ''
@@ -78,7 +113,7 @@ router.post('/sync', async (req, res) => {
    Marks the user so subsequent logins go straight to dashboard.
 */
 router.post('/onboarding-complete', async (req, res) => {
-  const payload = verifySupabaseToken(req.headers.authorization)
+  const payload = await verifySupabaseToken(req.headers.authorization)
 
   await pool.query(
     'UPDATE users SET onboarding_complete = TRUE WHERE external_id = $1',
@@ -96,7 +131,7 @@ router.post('/onboarding-complete', async (req, res) => {
 async function lookupId(client, table, label) {
   if (!label) return null
   const { rows } = await client.query(
-    `SELECT id FROM ${table} WHERE label = $1`,
+    `SELECT id FROM ${table} WHERE lower(label) = lower($1) LIMIT 1`,
     [label]
   )
   if (rows.length) return rows[0].id
@@ -124,7 +159,7 @@ async function lookupIds(client, table, labels) {
    multi-select fields (pronouns, preferred genders, lifestyle values).
 */
 router.post('/profile', async (req, res) => {
-  const payload = verifySupabaseToken(req.headers.authorization)
+  const payload = await verifySupabaseToken(req.headers.authorization)
 
   const {
     firstName, lastName, avatarUrl,
@@ -281,7 +316,7 @@ router.post('/profile', async (req, res) => {
    resolved to their human-readable labels.
 */
 router.get('/profile', async (req, res) => {
-  const payload = verifySupabaseToken(req.headers.authorization)
+  const payload = await verifySupabaseToken(req.headers.authorization)
 
   const client = await pool.connect()
   try {
@@ -397,7 +432,7 @@ router.get('/profile', async (req, res) => {
    Returns the authenticated user's row from the users table.
 */
 router.get('/me', async (req, res) => {
-  const payload = verifySupabaseToken(req.headers.authorization)
+  const payload = await verifySupabaseToken(req.headers.authorization)
 
   const { rows } = await pool.query(
     'SELECT id, external_id, email, onboarding_complete, created_at FROM users WHERE external_id = $1',

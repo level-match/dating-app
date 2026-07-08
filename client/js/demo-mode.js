@@ -48,6 +48,19 @@ export function startDemoSession(variant = 'profileReview') {
     store.setOnboarding(demo.onboarding)
     const category = demo.onboarding.intentCategory || demo.onboarding.step5?.[0]
     store.setMatchingEligibility(evaluateEligibility(category))
+    // Mirror onboarding identity + age range onto the user so profile-setup can
+    // preselect even before /api/auth/profile exists for the demo session.
+    const u = store.getUser()
+    store.setUser({
+      ...u,
+      genderIdentity: demo.onboarding.step0?.[0] || '',
+      pronouns: demo.onboarding.step1?.[0] || '',
+      sexualOrientation: demo.onboarding.step2?.[0] || '',
+      preferredGenders: demo.onboarding.step3 || [],
+      ageRangeMin: demo.onboarding.step4?.min ?? null,
+      ageRangeMax: demo.onboarding.step4?.max ?? null,
+      orientationVisibility: 'Only on mutual matches',
+    })
   } else {
     localStorage.removeItem('level_onboarding')
   }

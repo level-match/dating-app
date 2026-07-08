@@ -1,11 +1,10 @@
 import { store } from './store.js'
 import { initBodyFade } from './app.js'
 import {
-  sendEmailOtp, verifyEmailOtp, sendPhoneOtp, verifyPhoneOtp,
+  sendEmailOtp, verifyEmailOtp,
   getExpiresAt, getResendAt, OTP_CONFIG,
 } from './otp-service.js'
 import { supabase } from './supabase.js'
-import { initPhoneInput, getPhoneE164, isPhoneValid, setPhoneNumber } from './phone-input.js'
 
 initBodyFade()
 
@@ -23,26 +22,11 @@ const mfa = store.getMfaState() || {}
 /* ─── Helpers ─── */
 const $ = id => document.getElementById(id)
 
-initPhoneInput($('phoneInput'))
-
-function setPhoneFieldInvalid(invalid) {
-  const itiEl = $('phoneInputWrap')?.querySelector('.iti')
-  itiEl?.classList.toggle('iti--invalid', invalid)
-}
-
-$('phoneInput')?.addEventListener('input', () => setPhoneFieldInvalid(false))
-
 function maskEmail(email) {
   if (!email || !email.includes('@')) return email || 'your email'
   const [local, domain] = email.split('@')
   const head = local[0]
   return `${head}${'•'.repeat(Math.max(2, local.length - 1))}@${domain}`
-}
-
-function maskPhone(phone) {
-  const digits = (phone || '').replace(/\D/g, '')
-  if (digits.length < 4) return phone || ''
-  return `••• ••• ${digits.slice(-4)}`
 }
 
 function setStatus(el, kind, message) {
@@ -60,10 +44,10 @@ function fmt(ms) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
-if (OTP_CONFIG.exposeDemoCode) {
-  $('mfaHint').innerHTML = `Phone step — demo code <span class="mfa-demo-code">${OTP_CONFIG.demoCode}</span>. Email uses your real inbox when Supabase is configured.`
-} else if (OTP_CONFIG.useSupabaseEmail) {
+if (OTP_CONFIG.useSupabaseEmail) {
   $('mfaHint').textContent = 'A 6-digit code will be sent to your email. Check spam if it doesn’t arrive within a minute.'
+} else if (OTP_CONFIG.exposeDemoCode) {
+  $('mfaHint').innerHTML = `Demo email code <span class="mfa-demo-code">${OTP_CONFIG.demoCode}</span>.`
 }
 
 /* ─── OTP code-input wiring (auto-advance, backspace, paste) ─── */
@@ -103,9 +87,7 @@ function wireOtpInputs(row, onComplete) {
   }
 }
 
-/* ─── Reusable OTP stage controller ─────────────────────────────
-   Drives one channel (email or phone): send, countdown, resend,
-   verify, and the full set of states. */
+/* ─── Email OTP stage ─── */
 function createOtpStage(opts) {
   const { channel, sendFn, verifyFn, els, onVerified } = opts
   const otp = wireOtpInputs(els.row, () => verify())
@@ -155,8 +137,7 @@ function createOtpStage(opts) {
     busy = false
 
     if (!res.ok) {
-      if (els.onSendFail) els.onSendFail(res)
-      else setStatus(els.status, 'error', 'We couldn’t send the code. Please try again.')
+      setStatus(els.status, 'error', 'We couldn’t send the code. Please try again.')
       return false
     }
 
@@ -196,7 +177,7 @@ function createOtpStage(opts) {
     otp.setError()
     els.verifyBtn.disabled = false
     // Supabase returns otp_expired for wrong codes too — only the countdown means "expired".
-    const reason = (channel === 'email' && OTP_CONFIG.useSupabaseEmail && res.reason === 'expired')
+    const reason = (OTP_CONFIG.useSupabaseEmail && res.reason === 'expired')
       ? 'invalid'
       : res.reason
     const messages = {
@@ -214,10 +195,10 @@ function createOtpStage(opts) {
   els.verifyBtn.addEventListener('click', verify)
   els.resend.addEventListener('click', () => send(opts.currentTarget(), { isResend: true }))
 
-  return { send, startTicker, stopTicker, otp }
+  return { send }
 }
 
-/* ─── EMAIL STAGE ─── */
+/* ─── EMAIL STAGE (MFA is email-only until SMS is wired) ─── */
 let emailAddr = user.email || ''
 
 const emailStage = createOtpStage({
@@ -238,96 +219,19 @@ const emailStage = createOtpStage({
   onVerified: () => {
     store.markEmailVerified()
     setStep($('stepEmail'), 'done')
-    goToPhoneStage()
-  },
-})
-
-// Manual (re)send via the target row link, plus auto-send on load.
-$('emailEditBtn').addEventListener('click', () => emailStage.send(emailAddr, { isResend: true }))
-
-/* ─── PHONE STAGE ─── */
-let phoneNumber = (mfa.phone && mfa.phone.number) || ''
-
-const phoneStage = createOtpStage({
-  channel: 'phone',
-  sendFn: sendPhoneOtp,
-  verifyFn: verifyPhoneOtp,
-  currentTarget: () => phoneNumber,
-  maskTarget: maskPhone,
-  els: {
-    row: $('phoneOtpRow'),
-    otpBlock: $('phoneOtpBlock'),
-    loading: $('phoneLoading'),
-    status: $('phoneStatus'),
-    countdown: $('phoneCountdown'),
-    resend: $('phoneResend'),
-    verifyBtn: $('phoneVerifyBtn'),
-  },
-  onVerified: () => {
-    store.markPhoneVerified(phoneNumber)
-    setStep($('stepPhone'), 'done')
     finishMfa()
   },
 })
 
-$('phoneSendBtn').addEventListener('click', async () => {
-  setStatus($('phoneSendStatus'), 'error', '')
-  $('phoneSendStatus').classList.remove('show')
-  setPhoneFieldInvalid(false)
-
-  if (!isPhoneValid()) {
-    setPhoneFieldInvalid(true)
-    setStatus($('phoneSendStatus'), 'error', 'Please enter a valid mobile number.')
-    $('phoneInput').focus()
-    return
-  }
-
-  phoneNumber = getPhoneE164()
-  $('phoneLoadingSend').classList.add('show')
-  $('phoneSendBtn').disabled = true
-
-  $('phoneTarget').textContent = maskPhone(phoneNumber)
-  const ok = await phoneStage.send(phoneNumber)
-  $('phoneLoadingSend').classList.remove('show')
-  $('phoneSendBtn').disabled = false
-  if (ok) {
-    $('phoneEntryBlock').style.display = 'none'
-    $('phoneOtpBlock').style.display = 'block'
-  } else {
-    setStatus($('phoneSendStatus'), 'error', 'We couldn’t send a code to that number. Check it and try again.')
-  }
-})
-
-$('phoneEditBtn').addEventListener('click', () => {
-  phoneStage.stopTicker()
-  $('phoneOtpBlock').style.display = 'none'
-  $('phoneEntryBlock').style.display = 'block'
-  $('phoneInput').focus()
-})
-$('phoneInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('phoneSendBtn').click() } })
-
-/* ─── Stage transitions ─── */
 function showStage(id) {
   document.querySelectorAll('.mfa-stage').forEach(s => s.classList.remove('active'))
   $(id).classList.add('active')
 }
 
-function goToPhoneStage() {
-  showStage('phoneStage')
-  setStep($('stepEmail'), 'done')
-  setStep($('stepPhone'), 'active')
-  $('mfaTitle').textContent = 'Confirm your phone'
-  $('mfaSub').textContent = 'One more factor. Add a mobile number and we’ll text a 6-digit code.'
-  if (phoneNumber) {
-    setPhoneNumber(phoneNumber)
-  }
-  setTimeout(() => $('phoneInput').focus(), 200)
-}
-
 function finishMfa() {
   const dest = store.completeMfa()
   showStage('successStage')
-  setStep($('stepPhone'), 'done')
+  setStep($('stepEmail'), 'done')
   $('mfaHint').textContent = ''
   setTimeout(() => window.location.replace(dest), 1400)
 }
@@ -345,10 +249,7 @@ async function bootEmailStage() {
     return
   }
 
-  if (mfa.email && mfa.email.verified && !(mfa.phone && mfa.phone.verified)) {
-    setStep($('stepEmail'), 'done')
-    goToPhoneStage()
-  } else if (mfa.phone && mfa.phone.verified && mfa.email && mfa.email.verified) {
+  if (mfa.email && mfa.email.verified) {
     finishMfa()
   } else {
     emailStage.send(emailAddr)

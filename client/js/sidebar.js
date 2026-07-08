@@ -642,10 +642,10 @@
 
   function getUser() {
     return readLS('level_user', {
-      firstName: 'Alexandra', lastName: 'R.',
-      role: 'Partner, McKinsey & Company',
-      tier: 'Select', profileComplete: 72,
-      matches: 7, messages: 3, views: 12,
+      firstName: '', lastName: '',
+      role: '',
+      tier: 'base', profileComplete: 0,
+      matches: 0, messages: 0, views: 0,
     });
   }
 
@@ -1009,8 +1009,81 @@
 
   function getUserPhoto() {
     const u = getUser();
-    return u.mainPhoto || u.photos?.[0]?.src || null;
+    const fromPhotos = Array.isArray(u.photos)
+      ? (u.photos[0]?.src || (typeof u.photos[0] === 'string' ? u.photos[0] : null))
+      : null;
+    return u.mainPhoto || u.avatarUrl || fromPhotos || null;
   }
+
+  function getUserInitials() {
+    const u = getUser();
+    const a = (u.firstName || '').trim().charAt(0);
+    const b = (u.lastName || '').trim().charAt(0);
+    return (a + b).toUpperCase() || (u.email || '?').charAt(0).toUpperCase();
+  }
+
+  /** Topbar avatar anchors — accept both legacy href and ?me=1. */
+  function topbarAvatarLinks() {
+    return [...document.querySelectorAll('a.topbar-avatar-link, a[href="profile.html?me=1"], a[href="profile.html"]')]
+      .filter(a => {
+        const child = a.firstElementChild;
+        if (!child) return false;
+        const style = child.getAttribute('style') || '';
+        return /border-radius:\s*50%/.test(style) && /40px/.test(style);
+      });
+  }
+
+  /** Ensure every app topbar has a clickable avatar for the account menu. */
+  function ensureTopbarAvatar() {
+    const topbar = document.querySelector('.app-topbar');
+    if (!topbar) return;
+
+    const existing = topbarAvatarLinks().find(a => topbar.contains(a));
+    if (existing) {
+      existing.setAttribute('href', 'profile.html?me=1');
+      existing.classList.add('topbar-avatar-link');
+      existing.setAttribute('aria-label', 'Account menu');
+      return;
+    }
+
+    let actions = topbar.querySelector('.topbar-actions');
+    if (!actions) {
+      actions = document.createElement('div');
+      actions.className = 'topbar-actions';
+      actions.style.cssText = 'display:flex;align-items:center;gap:12px;margin-left:auto;';
+      topbar.appendChild(actions);
+    }
+
+    const a = document.createElement('a');
+    a.href = 'profile.html?me=1';
+    a.className = 'topbar-avatar-link';
+    a.setAttribute('aria-label', 'Account menu');
+    a.innerHTML =
+      '<div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:2px solid var(--border-gold);cursor:pointer;">' +
+      '<div style="width:100%;height:100%;background:linear-gradient(135deg,#1A2F4A,#0D1E35);"></div>' +
+      '</div>';
+    actions.appendChild(a);
+  }
+
+  async function handleSignOut(ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    try {
+      const { signOut } = await import('/js/sso.js');
+      await signOut();
+    } catch {
+      try { localStorage.removeItem('level_user'); } catch {}
+    }
+    window.location.href = 'auth.html';
+  }
+
+  // Sign-out lives inside popover HTML that is re-rendered each open —
+  // use delegation so the listener always works.
+  document.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('[data-action="sign-out"]');
+    if (!btn) return;
+    handleSignOut(ev);
+  });
 
   function profileHTML() {
     const u = getUser();
@@ -1018,12 +1091,14 @@
     const tier = u.tier || 'Select';
     const complete = u.profileComplete ?? 72;
     const photo = getUserPhoto();
+    const initials = getUserInitials();
     const avatarBg = photo
       ? `background:url(${photo}) center/cover no-repeat;`
-      : `background:linear-gradient(135deg,#1A2F4A,#0D1E35);`;
+      : `background:linear-gradient(135deg,#1A2F4A,#0D1E35);display:flex;align-items:center;justify-content:center;font-family:var(--font-sans),sans-serif;font-size:0.95rem;font-weight:500;color:rgba(224,190,106,0.95);letter-spacing:0.04em;`;
+    const avatarInner = photo ? '' : escapeText(initials);
     return `
       <div class="tbp-profile-head">
-        <div class="tbp-profile-avatar" style="${avatarBg}"></div>
+        <div class="tbp-profile-avatar" style="${avatarBg}">${avatarInner}</div>
         <div>
           <div class="tbp-profile-name">${escapeText(name)}</div>
           <div class="tbp-profile-tier">${escapeText(tier)} member</div>
@@ -1093,7 +1168,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round"/></svg>
           My reservations
         </a>
-        <a href="auth.html" class="danger" onclick="try{localStorage.removeItem('level_user');}catch(e){}">
+        <a href="auth.html" class="danger" data-action="sign-out">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Sign out
         </a>
@@ -1139,14 +1214,12 @@
       }
     });
 
-    // Avatar: the round 40x40 div with a gold border wrapped in <a href="profile.html">
-    document.querySelectorAll('a[href="profile.html?me=1"]').forEach(a => {
+    // Avatar: round 40x40 gold-bordered circle → account dropdown
+    topbarAvatarLinks().forEach(a => {
       if (a.dataset.tbpWired) return;
-      const child = a.firstElementChild;
-      if (!child) return;
-      const style = child.getAttribute('style') || '';
-      // Only the topbar avatar — looks like the small round bordered circle
-      if (!/border-radius:\s*50%/.test(style) || !/40px/.test(style)) return;
+      a.setAttribute('href', 'profile.html?me=1');
+      a.classList.add('topbar-avatar-link');
+      a.setAttribute('aria-label', 'Account menu');
 
       a.addEventListener('click', (ev) => {
         ev.preventDefault();
@@ -1158,29 +1231,43 @@
       a.dataset.tbpWired = '1';
     });
   }
-  // Expose so profile-setup.js can trigger a re-hydrate after upload
-  window.__hydrateTopbarAvatars = function () { hydrateTopbarAvatars(); };
+  // Expose so profile-setup.js / dashboard can re-hydrate after load or upload
+  window.__hydrateTopbarAvatars = function () {
+    ensureTopbarAvatar();
+    hydrateTopbarAvatars();
+    wirePopovers();
+  };
 
-  // Inject the user's main photo into every topbar avatar circle on the page
+  // Inject the user's main photo (or initials) into every topbar avatar circle
   function hydrateTopbarAvatars() {
     const photo = getUserPhoto();
-    document.querySelectorAll('a[href="profile.html?me=1"]').forEach(a => {
+    const initials = getUserInitials();
+    topbarAvatarLinks().forEach(a => {
       const outer = a.firstElementChild;
       if (!outer) return;
-      const s = outer.getAttribute('style') || '';
-      if (!/40px/.test(s) && !/border-radius:\s*50%/.test(s)) return;
       const inner = outer.firstElementChild;
       if (!inner) return;
       if (photo) {
+        inner.textContent = '';
         inner.style.cssText = `width:100%;height:100%;background:url(${photo}) center/cover no-repeat;`;
       } else {
-        inner.style.cssText = `width:100%;height:100%;background:linear-gradient(135deg,#1A2F4A,#0D1E35);`;
+        inner.textContent = initials;
+        inner.style.cssText =
+          'width:100%;height:100%;background:linear-gradient(135deg,#1A2F4A,#0D1E35);' +
+          'display:flex;align-items:center;justify-content:center;' +
+          'font-family:var(--font-sans),sans-serif;font-size:0.78rem;font-weight:500;' +
+          'color:rgba(224,190,106,0.95);letter-spacing:0.04em;';
       }
     });
   }
 
+  ensureTopbarAvatar();
   wirePopovers();
   hydrateTopbarAvatars();
-  const mo2 = new MutationObserver(() => { wirePopovers(); hydrateTopbarAvatars(); });
+  const mo2 = new MutationObserver(() => {
+    ensureTopbarAvatar();
+    wirePopovers();
+    hydrateTopbarAvatars();
+  });
   mo2.observe(document.body, { childList: true, subtree: true });
 })();

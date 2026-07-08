@@ -165,69 +165,6 @@
       background: rgba(4,150,199,0.06);
       box-shadow: 0 0 0 4px rgba(4,150,199,0.10);
     }
-
-    /* ─── intl-tel-input (phone) ─── */
-    .mfa-phone-wrap {
-      margin-bottom: var(--s-5);
-    }
-    .mfa-phone-wrap .iti {
-      width: 100%;
-      --iti-border-color: var(--border-mid);
-      --iti-dialcode-color: var(--text-secondary);
-      --iti-dropdown-bg: rgba(8, 16, 32, 0.98);
-      --iti-arrow-color: var(--text-muted);
-      --iti-hover-color: rgba(255, 255, 255, 0.06);
-    }
-    .mfa-phone-wrap .iti__tel-input,
-    .mfa-phone-wrap .iti input.mfa-input {
-      width: 100%;
-      height: 52px;
-      padding-left: calc(var(--iti-spacer-horizontal) + var(--iti-selected-country-arrow-width) + 6px);
-      font-family: var(--font-sans);
-      font-size: var(--text-base);
-      color: var(--text-primary);
-      background: rgba(255, 255, 255, 0.04);
-      border: 1.5px solid var(--border-mid);
-      border-radius: var(--radius-md);
-      outline: none;
-      transition: border-color var(--dur-fast) var(--ease-smooth),
-                  background var(--dur-fast) var(--ease-smooth),
-                  box-shadow var(--dur-fast) var(--ease-smooth);
-    }
-    .mfa-phone-wrap .iti__tel-input:focus,
-    .mfa-phone-wrap .iti input.mfa-input:focus {
-      border-color: rgba(4, 150, 199, 0.55);
-      background: rgba(4, 150, 199, 0.06);
-      box-shadow: 0 0 0 4px rgba(4, 150, 199, 0.10);
-    }
-    .mfa-phone-wrap .iti--separate-dial-code .iti__selected-country {
-      border-radius: var(--radius-md) 0 0 var(--radius-md);
-    }
-    .mfa-phone-wrap .iti--invalid .iti__tel-input {
-      border-color: rgba(220, 90, 90, 0.65);
-    }
-    .mfa-phone-wrap .iti__dropdown-content {
-      border: 1px solid var(--border-mid);
-      border-radius: var(--radius-md);
-      box-shadow: var(--shadow-2xl);
-    }
-    .mfa-phone-wrap .iti__search-input {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-sm);
-      color: var(--text-primary);
-      font-family: var(--font-sans);
-    }
-    .mfa-phone-wrap .iti__country-list {
-      font-family: var(--font-sans);
-      font-size: var(--text-sm);
-    }
-    .mfa-phone-wrap .iti__country.iti__highlight {
-      background: rgba(212, 165, 116, 0.12);
-    }
-    .mfa-phone-wrap .iti__dial-code {
-      color: var(--text-muted);
-    }
     .mfa-target-row {
       display: flex; align-items: center; justify-content: space-between;
       gap: var(--s-3);
@@ -397,20 +334,16 @@
         </div>
       </div>
 
-      <h1 class="mfa-title" id="mfaTitle">Two-step verification</h1>
+      <h1 class="mfa-title" id="mfaTitle">Email verification</h1>
       <p class="mfa-sub" id="mfaSub">
-        For the trust of our community, every member confirms two factors before entering. This takes about a minute.
+        Confirm your email with a one-time code before entering LEVEL. This takes about a minute.
       </p>
 
-      <!-- Stepper -->
+      <!-- Stepper (phone factor returns when SMS is enabled) -->
       <div class="mfa-steps">
         <div class="mfa-step" id="stepEmail" data-state="active">
           <div class="mfa-step-dot">1</div>
           <div class="mfa-step-label">Email</div>
-        </div>
-        <div class="mfa-step" id="stepPhone" data-state="todo">
-          <div class="mfa-step-dot">2</div>
-          <div class="mfa-step-label">Phone</div>
         </div>
       </div>
 
@@ -419,7 +352,6 @@
         <div class="mfa-field-label">Verification email</div>
         <div class="mfa-target-row">
           <span class="mfa-target-val" id="emailTarget">—</span>
-          <span class="mfa-target-edit" id="emailEditBtn">Send code</span>
         </div>
 
         <div class="mfa-loading" id="emailLoading"><div class="loading-bar"><span></span></div></div>
@@ -443,54 +375,13 @@
         </div>
       </div>
 
-      <!-- ═══ STAGE 2: PHONE OTP ═══ -->
-      <div class="mfa-stage" id="phoneStage">
-        <div id="phoneEntryBlock">
-          <div class="mfa-field-label">Mobile number</div>
-          <div class="mfa-phone-wrap" id="phoneInputWrap">
-            <input class="mfa-input" id="phoneInput" type="tel" inputmode="tel" autocomplete="tel" aria-label="Mobile number">
-          </div>
-          <div class="mfa-loading" id="phoneLoadingSend"><div class="loading-bar"><span></span></div></div>
-          <button class="btn btn-gold mfa-btn-full" id="phoneSendBtn" type="button">Send code</button>
-        </div>
-
-        <div id="phoneOtpBlock" style="display:none;">
-          <div class="mfa-field-label">Verification number</div>
-          <div class="mfa-target-row">
-            <span class="mfa-target-val" id="phoneTarget">—</span>
-            <span class="mfa-target-edit" id="phoneEditBtn">Change</span>
-          </div>
-
-          <div class="mfa-loading" id="phoneLoading"><div class="loading-bar"><span></span></div></div>
-          <div class="mfa-status" id="phoneStatus" data-kind="info" role="status" aria-live="polite"></div>
-
-          <div class="mfa-field-label">Enter the 6-digit code</div>
-          <div class="otp-row" id="phoneOtpRow">
-            <input class="verify-input" type="text" inputmode="numeric" maxlength="1" aria-label="Phone code digit 1">
-            <input class="verify-input" type="text" inputmode="numeric" maxlength="1" aria-label="Phone code digit 2">
-            <input class="verify-input" type="text" inputmode="numeric" maxlength="1" aria-label="Phone code digit 3">
-            <input class="verify-input" type="text" inputmode="numeric" maxlength="1" aria-label="Phone code digit 4">
-            <input class="verify-input" type="text" inputmode="numeric" maxlength="1" aria-label="Phone code digit 5">
-            <input class="verify-input" type="text" inputmode="numeric" maxlength="1" aria-label="Phone code digit 6">
-          </div>
-          <div class="mfa-meta">
-            <span class="mfa-countdown" id="phoneCountdown"></span>
-            <button class="mfa-resend" id="phoneResend" type="button" disabled>Resend code</button>
-          </div>
-          <button class="btn btn-gold mfa-btn-full" id="phoneVerifyBtn" type="button">Verify phone</button>
-        </div>
-
-        <!-- status for the phone-entry sub-step -->
-        <div class="mfa-status" id="phoneSendStatus" data-kind="error" role="status" aria-live="polite" style="margin-top:var(--s-4);"></div>
-      </div>
-
       <!-- ═══ SUCCESS ═══ -->
       <div class="mfa-stage" id="successStage">
         <div class="mfa-success-mark">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
         </div>
         <h2 class="mfa-title" style="text-align:center;">You're verified</h2>
-        <p class="mfa-sub" style="text-align:center;">Both factors confirmed. Welcome to LEVEL — taking you in…</p>
+        <p class="mfa-sub" style="text-align:center;">Email confirmed. Welcome to LEVEL — taking you in…</p>
         <div class="mfa-loading show" style="margin-top:var(--s-6);"><div class="loading-bar"><span></span></div></div>
       </div>
 

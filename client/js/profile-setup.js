@@ -1,9 +1,9 @@
 import { store } from './store.js'
 import { evaluateEligibility } from './matching-policy.js'
 import { requireAuth, initBodyFade, showToast, hydrateFromProfile } from './app.js'
-import { getRefData } from './ref-data.js'
-import { fillSelect, renderProfileChips, firstLabel, labelsFromAnswers } from './ref-ui.js'
+import { firstLabel, labelsFromAnswers } from './ref-ui.js'
 import { apiFetch } from './sso.js'
+import { supabase } from './supabase.js'
 
 requireAuth()
 initBodyFade()
@@ -51,16 +51,6 @@ window.updatePreviewBio = function(el) {
   if (bio) bio.textContent = el.value || 'Your bio will appear here. Share what makes you remarkable — your passions, your perspective, what you\'re building.'
   const count = document.getElementById('bioCount')
   if (count) count.textContent = el.value.length
-}
-
-window.toggleInterest = function(el) {
-  const grid = el.closest('.interests-grid')
-  if (grid?.dataset.single === 'true') {
-    grid.querySelectorAll('.interest-chip').forEach(c => c.classList.remove('selected'))
-    el.classList.add('selected')
-    return
-  }
-  el.classList.toggle('selected')
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -328,82 +318,96 @@ document.getElementById('photoFileInput')?.addEventListener('change', (e) => {
 // Keep the old API alive for any inline onclick still referencing it
 window.triggerUpload = openPickerForSlot
 
-function chipLabels(group) {
-  return Array.from(document.querySelectorAll(`[data-group="${group}"].interest-chip.selected`))
-    .map(el => el.textContent.trim())
-}
-
-function singleChip(group) {
-  return chipLabels(group)[0] || null
+function partnerAgeLabel(user, ob) {
+  const min = user.ageRangeMin ?? ob.step4?.min
+  const max = user.ageRangeMax ?? ob.step4?.max
+  if (min == null || max == null) return ''
+  return `${min} – ${max}`
 }
 
 function setSelectByText(selectEl, text) {
   if (!selectEl || !text) return
   const target = text.trim().toLowerCase()
   for (let i = 0; i < selectEl.options.length; i++) {
-    if (selectEl.options[i].text.trim().toLowerCase() === target) {
+    const opt = selectEl.options[i]
+    if (opt.text.trim().toLowerCase() === target || opt.value.trim().toLowerCase() === target) {
       selectEl.selectedIndex = i
       return
     }
   }
+  const opt = document.createElement('option')
+  opt.value = text
+  opt.textContent = text
+  selectEl.appendChild(opt)
+  selectEl.value = text
+}
+
+function setReviewText(id, value) {
+  const el = document.getElementById(id)
+  if (!el) return
+  const text = (value || '').toString().trim()
   if (text) {
-    const opt = document.createElement('option')
-    opt.value = text
-    opt.textContent = text
-    selectEl.appendChild(opt)
-    selectEl.value = text
+    el.textContent = text
+    el.classList.remove('is-empty')
+  } else {
+    el.textContent = 'Not set yet'
+    el.classList.add('is-empty')
   }
+}
+
+function setReviewChips(id, values) {
+  const el = document.getElementById(id)
+  if (!el) return
+  const labels = labelsFromAnswers(values)
+  el.innerHTML = ''
+  if (!labels.length) {
+    el.innerHTML = '<span class="review-value is-empty">Not set yet</span>'
+    return
+  }
+  labels.forEach(label => {
+    const chip = document.createElement('span')
+    chip.className = 'review-chip'
+    chip.textContent = label
+    el.appendChild(chip)
+  })
+}
+
+function fillOnboardingReview(user, ob) {
+  setReviewText('reviewGender', user.genderIdentity || firstLabel(ob.step0))
+  setReviewText(
+    'reviewPronouns',
+    (typeof user.pronouns === 'string' && user.pronouns) || firstLabel(ob.step1),
+  )
+  setReviewText('reviewOrientation', user.sexualOrientation || firstLabel(ob.step2))
+  setReviewText('reviewAgeRange', partnerAgeLabel(user, ob))
+  setReviewChips(
+    'reviewPreferredGenders',
+    user.preferredGenders?.length ? user.preferredGenders : labelsFromAnswers(ob.step3),
+  )
+  setReviewText('reviewIntent', user.primaryIntent || firstLabel(ob.step5))
+  setReviewText('reviewCareer', user.careerChapter || firstLabel(ob.step7))
+  setReviewText('reviewLifeInt', user.lifeIntegration || firstLabel(ob.stepLifeInt))
+  setReviewText('reviewMobility', user.mobilityProfile || firstLabel(ob.stepMobility))
+  setReviewText('reviewVision', user.longTermVision || firstLabel(ob.step6))
+  setReviewText('reviewEmotional', user.emotionalStyle || firstLabel(ob.step8))
+  setReviewChips(
+    'reviewLifestyle',
+    user.lifestyleValues?.length ? user.lifestyleValues : labelsFromAnswers(ob.step9),
+  )
 }
 
 async function bootProfileSetup() {
   await hydrateFromProfile().catch(() => {})
-  const ref = await getRefData()
   const ob = store.getOnboarding() || {}
   const user = store.getUser() || {}
 
-  fillSelect(document.getElementById('genderIdentitySelect'), ref.genders, {
-    selected: user.genderIdentity || firstLabel(ob.step0),
-  })
-  fillSelect(document.getElementById('pronounsSelect'), ref.pronouns, {
-    selected: (typeof user.pronouns === 'string' ? user.pronouns : firstLabel(ob.step1)),
-  })
-  fillSelect(document.getElementById('orientationSelect'), ref.orientations, {
-    selected: user.sexualOrientation || firstLabel(ob.step2),
-  })
+  // Visibility is a profile-setup concern (public card), not onboarding.
+  setSelectByText(
+    document.getElementById('orientationVisibilitySelect'),
+    user.orientationVisibility || 'Only on mutual matches',
+  )
 
-  renderProfileChips(document.getElementById('preferredGendersChips'), ref.preferredGenders, {
-    group: 'gender-pref',
-    selected: user.preferredGenders?.length ? user.preferredGenders : labelsFromAnswers(ob.step3),
-  })
-  renderProfileChips(document.getElementById('primaryIntentChips'), ref.intents, {
-    group: 'primary-intent',
-    selected: user.primaryIntent ? [user.primaryIntent] : labelsFromAnswers(ob.step5),
-  })
-  renderProfileChips(document.getElementById('careerChapterChips'), ref.careerChapters, {
-    group: 'career-chapter',
-    selected: user.careerChapter ? [user.careerChapter] : labelsFromAnswers(ob.step7),
-  })
-  renderProfileChips(document.getElementById('lifeIntegrationChips'), ref.lifeIntegrations, {
-    group: 'life-integration',
-    selected: user.lifeIntegration ? [user.lifeIntegration] : labelsFromAnswers(ob.stepLifeInt),
-  })
-  renderProfileChips(document.getElementById('mobilityChips'), ref.mobilityProfiles, {
-    group: 'mobility',
-    selected: user.mobilityProfile ? [user.mobilityProfile] : labelsFromAnswers(ob.stepMobility),
-  })
-  renderProfileChips(document.getElementById('longTermVisionChips'), ref.longTermVisions, {
-    group: 'long-term-vision',
-    selected: user.longTermVision ? [user.longTermVision] : labelsFromAnswers(ob.step6),
-  })
-  renderProfileChips(document.getElementById('emotionalStyleChips'), ref.emotionalStyles, {
-    group: 'emotional-style',
-    selected: user.emotionalStyle ? [user.emotionalStyle] : labelsFromAnswers(ob.step8),
-  })
-  renderProfileChips(document.getElementById('lifestyleChips'), ref.lifestyleValues, {
-    group: 'lifestyle',
-    selected: user.lifestyleValues?.length ? user.lifestyleValues : labelsFromAnswers(ob.step9),
-  })
-
+  fillOnboardingReview(user, ob)
   applyUserFieldsToForm(user, ob)
   window.updatePreview()
   updateCompletionRing()
@@ -435,12 +439,6 @@ function applyUserFieldsToForm(user, ob) {
     bio.value = legacy
     window.updatePreviewBio(bio)
   }
-
-  if (!user.profileLoadedFromApi) {
-    setSelectByText(document.getElementById('genderIdentitySelect'), firstLabel(ob.step0))
-    setSelectByText(document.getElementById('pronounsSelect'), firstLabel(ob.step1))
-    setSelectByText(document.getElementById('orientationSelect'), firstLabel(ob.step2))
-  }
 }
 
 window.saveProfile = async function(e) {
@@ -449,8 +447,10 @@ window.saveProfile = async function(e) {
   const user = store.getUser() || {}
   const ob = store.getOnboarding() || {}
   const bioInput = document.getElementById('bioInput')
+  const orientationVisibility = document.getElementById('orientationVisibilitySelect')?.value || ''
 
-  const pronounVal = document.getElementById('pronounsSelect')?.value
+  // Alignment / identity fields come from onboarding (or previously saved
+  // profile) — profile setup no longer re-edits them.
   const payload = {
     firstName: document.getElementById('firstNameInput')?.value?.trim() || user.firstName || '',
     lastName: document.getElementById('lastNameInput')?.value?.trim() || user.lastName || '',
@@ -460,26 +460,38 @@ window.saveProfile = async function(e) {
     education: document.getElementById('educationInput')?.value?.trim() || '',
     industry: document.getElementById('industrySelect')?.value || '',
     legacyVision: bioInput?.value?.trim() || ob.step10 || '',
-    genderIdentity: document.getElementById('genderIdentitySelect')?.value || firstLabel(ob.step0) || null,
-    pronouns: pronounVal ? [pronounVal] : labelsFromAnswers(ob.step1),
-    orientation: document.getElementById('orientationSelect')?.value || firstLabel(ob.step2) || null,
-    preferredGenders: chipLabels('gender-pref').length ? chipLabels('gender-pref') : labelsFromAnswers(ob.step3),
-    ageRangeMin: ob.step4?.min ?? null,
-    ageRangeMax: ob.step4?.max ?? null,
-    primaryIntent: singleChip('primary-intent') || firstLabel(ob.step5) || null,
-    intentCategory: ob.intentCategory || null,
-    longTermVision: singleChip('long-term-vision') || firstLabel(ob.step6) || null,
-    careerChapter: singleChip('career-chapter') || firstLabel(ob.step7) || null,
-    lifeIntegration: singleChip('life-integration') || firstLabel(ob.stepLifeInt) || null,
-    mobilityProfile: singleChip('mobility') || firstLabel(ob.stepMobility) || null,
-    emotionalCompatibility: singleChip('emotional-style') || firstLabel(ob.step8) || null,
-    lifestyleValues: chipLabels('lifestyle').length ? chipLabels('lifestyle') : labelsFromAnswers(ob.step9),
+    genderIdentity: user.genderIdentity || firstLabel(ob.step0) || null,
+    pronouns: user.pronouns
+      ? (Array.isArray(user.pronouns) ? user.pronouns : [user.pronouns])
+      : labelsFromAnswers(ob.step1),
+    orientation: user.sexualOrientation || firstLabel(ob.step2) || null,
+    preferredGenders: user.preferredGenders?.length
+      ? user.preferredGenders
+      : labelsFromAnswers(ob.step3),
+    ageRangeMin: user.ageRangeMin ?? ob.step4?.min ?? null,
+    ageRangeMax: user.ageRangeMax ?? ob.step4?.max ?? null,
+    primaryIntent: user.primaryIntent || firstLabel(ob.step5) || null,
+    intentCategory: ob.intentCategory || user.relationshipGoals || null,
+    longTermVision: user.longTermVision || firstLabel(ob.step6) || null,
+    careerChapter: user.careerChapter || firstLabel(ob.step7) || null,
+    lifeIntegration: user.lifeIntegration || firstLabel(ob.stepLifeInt) || null,
+    mobilityProfile: user.mobilityProfile || firstLabel(ob.stepMobility) || null,
+    emotionalCompatibility: user.emotionalStyle || firstLabel(ob.step8) || null,
+    lifestyleValues: user.lifestyleValues?.length
+      ? user.lifestyleValues
+      : labelsFromAnswers(ob.step9),
   }
 
   const btn = document.getElementById('saveProfileBtn')
   if (btn) { btn.disabled = true; btn.textContent = 'Saving…' }
 
   try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) {
+      showToast('Your session expired. Sign in again to save your profile.', '✕')
+      return
+    }
+
     const res = await apiFetch('/api/auth/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -487,11 +499,15 @@ window.saveProfile = async function(e) {
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
+      if (err.error === 'INVALID_TOKEN') {
+        showToast('Your session expired. Sign in again to save your profile.', '✕')
+        return
+      }
       showToast(err.message || 'Could not save your profile.', '✕')
       return
     }
 
-    const goals = document.getElementById('relationshipGoals')?.value
+    const intentForEligibility = payload.intentCategory || payload.primaryIntent
     store.setUser({
       ...user,
       firstName: payload.firstName,
@@ -505,14 +521,24 @@ window.saveProfile = async function(e) {
       education: payload.education,
       industry: payload.industry,
       genderIdentity: payload.genderIdentity,
-      pronouns: pronounVal,
+      pronouns: Array.isArray(payload.pronouns) ? payload.pronouns[0] || '' : payload.pronouns,
       sexualOrientation: payload.orientation,
+      orientationVisibility,
       preferredGenders: payload.preferredGenders,
-      relationshipGoals: goals || user.relationshipGoals || null,
+      ageRangeMin: payload.ageRangeMin,
+      ageRangeMax: payload.ageRangeMax,
+      primaryIntent: payload.primaryIntent,
+      longTermVision: payload.longTermVision,
+      careerChapter: payload.careerChapter,
+      lifeIntegration: payload.lifeIntegration,
+      mobilityProfile: payload.mobilityProfile,
+      emotionalStyle: payload.emotionalCompatibility,
+      lifestyleValues: payload.lifestyleValues,
+      relationshipGoals: intentForEligibility || user.relationshipGoals || null,
       profileSavedToDb: true,
       profileComplete: 100,
     })
-    if (goals) store.setMatchingEligibility(evaluateEligibility(goals))
+    if (intentForEligibility) store.setMatchingEligibility(evaluateEligibility(intentForEligibility))
 
     window.location.href = 'dashboard.html'
   } catch (err) {
@@ -526,14 +552,18 @@ window.saveProfile = async function(e) {
   }
 }
 
-// Update completion ring based on filled fields
+// Update completion ring based on filled public-profile fields
 function updateCompletionRing() {
-  let filled = 0
-  const total = 5
-  document.querySelectorAll('.form-input:not(select)').forEach(input => {
-    if (input.value.trim()) filled++
-  })
-  const pct = Math.min(100, Math.round((filled / total) * 100) + 30)
+  const fields = [
+    document.getElementById('firstNameInput')?.value?.trim(),
+    document.getElementById('titleInput')?.value?.trim(),
+    document.getElementById('locationInput')?.value?.trim(),
+    document.getElementById('industrySelect')?.value?.trim(),
+    document.getElementById('bioInput')?.value?.trim(),
+    store.getUser()?.photos?.length || photoState[0]?.src,
+  ]
+  const filled = fields.filter(Boolean).length
+  const pct = Math.min(100, Math.round((filled / fields.length) * 100))
   const ring = document.getElementById('completionRingFill')
   const text = document.getElementById('completionText')
   if (ring) {
@@ -545,9 +575,9 @@ function updateCompletionRing() {
 
 document.querySelectorAll('.form-input').forEach(el => {
   el.addEventListener('input', updateCompletionRing)
+  el.addEventListener('change', updateCompletionRing)
 })
 
-// Init bio count (textarea starts empty)
 const bioInput = document.getElementById('bioInput')
 if (bioInput && bioInput.value) {
   const count = document.getElementById('bioCount')

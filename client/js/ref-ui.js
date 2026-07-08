@@ -4,7 +4,7 @@
 
 export function fillSelect(selectEl, items, { placeholder = '— Select —', selected } = {}) {
   if (!selectEl) return
-  const keep = selected || selectEl.value
+  const keep = (selected || selectEl.value || '').trim()
   selectEl.innerHTML = ''
   const ph = document.createElement('option')
   ph.value = ''
@@ -17,7 +17,23 @@ export function fillSelect(selectEl, items, { placeholder = '— Select —', se
     opt.textContent = item.label
     selectEl.appendChild(opt)
   }
-  if (keep) selectEl.value = keep
+  if (!keep) return
+  // Exact match first, then case-insensitive (onboarding labels vs option text)
+  selectEl.value = keep
+  if (selectEl.value === keep) return
+  const lower = keep.toLowerCase()
+  for (const opt of selectEl.options) {
+    if (opt.value.toLowerCase() === lower || opt.textContent.trim().toLowerCase() === lower) {
+      selectEl.value = opt.value
+      return
+    }
+  }
+  // Custom value from onboarding "Add your own"
+  const custom = document.createElement('option')
+  custom.value = keep
+  custom.textContent = keep
+  selectEl.appendChild(custom)
+  selectEl.value = keep
 }
 
 export function renderChipGrid(container, items, { multi = true, onRender } = {}) {

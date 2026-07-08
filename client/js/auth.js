@@ -23,7 +23,7 @@ window.switchTab = function (tab) {
 /* ════════════════════════════════════════════════════════════════
    LEVEL Identity Gateway — OAuth → mandatory MFA
 
-   Real Supabase OAuth hands off to mfa.html for email + phone OTP.
+   Real Supabase OAuth hands off to mfa.html for email OTP.
    ════════════════════════════════════════════════════════════════ */
 
 handleOAuthReturn().then(handled => {

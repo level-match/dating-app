@@ -204,6 +204,74 @@
       margin-bottom: var(--s-5);
       padding-bottom: var(--s-3);
       border-bottom: 1px solid var(--cream-300);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--s-4);
+      flex-wrap: wrap;
+    }
+
+    .setup-section-edit {
+      font-family: var(--font-sans);
+      font-size: 0.68rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ocean-300);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .setup-section-edit:hover {
+      color: var(--gold-300);
+      border-bottom-color: rgba(212,168,67,0.45);
+    }
+
+    .review-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--s-4) var(--s-6);
+    }
+    @media (max-width: 720px) {
+      .review-grid { grid-template-columns: 1fr; }
+    }
+    .review-item { min-width: 0; }
+    .review-label {
+      font-family: var(--font-sans);
+      font-size: 0.62rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .review-value {
+      font-family: var(--font-sans);
+      font-size: 0.92rem;
+      font-weight: 400;
+      color: var(--text-primary);
+      line-height: 1.45;
+    }
+    .review-value.is-empty {
+      color: var(--text-muted);
+      font-style: italic;
+      font-weight: 300;
+    }
+    .review-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .review-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.04);
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      color: rgba(245,237,224,0.86);
     }
 
     /* Photo upload */
@@ -597,8 +665,8 @@
     <div class="setup-form">
       <div class="setup-header">
         <a href="index.html" class="setup-logo"><img src="assets/level-wordmark.png" alt="LEVEL" style="height:26px;width:auto;display:block;"></a>
-        <h1 class="setup-title">Complete Your<br>Profile.</h1>
-        <p class="setup-subtitle">A complete profile receives 3× more quality connections. Take 5 minutes to present your best self.</p>
+        <h1 class="setup-title">Present Your<br>Profile.</h1>
+        <p class="setup-subtitle">Your screening answers are locked in. Add the details matches will see — photos, title, and where you live — then publish.</p>
       </div>
 
       <!-- ─── Photos ─── -->
@@ -670,7 +738,7 @@
             </div>
             <div class="form-group">
               <label class="form-label">Professional Title</label>
-              <input type="text" class="form-input" id="titleInput" placeholder="e.g. Partner, McKinsey & Company" oninput="updatePreview()">
+              <input type="text" class="form-input" id="titleInput" placeholder="e.g. Founder & CEO" oninput="updatePreview()">
             </div>
           </div>
 
@@ -699,63 +767,12 @@
         </div>
       </div>
 
-      <!-- ─── Identity & Pronouns (new) ─── -->
-      <div class="setup-section">
-        <div class="setup-section-title">
-          Identity &amp; Pronouns
-          <span style="display:inline-block;margin-left:10px;padding:3px 10px;border:1px solid rgba(184,168,212,0.40);border-radius:999px;font-family:'Inter',sans-serif;font-size:0.62rem;letter-spacing:0.18em;text-transform:uppercase;color:#B8A8D4;font-weight:500;">
-            Inclusive matching
-          </span>
-        </div>
-        <p style="font-family:'Inter',sans-serif;font-size:0.84rem;font-weight:300;color:rgba(245,237,224,0.55);line-height:1.7;margin-bottom:20px;max-width:520px;">
-          How you identify, how you'd like to be referred to, and who you'd like
-          to meet. Only the fields you choose to show appear on your profile.
-        </p>
-        <div class="form-fields">
-          <div class="form-2col">
-            <div class="form-group">
-              <label class="form-label">Gender identity</label>
-              <select class="form-input form-select" id="genderIdentitySelect">
-                <option value="">— Select —</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Pronouns (shown on profile)</label>
-              <select class="form-input form-select" id="pronounsSelect">
-                <option value="">— Select —</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-2col">
-            <div class="form-group">
-              <label class="form-label">Sexual orientation</label>
-              <select class="form-input form-select" id="orientationSelect">
-                <option value="">— Select —</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Show orientation publicly</label>
-              <select class="form-input form-select" id="orientationVisibilitySelect">
-                <option value="">— Select —</option>
-                <option>Only on mutual matches</option>
-                <option>Visible to everyone</option>
-                <option>Keep private</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Preferred genders for matching</label>
-            <div class="interests-grid" id="preferredGendersChips" style="margin-top:8px;"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ─── Legacy & Vision ─── -->
+      <!-- ─── Legacy & Vision (editable polish) ─── -->
       <div class="setup-section">
         <div class="setup-section-title">Legacy &amp; Vision</div>
-        <p style="font-family:'Inter',sans-serif;font-size:0.84rem;font-weight:300;color:rgba(245,237,224,0.55);line-height:1.7;margin-bottom:18px;max-width:560px;">
-          Describe the lifestyle and partnership you are architecting for your
-          next chapter. Read by every match before they reach out.
+        <p style="font-family:var(--font-sans);font-size:0.84rem;font-weight:300;color:rgba(245,237,224,0.55);line-height:1.7;margin-bottom:18px;max-width:560px;">
+          Pre-filled from onboarding. Polish the wording matches will read before
+          they reach out.
         </p>
         <div class="form-group">
           <label class="form-label">Your written reflection</label>
@@ -770,166 +787,83 @@
         <div class="char-count"><span id="bioCount">0</span> / 500</div>
       </div>
 
-      <!-- ─── Alignment Indicators ─── -->
+      <!-- ─── Onboarding review (read-only) ─── -->
       <div class="setup-section">
         <div class="setup-section-title">
-          Alignment Indicators
-          <span style="display:inline-block;margin-left:10px;padding:3px 10px;border:1px solid rgba(212,168,67,0.40);border-radius:999px;font-family:'Inter',sans-serif;font-size:0.62rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold-300);font-weight:500;">
-            Weighted match signal
-          </span>
+          <span>Your Screening Answers</span>
+          <a class="setup-section-edit" href="onboarding.html">Edit in onboarding</a>
         </div>
-        <p style="font-family:'Inter',sans-serif;font-size:0.84rem;font-weight:300;color:rgba(245,237,224,0.55);line-height:1.7;margin-bottom:24px;max-width:560px;">
-          These four indicators drive the matching algorithm — Primary Intent is
-          a hard alignment gate; Career Chapter, Life Integration and Mobility
-          shape weighted compatibility.
+        <p style="font-family:var(--font-sans);font-size:0.84rem;font-weight:300;color:rgba(245,237,224,0.55);line-height:1.7;margin-bottom:22px;max-width:560px;">
+          These came from your questionnaire and drive matching. Change them
+          in onboarding — this page is for the public face of your profile.
         </p>
-
-        <!-- Primary Intent -->
-        <div class="form-group" style="margin-bottom:24px;">
-          <label class="form-label" style="display:flex;align-items:center;gap:10px;">
-            Primary intent
-            <span style="font-family:'Inter',sans-serif;font-size:0.6rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--gold-300);background:rgba(212,168,67,0.12);border:1px solid rgba(212,168,67,0.32);border-radius:999px;padding:2px 9px;">25%</span>
-          </label>
-          <div class="interests-grid" id="primaryIntentChips" data-single="true" style="margin-top:8px;"></div>
-        </div>
-
-        <!-- Career Chapter -->
-        <div class="form-group" style="margin-bottom:24px;">
-          <label class="form-label" style="display:flex;align-items:center;gap:10px;">
-            Career chapter
-            <span style="font-family:'Inter',sans-serif;font-size:0.6rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--gold-300);background:rgba(212,168,67,0.12);border:1px solid rgba(212,168,67,0.32);border-radius:999px;padding:2px 9px;">20%</span>
-          </label>
-          <div class="interests-grid" id="careerChapterChips" data-single="true" style="margin-top:8px;"></div>
-        </div>
-
-        <!-- Life Integration -->
-        <div class="form-group" style="margin-bottom:24px;">
-          <label class="form-label" style="display:flex;align-items:center;gap:10px;">
-            Life integration style
-            <span style="font-family:'Inter',sans-serif;font-size:0.6rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--gold-300);background:rgba(212,168,67,0.12);border:1px solid rgba(212,168,67,0.32);border-radius:999px;padding:2px 9px;">15%</span>
-          </label>
-          <div class="interests-grid" id="lifeIntegrationChips" data-single="true" style="margin-top:8px;"></div>
-        </div>
-
-        <!-- Mobility Profile -->
-        <div class="form-group">
-          <label class="form-label" style="display:flex;align-items:center;gap:10px;">
-            Mobility profile
-            <span style="font-family:'Inter',sans-serif;font-size:0.6rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--gold-300);background:rgba(212,168,67,0.12);border:1px solid rgba(212,168,67,0.32);border-radius:999px;padding:2px 9px;">10%</span>
-          </label>
-          <div class="interests-grid" id="mobilityChips" data-single="true" style="margin-top:8px;"></div>
-        </div>
-
-        <div class="form-group" style="margin-top:24px;margin-bottom:24px;">
-          <label class="form-label">Long-term vision</label>
-          <div class="interests-grid" id="longTermVisionChips" data-single="true" style="margin-top:8px;"></div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Emotional compatibility</label>
-          <div class="interests-grid" id="emotionalStyleChips" data-single="true" style="margin-top:8px;"></div>
+        <div class="review-grid" id="onboardingReviewGrid">
+          <div class="review-item">
+            <div class="review-label">Gender identity</div>
+            <div class="review-value" id="reviewGender">—</div>
+          </div>
+          <div class="review-item">
+            <div class="review-label">Pronouns</div>
+            <div class="review-value" id="reviewPronouns">—</div>
+          </div>
+          <div class="review-item">
+            <div class="review-label">Orientation</div>
+            <div class="review-value" id="reviewOrientation">—</div>
+          </div>
+          <div class="review-item">
+            <div class="review-label">Partner age range</div>
+            <div class="review-value" id="reviewAgeRange">—</div>
+          </div>
+          <div class="review-item" style="grid-column:1 / -1;">
+            <div class="review-label">Looking to meet</div>
+            <div class="review-chips" id="reviewPreferredGenders"></div>
+          </div>
+          <div class="review-item">
+            <div class="review-label">Primary intent</div>
+            <div class="review-value" id="reviewIntent">—</div>
+          </div>
+          <div class="review-item">
+            <div class="review-label">Career chapter</div>
+            <div class="review-value" id="reviewCareer">—</div>
+          </div>
+          <div class="review-item">
+            <div class="review-label">Life integration</div>
+            <div class="review-value" id="reviewLifeInt">—</div>
+          </div>
+          <div class="review-item">
+            <div class="review-label">Mobility</div>
+            <div class="review-value" id="reviewMobility">—</div>
+          </div>
+          <div class="review-item" style="grid-column:1 / -1;">
+            <div class="review-label">Long-term vision</div>
+            <div class="review-value" id="reviewVision">—</div>
+          </div>
+          <div class="review-item" style="grid-column:1 / -1;">
+            <div class="review-label">Emotional style</div>
+            <div class="review-value" id="reviewEmotional">—</div>
+          </div>
+          <div class="review-item" style="grid-column:1 / -1;">
+            <div class="review-label">Lifestyle &amp; values</div>
+            <div class="review-chips" id="reviewLifestyle"></div>
+          </div>
         </div>
       </div>
 
-      <!-- ─── Personal Interests (secondary) ─── -->
+      <!-- ─── Profile visibility (public-facing only) ─── -->
       <div class="setup-section">
-        <div class="setup-section-title">Lifestyle &amp; Values</div>
-        <p style="font-family:'Inter',sans-serif;font-size:0.84rem;font-weight:300;color:rgba(245,237,224,0.55);line-height:1.7;margin-bottom:18px;max-width:560px;">
-          How you spend your time outside of work — from your onboarding selections.
+        <div class="setup-section-title">Profile Visibility</div>
+        <p style="font-family:var(--font-sans);font-size:0.84rem;font-weight:300;color:rgba(245,237,224,0.55);line-height:1.7;margin-bottom:18px;max-width:560px;">
+          Choose how much of your identity appears on your card. Matching still
+          uses your full onboarding answers either way.
         </p>
-        <div class="interests-grid" id="lifestyleChips"></div>
-      </div>
-
-      <!-- ─── Match Preferences ─── -->
-      <div class="setup-section">
-        <div class="setup-section-title">Match Preferences</div>
-        <p style="font-family:'Inter',sans-serif;font-size:0.84rem;font-weight:300;color:rgba(245,237,224,0.55);line-height:1.7;margin-bottom:20px;max-width:520px;">
-          These shape the introductions we curate for you. Honest answers
-          produce the highest-quality matches.
-        </p>
-        <div class="form-fields">
-          <div class="form-2col">
-            <div class="form-group">
-              <label class="form-label">Relationship goals</label>
-              <select id="relationshipGoals" class="form-input form-select">
-                <optgroup label="Preferred alignment paths">
-                  <option value="legacy_builder">Legacy Builder</option>
-                  <option value="intentional_partner">Intentional Partner</option>
-                </optgroup>
-                <optgroup label="Long-term &amp; intentional">
-                  <option value="family">Marriage &amp; family</option>
-                  <option value="life_partnership">Life partnership (marriage optional)</option>
-                  <option value="enm">Ethical non-monogamy</option>
-                </optgroup>
-                <optgroup label="Exploring for now">
-                  <option value="casual">Casual dating</option>
-                  <option value="exploring">Short-term &amp; still exploring</option>
-                </optgroup>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Children</label>
-              <select class="form-input form-select">
-                <option>Open, ideally yes</option>
-                <option>Definitely want children</option>
-                <option>Do not want children</option>
-                <option>Have children, open to more</option>
-                <option>Have children, complete</option>
-                <option>Adoption / chosen family open</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-2col">
-            <div class="form-group">
-              <label class="form-label">Partner age range</label>
-              <input type="text" class="form-input" placeholder="e.g. 32 – 46">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Willing to relocate</label>
-              <select class="form-input form-select">
-                <option>Open to discuss</option>
-                <option>No</option>
-                <option>Yes</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-2col">
-            <div class="form-group">
-              <label class="form-label">Emotional compatibility</label>
-              <select class="form-input form-select">
-                <option>Essential — top priority</option>
-                <option>Important</option>
-                <option>Balance with other factors</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Career compatibility</label>
-              <select class="form-input form-select">
-                <option>Important — similar ambition</option>
-                <option>Essential — same intensity</option>
-                <option>Open — complementary works too</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-2col">
-            <div class="form-group">
-              <label class="form-label">Lifestyle compatibility</label>
-              <select class="form-input form-select">
-                <option>Important — must share core habits</option>
-                <option>Open — differences are exciting</option>
-                <option>Essential — close alignment</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Long-term intentions</label>
-              <select class="form-input form-select">
-                <option>Settled within 3–5 years</option>
-                <option>Settled within 1–2 years</option>
-                <option>Open to where it leads</option>
-                <option>Partnership without timelines</option>
-              </select>
-            </div>
-          </div>
+        <div class="form-group" style="max-width:360px;">
+          <label class="form-label">Show orientation publicly</label>
+          <select class="form-input form-select" id="orientationVisibilitySelect">
+            <option value="">— Select —</option>
+            <option>Only on mutual matches</option>
+            <option>Visible to everyone</option>
+            <option>Keep private</option>
+          </select>
         </div>
       </div>
 
@@ -960,7 +894,7 @@
 
       <!-- Footer -->
       <div class="setup-footer">
-        <div style="font-family:var(--font-sans);font-size:var(--text-xs);font-weight:300;color:var(--text-muted);">Review your answers, then save to publish your profile.</div>
+        <div style="font-family:var(--font-sans);font-size:var(--text-xs);font-weight:300;color:var(--text-muted);">Polish your public card, then save to publish.</div>
         <div style="display:flex;gap:var(--s-3);">
           <a href="dashboard.html" class="btn btn-ghost">Skip for now</a>
           <button type="button" class="btn btn-primary btn-lg" id="saveProfileBtn" onclick="saveProfile(event)">Save &amp; Go to Dashboard</button>

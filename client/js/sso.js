@@ -8,7 +8,7 @@
      2. handleOAuthReturn() picks up the real session, bridges the identity into
         the app `store`, and routes straight to the destination.
 
-   After OAuth, users pass through mfa.html for email + phone OTP before
+   After OAuth, users pass through mfa.html for email OTP before
    protected routes open.
    ════════════════════════════════════════════════════════════════ */
 
@@ -57,13 +57,21 @@ function splitName(meta = {}) {
 }
 
 /**
- * Authenticated fetch against the Next.js backend. Attaches the current
- * Supabase access token as a Bearer header.
+ * Authenticated fetch against the Express backend. Attaches the current
+ * Supabase access token as a Bearer header. Refreshes the session once if
+ * getSession() returns nothing (common after MFA / long idle).
  */
 export async function apiFetch(path, options = {}) {
-  const { data: { session } } = await supabase.auth.getSession()
+  let { data: { session } } = await supabase.auth.getSession()
+  if (!session?.access_token) {
+    const { data, error } = await supabase.auth.refreshSession()
+    if (!error) session = data.session
+  }
+
   const headers = new Headers(options.headers || {})
-  if (session?.access_token) headers.set('Authorization', `Bearer ${session.access_token}`)
+  if (session?.access_token) {
+    headers.set('Authorization', `Bearer ${session.access_token}`)
+  }
   if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
   return fetch(`${API_BASE}${path}`, { ...options, headers })
 }

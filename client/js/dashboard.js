@@ -11,6 +11,7 @@ initCompatBars()
 async function bootDashboard() {
   await hydrateFromProfile()
   const user = hydrateUser()
+  if (typeof window.__hydrateTopbarAvatars === 'function') window.__hydrateTopbarAvatars()
 
   const hasSavedProfile = !!user.profileSavedToDb
   const isNewAccount = !hasSavedProfile && store.getSentRequestIds().length === 0

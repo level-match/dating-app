@@ -12,7 +12,7 @@ const LAYERS = [
   { label: 'Government ID', note: 'Matched to a verified identity', color: '#9BCBB4' },
   { label: 'Selfie & Photo', note: 'Live capture compared to ID', color: '#B8A8D4' },
   { label: 'Career & Title', note: 'Confirmed against public record', color: '#E8C7A0' },
-  { label: 'Two-Factor Login', note: 'Email + phone on every sign-in', color: '#E5B5B5' },
+  { label: 'Email verification', note: 'One-time email code on sign-in', color: '#E5B5B5' },
 ]
 
 const CHECK = (

@@ -133,38 +133,34 @@ export const store = {
   getDefaultUser() {
     return {
       id: 'me',
-      firstName: 'Alexandra',
-      lastName: 'R.',
-      role: 'Partner, McKinsey & Company',
-      age: 34,
-      city: 'New York',
+      firstName: '',
+      lastName: '',
+      role: '',
+      age: null,
+      city: '',
       tier: 'base',
-      profileComplete: 72,
-      matches: 7,
-      messages: 3,
-      views: 12,
-      connections: 2,
-      // The demo/seed account is treated as already MFA-cleared so opening
-      // app pages directly (without going through the OAuth → MFA flow) still
-      // works for previews. Real auth sessions start with mfa.required = true.
+      profileComplete: 0,
+      matches: 0,
+      messages: 0,
+      views: 0,
+      connections: 0,
+      // Empty defaults for real / direct preview sessions.
+      // Demo personas inject name + title via demo-mode.js instead.
       mfa: { required: false, complete: true },
     }
   },
 
   /* ─── Multi-Factor Authentication (LEVEL Identity Gateway) ───────
      A session created via OAuth carries an `mfa` object that gates access
-     to every protected route until both factors are verified:
+     until email OTP is verified. Phone factor is reserved for later (SMS):
 
        mfa: {
          required: true,
          email: { verified: false },
-         phone: { verified: false, number: null },
+         phone: { verified: false, number: null }, // unused until SMS provider
          complete: false,
        }
        pendingDestination: 'dashboard.html' | 'onboarding.html'
-
-     Helpers below are the single source of truth for the gate so route
-     guards and the MFA screen never reach into the raw object directly.
      ─────────────────────────────────────────────────────────────── */
 
   /* Begin an authenticated-but-ungated session straight out of OAuth. */
@@ -211,7 +207,7 @@ export const store = {
     this.setUser(user)
   },
 
-  /* Finalize once both factors are verified; returns where to send the user. */
+  /* Finalize once email MFA is verified; returns where to send the user. */
   completeMfa() {
     const user = this.getUser()
     if (!user?.mfa) return 'dashboard.html'

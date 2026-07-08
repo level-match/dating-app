@@ -114,6 +114,8 @@ export async function hydrateFromProfile() {
       lifestyleValues: (p.lifestyle_values || []).map(x => x.label),
       ageRangeMin: p.age_range_min,
       ageRangeMax: p.age_range_max,
+      avatarUrl: p.avatar_url || user.avatarUrl || null,
+      mainPhoto: user.mainPhoto || p.avatar_url || null,
       profileSavedToDb: true,
       profileLoadedFromApi: true,
       profileComplete: 100,

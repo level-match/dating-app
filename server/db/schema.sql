@@ -10,10 +10,11 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- data stays in the app store; this table exists only to anchor
 -- payment records and enforce per-user subscription constraints.
 CREATE TABLE IF NOT EXISTS users (
-  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  external_id  VARCHAR(255) UNIQUE NOT NULL, -- maps to the app's localStorage user id
-  email        VARCHAR(255) UNIQUE NOT NULL,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id                   UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+  external_id          VARCHAR(255) UNIQUE NOT NULL, -- maps to Supabase auth user id
+  email                VARCHAR(255) UNIQUE NOT NULL,
+  onboarding_complete  BOOLEAN      NOT NULL DEFAULT FALSE,
+  created_at           TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
 -- ─── Subscriptions ───────────────────────────────────────────────

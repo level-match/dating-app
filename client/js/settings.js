@@ -52,9 +52,14 @@ function pretty(key) {
 }
 
 /* ─── Sign out ─── */
-window.signOut = function () {
+window.signOut = async function () {
   if (!confirm('Sign out of LEVEL on this device?')) return
-  store.logout()
+  try {
+    const { signOut } = await import('./sso.js')
+    await signOut()
+  } catch {
+    store.logout()
+  }
   window.location.href = 'auth.html'
 }
 

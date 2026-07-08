@@ -7,7 +7,7 @@
    See README → "Demo & preview mode" for how to use each account.
    ============================================================ */
 
-/** MFA phone step (mock SMS) — see client/js/otp-service.js */
+/** Reserved for future MFA phone SMS — see client/js/otp-service.js */
 export const DEMO_MFA_PHONE_CODE = '123456'
 
 /**
@@ -63,7 +63,8 @@ export const DEMO_ACCOUNTS = {
     email: 'preview@level.app',
     firstName: 'Alexandra',
     lastName: 'R.',
-    profession: 'Partner, McKinsey & Company',
+    // Title left blank — real users fill this on profile setup (not onboarding).
+    profession: '',
     authProvider: 'demo',
     oauthFields: { firstName: true, lastName: true, email: true, avatarUrl: false },
     onboarding: DEMO_ONBOARDING,

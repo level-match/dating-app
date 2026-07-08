@@ -112,15 +112,15 @@ You can also `cd` into either folder and run their own `npm` scripts directly.
 |---|---|---|
 | Auth | Supabase — Google OAuth or email OTP | “Try demo” on `auth.html` |
 | Database | Saved on profile setup **Save** | Local browser only |
-| MFA | Real email OTP + mock phone `123456` | Skipped |
+| MFA | Real email OTP (phone/SMS later) | Skipped |
 | Match cards on dashboard | After profile saved + eligible | Mock from `members.js` |
 
 ### Real sign-up flow
 
 1. `auth.html` → Sign in with **Google** (or email OTP).
-2. `mfa.html` → Email code from inbox; phone code **`123456`** (mock SMS).
+2. `mfa.html` → Email code from inbox (phone MFA deferred until SMS provider).
 3. `onboarding.html` → Options from **`GET /api/ref/all`** (not static HTML).
-4. Complete onboarding → **`profile-setup.html`** (review name, email, selections).
+4. Complete onboarding → **`profile-setup.html`** (photos, name, title, location; onboarding answers shown as review).
 5. **Save & Go to Dashboard** → `POST /api/auth/profile` → dashboard shows your real name.
 
 ---
@@ -149,14 +149,9 @@ Curated member profiles for browsing live in **`client/js/members.js`**:
 
 Your own saved profile: **`profile.html?me=1`** (after real sign-up + save).
 
-### MFA demo codes
+### MFA
 
-| Step | Code |
-|---|---|
-| Phone (mock SMS) | `123456` |
-| Email | Real code from Supabase inbox |
-
-Defined in `client/js/demo-data.js` → `DEMO_MFA_PHONE_CODE`.
+Email OTP from Supabase inbox. Phone/SMS verification is not enabled yet.
 
 ### Admin panel (server seed)
 

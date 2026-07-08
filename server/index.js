@@ -51,7 +51,8 @@ const adminLoginLimiter = rateLimit({ windowMs: 15 * 60_000, max: 20,
    Webhook routes capture raw body for HMAC verification. */
 app.use((req, res, next) => {
   if (req.path.startsWith('/webhooks')) return next()
-  express.json({ limit: '64kb' })(req, res, next)
+  // Profile saves can include a photo data-URL; keep headroom above 64kb.
+  express.json({ limit: '6mb' })(req, res, next)
 })
 
 /* ─── Routes ────────────────────────────────────────────────────*/
@@ -77,9 +78,11 @@ app.use((err, req, res, _next) => {
     INVALID_TIER:            400,
     ACCOUNT_LOCKED:          429,
     INVALID_CREDENTIALS:     401,
+    INVALID_TOKEN:           401,
     INVALID_REFRESH_TOKEN:   401,
     TOKEN_REUSE_DETECTED:    401,
     ACCOUNT_INACTIVE:        403,
+    SERVER_MISCONFIGURED:    500,
   }
   if (statusMap[err.code]) {
     return res.status(statusMap[err.code]).json({ error: err.code, message: err.message })
