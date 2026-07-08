@@ -2274,6 +2274,12 @@ input[type="range"]::-webkit-slider-thumb:hover {
   opacity: 1;
 }
 
+/* Desktop only: show collapse chevron, hide mobile close icons */
+.sidebar-collapse-icon-mobile,
+.sidebar-collapse-label-mobile {
+  display: none;
+}
+
 @media (max-width: 1024px) {
   /* Show hamburger button at tablet and smaller */
   .mobile-menu-btn {
@@ -2308,6 +2314,21 @@ input[type="range"]::-webkit-slider-thumb:hover {
   /* Chat layout: remove sidebar column */
   .chat-layout {
     margin-left: 0 !important;
+  }
+
+  /* On mobile the bottom button closes the sidebar — swap chevron for × */
+  .sidebar-collapse-icon-desktop,
+  .sidebar-collapse-label-desktop {
+    display: none;
+  }
+
+  .sidebar-collapse-icon-mobile,
+  .sidebar-collapse-label-mobile {
+    display: inline-flex;
+  }
+
+  .sidebar-collapse-label-mobile {
+    display: inline;
   }
 }
 

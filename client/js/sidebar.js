@@ -185,10 +185,14 @@
   html += `
     </nav>
     <button class="sidebar-collapse-toggle" id="sidebarCollapseBtn" type="button" aria-label="Toggle sidebar">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <svg class="sidebar-collapse-icon-desktop" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="15 18 9 12 15 6"/>
       </svg>
-      <span class="sidebar-collapse-toggle-label">Collapse</span>
+      <svg class="sidebar-collapse-icon-mobile" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+      <span class="sidebar-collapse-toggle-label sidebar-collapse-label-desktop">Collapse</span>
+      <span class="sidebar-collapse-toggle-label sidebar-collapse-label-mobile">Close</span>
     </button>
   `;
 
@@ -199,6 +203,12 @@
     const btn = document.getElementById('sidebarCollapseBtn');
     if (btn) {
       btn.addEventListener('click', () => {
+        if (window.innerWidth <= 1024) {
+          document.documentElement.classList.remove('sidebar-open');
+          const ov = document.getElementById('lvl-sidebar-overlay');
+          if (ov) ov.classList.remove('active');
+          return;
+        }
         const next = !document.documentElement.classList.contains('sidebar-collapsed');
         document.documentElement.classList.toggle('sidebar-collapsed', next);
         try { localStorage.setItem(COLLAPSED_KEY, next ? '1' : '0'); } catch {}
