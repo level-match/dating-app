@@ -471,6 +471,194 @@
       .auth-title { font-size: var(--text-2xl); }
       .auth-footer { flex-direction: column; align-items: center; gap: var(--s-2); text-align: center; }
     }
+
+    /* ─── Legal Modals ─── */
+    .legal-modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 6, 15, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 9000;
+      align-items: center;
+      justify-content: center;
+      padding: var(--s-6);
+    }
+
+    .legal-modal-backdrop.open { display: flex; }
+
+    .legal-modal {
+      background: rgba(4, 10, 28, 0.97);
+      border: 1px solid rgba(212, 168, 67, 0.18);
+      border-radius: var(--radius-2xl);
+      width: 100%;
+      max-width: 700px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 40px 100px rgba(0,0,0,0.65), inset 0 1px 0 rgba(212,168,67,0.08);
+      animation: scaleIn var(--dur-slow) var(--ease-elegant);
+    }
+
+    .legal-modal-header {
+      padding: var(--s-7) var(--s-10);
+      border-bottom: 1px solid rgba(212, 168, 67, 0.10);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .legal-modal-title {
+      font-family: var(--font-serif);
+      font-size: var(--text-2xl);
+      font-weight: 400;
+      color: var(--cream-50);
+      letter-spacing: -0.01em;
+    }
+
+    .legal-modal-close {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: rgba(255,255,255,0.35);
+      font-size: 18px;
+      line-height: 1;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .legal-modal-close:hover {
+      background: rgba(255,255,255,0.10);
+      color: var(--cream-50);
+    }
+
+    .legal-modal-body {
+      overflow-y: auto;
+      padding: var(--s-8) var(--s-10) var(--s-10);
+      flex: 1;
+    }
+
+    .legal-modal-body::-webkit-scrollbar { width: 3px; }
+    .legal-modal-body::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
+    .legal-modal-body::-webkit-scrollbar-thumb { background: rgba(212,168,67,0.25); border-radius: 2px; }
+
+    .legal-date {
+      font-family: var(--font-sans);
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      color: rgba(212, 168, 67, 0.45);
+      text-transform: uppercase;
+      margin-bottom: var(--s-6);
+    }
+
+    .legal-intro {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 300;
+      line-height: 1.8;
+      color: rgba(251, 247, 238, 0.55);
+      margin-bottom: var(--s-8);
+      padding-bottom: var(--s-8);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .legal-section { margin-bottom: var(--s-8); }
+
+    .legal-section-label {
+      font-family: var(--font-sans);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--gold-400);
+      margin-bottom: var(--s-3);
+    }
+
+    .legal-section h3 {
+      font-family: var(--font-serif);
+      font-size: var(--text-lg);
+      font-weight: 400;
+      color: rgba(251, 247, 238, 0.9);
+      margin-bottom: var(--s-3);
+      letter-spacing: -0.01em;
+    }
+
+    .legal-section p {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 300;
+      line-height: 1.8;
+      color: rgba(251, 247, 238, 0.55);
+      margin-bottom: var(--s-3);
+    }
+
+    .legal-section ul {
+      list-style: none;
+      padding: 0;
+      margin-top: var(--s-2);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s-2);
+    }
+
+    .legal-section ul li {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 300;
+      line-height: 1.75;
+      color: rgba(251, 247, 238, 0.55);
+      padding-left: var(--s-5);
+      position: relative;
+    }
+
+    .legal-section ul li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: rgba(212, 168, 67, 0.4);
+    }
+
+    .legal-sub-heading {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: rgba(251, 247, 238, 0.50);
+      margin-top: var(--s-5);
+      margin-bottom: var(--s-2);
+    }
+
+    .legal-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.05);
+      margin: var(--s-8) 0;
+    }
+
+    .legal-closing {
+      font-family: var(--font-sans);
+      font-size: var(--text-xs);
+      font-weight: 400;
+      line-height: 1.7;
+      color: rgba(251, 247, 238, 0.35);
+      text-align: center;
+      padding-top: var(--s-6);
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+
+    @media (max-width: 768px) {
+      .legal-modal-header { padding: var(--s-5) var(--s-6); }
+      .legal-modal-body { padding: var(--s-6) var(--s-6) var(--s-8); }
+    }
   </style>
 </head>
 <body>
@@ -572,7 +760,7 @@
         </div>
 
         <p class="auth-legal" style="margin-top:var(--s-8);">
-          By signing in, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+          By signing in, you agree to our <a href="#" onclick="event.preventDefault(); openLegalModal('tos')">Terms of Service</a> and <a href="#" onclick="event.preventDefault(); openLegalModal('privacy')">Privacy Policy</a>.
         </p>
 
         <div style="margin-top:var(--s-8);text-align:center;">
@@ -619,7 +807,7 @@
         </div>
 
         <p class="auth-legal" style="margin-top:var(--s-8);">
-          By signing up, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+          By signing up, you agree to our <a href="#" onclick="event.preventDefault(); openLegalModal('tos')">Terms of Service</a> and <a href="#" onclick="event.preventDefault(); openLegalModal('privacy')">Privacy Policy</a>.
           Your information is kept strictly confidential.
         </p>
 
@@ -635,6 +823,324 @@
 
   <!-- Email OTP verification lives on the dedicated MFA screen
        (mfa.html) reached after OAuth completes. See js/auth.js → beginOAuth. -->
+
+  <!-- ═══ TERMS OF SERVICE MODAL ═══ -->
+  <div class="legal-modal-backdrop" id="tosModal" onclick="closeLegalModalOnBackdrop(event, 'tosModal')">
+    <div class="legal-modal" role="dialog" aria-modal="true" aria-labelledby="tosTitle">
+      <div class="legal-modal-header">
+        <span class="legal-modal-title" id="tosTitle">Terms &amp; Conditions</span>
+        <button class="legal-modal-close" onclick="closeLegalModal('tosModal')" aria-label="Close">&#x2715;</button>
+      </div>
+      <div class="legal-modal-body">
+        <div class="legal-date">Last Updated: July 7, 2026</div>
+        <p class="legal-intro">Welcome to LEVEL. These Terms and Conditions constitute a legally binding agreement between you and LEVEL governing your access to and use of our platform. By creating an account, passing our verification gateway, or utilizing any portion of our platform, you agree to be strictly bound by these Terms.</p>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 1</div>
+          <h3>Description of Core Services</h3>
+          <p>LEVEL is an outcome-optimized relationship platform engineered to eliminate dating fatigue for high-performing professionals and executives.</p>
+          <ul>
+            <li><strong style="color:rgba(251,247,238,0.8);">Anti-Swipe Mechanism</strong> — LEVEL rejects gesture-based swiping. The platform uses a deliberate click-to-view interface where users read expanded professional, lifestyle, and values alignment data before initiating a match sequence.</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">Algorithmic Batch Delivery</strong> — Verified members receive a controlled, highly tailored daily batch of curated profiles that cross our strict compatibility standards, rather than unrestricted database access.</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">B2B Execution Layer</strong> — When a mutual match is achieved, the platform coordinates real-world chemistry by generating geographic midpoint recommendations at curated partner establishments.</li>
+          </ul>
+        </div>
+
+        <div class="legal-divider"></div>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 2</div>
+          <h3>Eligibility &amp; Account Verification</h3>
+          <p>To safeguard our high-trust network, LEVEL enforces strict entry criteria during onboarding.</p>
+          <ul>
+            <li><strong style="color:rgba(251,247,238,0.8);">Mandatory MFA</strong> — While SSO options (Google, LinkedIn, Apple) are supported for data population, all registrations require verified email and phone OTP verification to prevent duplicate or fraudulent accounts.</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">Profile Verification Badging</strong> — Members must upload clear photographs and undergo a mandatory live facial scan to confirm identity authenticity. We reserve the right to cross-reference professional status and issue visible verification badges.</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">Algorithmic Inclusivity</strong> — LEVEL supports diverse community profiles, including explicit matching frameworks for straight, LGBTQ+, and bisexual trajectories, while respecting distinct cultural and religious relationship perspectives.</li>
+          </ul>
+        </div>
+
+        <div class="legal-divider"></div>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 3</div>
+          <h3>Subscriptions, Billing &amp; Financial Framework</h3>
+          <div class="legal-sub-heading">Membership Tiers</div>
+          <ul>
+            <li><strong style="color:rgba(251,247,238,0.8);">LEVEL Base</strong> — Limited curated match batches and restricted regional discovery (FREE)</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">LEVEL Plus</strong> — Expanded geographic boundaries, enhanced profile placement, increased batch frequencies (₱499 / month)</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">LEVEL Prime</strong> — Priority queue placement, premium concierge date coordination, and exclusive community event access (₱1,990 / month)</li>
+          </ul>
+          <div class="legal-sub-heading">Billing Rules</div>
+          <ul>
+            <li>Each validated user may hold exactly one active subscription tier at any time.</li>
+            <li>Mid-cycle tier upgrades calculate remaining credit, invoice the net difference immediately, and reset the 30-day billing interval.</li>
+            <li>Bookings arranged via B2B hospitality partners may incur processing fees. LEVEL retains transactional commissions (e.g., a 20% split on structured table bookings) as part of its commercial venue operations.</li>
+          </ul>
+        </div>
+
+        <div class="legal-divider"></div>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 4</div>
+          <h3>User Content &amp; Personal Information</h3>
+          <ul>
+            <li><strong style="color:rgba(251,247,238,0.8);">Sincerity Guardrail</strong> — Users must input accurate lifestyle, career, and intention data. Deliberately false information triggers an automated scoring penalty and may result in immediate profile suspension.</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">Data Processing License</strong> — You grant LEVEL a worldwide, non-exclusive, royalty-free license to host, store, and process your profile data to run compatibility calculations and execute matching algorithms.</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">Privacy Controls</strong> — Profile visits do not trigger automated member-to-member notifications. The interface operates purely on a mutual-match baseline.</li>
+          </ul>
+        </div>
+
+        <div class="legal-divider"></div>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 5</div>
+          <h3>Acceptable Use &amp; Conduct</h3>
+          <p>Users agree to interact within the LEVEL ecosystem with the highest level of professional decorum. You explicitly agree not to:</p>
+          <ul>
+            <li>Attempt to reverse-engineer, scrape, or extract source code from LEVEL's technical architecture.</li>
+            <li>Deploy automated bots, scripts, or macro-tools to bypass our click-to-view profile mechanics.</li>
+            <li>Use the platform to pitch corporate products, solicit financial investments, or distribute spam marketing links to matches.</li>
+            <li>Engage in harassment, stalking, ghosting patterns, or hostile communication inside mutual chat interfaces.</li>
+          </ul>
+        </div>
+
+        <div class="legal-divider"></div>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 6</div>
+          <h3>Intellectual Property</h3>
+          <p>All rights, titles, and interests in the LEVEL ecosystem are the exclusive property of the Company — including the source code, schema designs, proprietary compatibility engine, midpoint venue intelligence algorithms, all trademarks, brand assets, and promotional content. You are granted a limited, non-transferable, revocable license to access the interface for personal, non-commercial relationship discovery purposes only.</p>
+        </div>
+
+        <div class="legal-divider"></div>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 7</div>
+          <h3>Termination &amp; Suspension</h3>
+          <ul>
+            <li>LEVEL reserves the absolute right to suspend or terminate account access instantly, without prior notice or refund liability, for violations of acceptable use policies, identity verification failures, or low-intent behavior.</li>
+            <li>Members may deactivate their profiles or cancel subscriptions at any time. Paid features remain accessible until the end of the current billing cycle.</li>
+          </ul>
+        </div>
+
+        <div class="legal-divider"></div>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 8</div>
+          <h3>Limitation of Liability</h3>
+          <ul>
+            <li>LEVEL is provided on an "as-is" and "as-available" basis. The Company makes no guarantees regarding relationship success rate, emotional chemistry, or marital outcomes.</li>
+            <li>LEVEL assumes zero liability for real-world member conduct once interaction transitions offline, nor for the conditions or incidents at any B2B hospitality partner establishment.</li>
+            <li>LEVEL's total aggregate liability for any legal claims shall be strictly capped at the total fees paid by you during the six (6) months immediately preceding the event giving rise to liability.</li>
+          </ul>
+        </div>
+
+        <div class="legal-divider"></div>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 9</div>
+          <h3>Governing Law &amp; Dispute Resolution</h3>
+          <ul>
+            <li>These Terms are governed by the laws of the Republic of the Philippines, without regard to conflict of law principles.</li>
+            <li>Any legal controversy shall be settled through binding, confidential arbitration conducted in Metro Manila, Philippines. Both parties waive rights to class-action lawsuits or representative court trials.</li>
+          </ul>
+        </div>
+
+        <div class="legal-closing">
+          By proceeding past our identity verification gateway, you explicitly acknowledge that you have read, understood, and agreed to these Terms and Conditions.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ PRIVACY POLICY MODAL ═══ -->
+  <div class="legal-modal-backdrop" id="privacyModal" onclick="closeLegalModalOnBackdrop(event, 'privacyModal')">
+    <div class="legal-modal" role="dialog" aria-modal="true" aria-labelledby="privacyTitle">
+      <div class="legal-modal-header">
+        <span class="legal-modal-title" id="privacyTitle">Privacy Policy</span>
+        <button class="legal-modal-close" onclick="closeLegalModal('privacyModal')" aria-label="Close">&#x2715;</button>
+      </div>
+      <div class="legal-modal-body">
+        <div class="legal-date">Last Updated: July 7, 2026</div>
+        <p class="legal-intro">LEVEL is committed to protecting your personal information in full compliance with the Data Privacy Act of 2012 (Republic Act No. 10173) and its implementing rules and regulations under the National Privacy Commission of the Philippines. This policy explains what we collect, why we collect it, and how we protect it.</p>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 1</div>
+          <h3>Information We Collect</h3>
+          <div class="legal-sub-heading">Identity &amp; Contact Data</div>
+          <ul>
+            <li>Full name, verified email address, and verified mobile phone number</li>
+            <li>Profile photographs and mandatory live facial scan data used exclusively for identity verification</li>
+            <li>Date of birth, gender identity, and sexual orientation (for matching preference calibration)</li>
+          </ul>
+          <div class="legal-sub-heading">Professional &amp; Lifestyle Data</div>
+          <ul>
+            <li>Career track, industry, professional title, and employer (via LinkedIn OAuth or manual entry)</li>
+            <li>Lifestyle preferences, relationship intentions, values alignment data, and long-term goals</li>
+            <li>Educational background and lifestyle tier indicators</li>
+          </ul>
+          <div class="legal-sub-heading">Platform Interaction Data</div>
+          <ul>
+            <li>Match preferences, compatibility interaction data, and mutual match records</li>
+            <li>In-platform conversation histories between mutual matches</li>
+            <li>Membership tier selections, subscription history, and billing records</li>
+          </ul>
+          <div class="legal-sub-heading">Technical &amp; Location Data</div>
+          <ul>
+            <li>Device type, browser, and IP address at the time of access</li>
+            <li>Geographic location data used exclusively for B2B midpoint venue recommendations when a mutual match is achieved and location services are enabled</li>
+            <li>OAuth tokens from Google, Apple, and LinkedIn integrations</li>
+          </ul>
+        </div>
+
+        <div class="legal-divider"></div>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 2</div>
+          <h3>How We Use Your Information</h3>
+          <p>We process your personal data exclusively for the following operational purposes:</p>
+          <ul>
+            <li>Running our proprietary multi-dimensional compatibility engine and delivering daily curated match batches</li>
+            <li>Verifying your identity through facial scan cross-referencing and issuing profile authenticity badges</li>
+            <li>Coordinating B2B hospitality venue recommendations and managing reservation logistics when a mutual match consents to a coordinated date</li>
+            <li>Processing membership subscriptions, pro-rata tier upgrades, and issuing transactional invoices</li>
+            <li>Enforcing our Acceptable Use Policy and detecting fraudulent, duplicate, or low-intent accounts through backend scoring systems</li>
+            <li>Sending account security communications, OTP verification codes, and critical platform notifications</li>
+          </ul>
+        </div>
+
+        <div class="legal-divider"></div>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 3</div>
+          <h3>Legal Basis for Processing</h3>
+          <ul>
+            <li><strong style="color:rgba(251,247,238,0.8);">Consent</strong> — You explicitly consent to data processing upon passing our identity verification gateway and agreeing to these Terms and Conditions.</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">Contractual Necessity</strong> — Processing is required to deliver the services outlined in our Terms and Conditions.</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">Legitimate Interests</strong> — Processing for fraud detection, community safety, and platform integrity.</li>
+          </ul>
+        </div>
+
+        <div class="legal-divider"></div>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 4</div>
+          <h3>Data Sharing &amp; Third-Party Disclosures</h3>
+          <p>LEVEL does not sell your personal data. We share information only with:</p>
+          <ul>
+            <li><strong style="color:rgba(251,247,238,0.8);">OAuth Providers</strong> (Google, Apple, LinkedIn) — For account creation data population under their respective privacy policies.</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">B2B Hospitality Partners</strong> (such as Bistro Group establishments and OpenRice network venues) — Limited to reservation details necessary to coordinate a mutually consented date. No personal profiles or compatibility data are transmitted.</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">Payment Processors</strong> — Billing name, amount, and transaction metadata to facilitate subscription processing.</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">Legal Authorities</strong> — When required by Philippine law, court order, or National Privacy Commission directive.</li>
+          </ul>
+        </div>
+
+        <div class="legal-divider"></div>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 5</div>
+          <h3>Data Retention</h3>
+          <ul>
+            <li>Active member profile data is retained for the duration of your account.</li>
+            <li>Upon account deactivation, profile data is anonymized and removed from active matching queues within 30 days.</li>
+            <li>Conversation histories between mutual matches are retained for 90 days post-deactivation before permanent deletion.</li>
+            <li>Billing records are retained for 7 years in compliance with Philippine tax and financial regulations.</li>
+            <li>Facial scan data used for verification is deleted immediately upon successful identity badge issuance and is never stored long-term.</li>
+          </ul>
+        </div>
+
+        <div class="legal-divider"></div>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 6</div>
+          <h3>Your Rights as a Data Subject</h3>
+          <p>Under the Data Privacy Act of 2012 (RA 10173), you have the right to:</p>
+          <ul>
+            <li><strong style="color:rgba(251,247,238,0.8);">Access</strong> — Request a copy of the personal data we hold about you.</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">Correction</strong> — Request corrections to inaccurate or incomplete personal data.</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">Erasure / Blocking</strong> — Request the deletion or blocking of personal data where processing is no longer necessary.</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">Data Portability</strong> — Receive your personal data in a structured, commonly used format.</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">Object</strong> — Object to processing based on legitimate interests.</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">Lodge a Complaint</strong> — File a complaint with the National Privacy Commission at privacy.gov.ph.</li>
+          </ul>
+          <p style="margin-top:var(--s-4);">To exercise these rights, contact our Data Protection Officer at: <strong style="color:rgba(212,168,67,0.8);">privacy@level.ph</strong></p>
+        </div>
+
+        <div class="legal-divider"></div>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 7</div>
+          <h3>Security Measures</h3>
+          <p>LEVEL employs industry-standard security measures to protect your personal data, including:</p>
+          <ul>
+            <li>End-to-end encryption for all in-platform communications</li>
+            <li>Supabase Row-Level Security (RLS) policies ensuring complete member data isolation</li>
+            <li>Mandatory MFA (OTP) on all account access points</li>
+            <li>Encrypted storage for all uploaded photographs and biometric verification data</li>
+            <li>Regular third-party security audits and penetration testing</li>
+          </ul>
+        </div>
+
+        <div class="legal-divider"></div>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 8</div>
+          <h3>Cookies &amp; Tracking</h3>
+          <p>We use essential session cookies for authentication continuity only. No third-party advertising cookies or cross-site behavioral tracking tools are deployed on the LEVEL platform.</p>
+        </div>
+
+        <div class="legal-divider"></div>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 9</div>
+          <h3>Changes to This Policy</h3>
+          <p>We may update this Privacy Policy to reflect changes in our practices or applicable law. Active members will be notified via email at least 15 days before any material changes take effect.</p>
+        </div>
+
+        <div class="legal-divider"></div>
+
+        <div class="legal-section">
+          <div class="legal-section-label">Section 10</div>
+          <h3>Contact &amp; Data Protection Officer</h3>
+          <p>For any privacy-related inquiries, data subject requests, or concerns:</p>
+          <ul>
+            <li><strong style="color:rgba(251,247,238,0.8);">Email:</strong> privacy@level.ph</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">Address:</strong> Metro Manila, Philippines</li>
+            <li><strong style="color:rgba(251,247,238,0.8);">Regulator:</strong> National Privacy Commission — privacy.gov.ph</li>
+          </ul>
+        </div>
+
+        <div class="legal-closing">
+          This Privacy Policy is governed by and construed in accordance with the laws of the Republic of the Philippines. Your continued use of LEVEL constitutes acceptance of this policy.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function openLegalModal(type) {
+      const id = type === 'tos' ? 'tosModal' : 'privacyModal';
+      document.getElementById(id).classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLegalModal(id) {
+      document.getElementById(id).classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    function closeLegalModalOnBackdrop(event, id) {
+      if (event.target === event.currentTarget) closeLegalModal(id);
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        ['tosModal', 'privacyModal'].forEach(id => {
+          if (document.getElementById(id).classList.contains('open')) closeLegalModal(id);
+        });
+      }
+    });
+  </script>
 
   <script type="module" src="/js/auth.js"></script>
 </body>
