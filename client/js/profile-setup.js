@@ -540,14 +540,14 @@ window.saveProfile = async function(e) {
     })
     if (intentForEligibility) store.setMatchingEligibility(evaluateEligibility(intentForEligibility))
 
-    window.location.href = 'dashboard.html'
+    window.location.href = 'profile.html?me=1'
   } catch (err) {
     console.error('[profile-setup] save failed:', err)
     showToast('Could not save your profile. Check your connection.', '✕')
   } finally {
     if (btn) {
       btn.disabled = false
-      btn.textContent = 'Save & Go to Dashboard'
+      btn.textContent = 'Save & View Profile'
     }
   }
 }

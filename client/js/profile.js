@@ -8,7 +8,7 @@ initNav()
 
 /* ─── Resolve which member to show ─── */
 const params = new URLSearchParams(window.location.search)
-const isSelfView = params.get('me') === 'true'
+const isSelfView = params.get('me') === 'true' || params.get('me') === '1'
 const requestedId = params.get('id')
 const member = isSelfView ? null : (getMember(requestedId) || getMembersByScore()[0])
 
@@ -326,7 +326,7 @@ function renderSelfProfile() {
   }
 
   // ── Interests ──
-  const interests = u.interests || []
+  const interests = u.interests || u.lifestyleValues || []
   if (interests.length) {
     const chips = interests.map(v => `<span class="chip">${esc(v)}</span>`).join('')
     sections.push(section('Lifestyle & Values', `<div class="values-grid">${chips}</div>`))
