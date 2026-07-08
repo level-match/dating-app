@@ -161,7 +161,7 @@ function openCodeModal(email, intent) {
       busy = false
       verifyBtn.disabled = false
       verifyBtn.textContent = 'Verify & continue'
-      showErr(/expired/i.test(error.message) ? 'That code expired — resend a new one.' : 'That code isn’t right. Try again.')
+      showErr('That code isn’t right. Try again.')
       inputs.forEach((i) => { i.value = '' }); inputs[0].focus()
       return
     }

@@ -13,17 +13,24 @@ import { supabase } from './supabase.js'
 
 const USE_SUPABASE_EMAIL = !!(
   import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
-)
+) && import.meta.env.VITE_USE_SUPABASE_EMAIL !== 'false'
 
 export const OTP_CONFIG = {
   length: 6,
   ttlSeconds: 120,
+  /** Supabase default email OTP lifetime (Auth → Providers → Email). */
+  supabaseEmailTtlSeconds: 3600,
   resendCooldownSeconds: 30,
   maxAttempts: 5,
   demoCode: '123456',
   latencyMs: 900,
   exposeDemoCode: !USE_SUPABASE_EMAIL,
   useSupabaseEmail: USE_SUPABASE_EMAIL,
+}
+
+/** Supabase verifyOtp failures — wrong, reused, and expired tokens all share otp_expired. */
+export function mapSupabaseOtpVerifyReason(_error) {
+  return 'invalid'
 }
 
 const channels = {
@@ -34,9 +41,9 @@ const channels = {
 const now = () => Date.now()
 const wait = ms => new Promise(res => setTimeout(res, ms))
 
-function stampChannel(c) {
+function stampChannel(c, ttlSeconds = OTP_CONFIG.ttlSeconds) {
   c.attempts = 0
-  c.expiresAt = now() + OTP_CONFIG.ttlSeconds * 1000
+  c.expiresAt = now() + ttlSeconds * 1000
   c.resendAt = now() + OTP_CONFIG.resendCooldownSeconds * 1000
   return { ok: true, expiresAt: c.expiresAt, resendAt: c.resendAt }
 }
@@ -69,13 +76,13 @@ async function verifyMock(channel, code) {
   const c = channels[channel]
 
   if (!c.code) return { ok: false, reason: 'no_otp' }
-  if (now() > c.expiresAt) return { ok: false, reason: 'expired' }
   if (c.attempts >= OTP_CONFIG.maxAttempts) return { ok: false, reason: 'locked' }
 
   c.attempts += 1
   if (String(code).trim() !== c.code) {
     return { ok: false, reason: 'invalid', attemptsLeft: Math.max(0, OTP_CONFIG.maxAttempts - c.attempts) }
   }
+  if (now() > c.expiresAt) return { ok: false, reason: 'expired' }
 
   c.code = null
   return { ok: true }
@@ -109,7 +116,7 @@ async function sendEmailSupabase(email) {
   const c = channels.email
   c.code = null
   c.target = target
-  return stampChannel(c)
+  return stampChannel(c, OTP_CONFIG.supabaseEmailTtlSeconds)
 }
 
 async function verifyEmailSupabase(code) {
@@ -118,18 +125,16 @@ async function verifyEmailSupabase(code) {
   const token = String(code).trim()
 
   if (!email) return { ok: false, reason: 'no_otp' }
-  if (now() > c.expiresAt) return { ok: false, reason: 'expired' }
   if (c.attempts >= OTP_CONFIG.maxAttempts) return { ok: false, reason: 'locked' }
 
   c.attempts += 1
 
   const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' })
   if (error) {
-    const msg = (error.message || '').toLowerCase()
-    if (/expired/i.test(msg)) return { ok: false, reason: 'expired' }
+    console.warn('[otp-service] verify failed:', error.code, error.message)
     return {
       ok: false,
-      reason: 'invalid',
+      reason: mapSupabaseOtpVerifyReason(error),
       attemptsLeft: Math.max(0, OTP_CONFIG.maxAttempts - c.attempts),
     }
   }

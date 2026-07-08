@@ -5,6 +5,7 @@ import {
   getExpiresAt, getResendAt, OTP_CONFIG,
 } from './otp-service.js'
 import { supabase } from './supabase.js'
+import { initPhoneInput, getPhoneE164, isPhoneValid, setPhoneNumber } from './phone-input.js'
 
 initBodyFade()
 
@@ -21,6 +22,15 @@ const mfa = store.getMfaState() || {}
 
 /* ─── Helpers ─── */
 const $ = id => document.getElementById(id)
+
+initPhoneInput($('phoneInput'))
+
+function setPhoneFieldInvalid(invalid) {
+  const itiEl = $('phoneInputWrap')?.querySelector('.iti')
+  itiEl?.classList.toggle('iti--invalid', invalid)
+}
+
+$('phoneInput')?.addEventListener('input', () => setPhoneFieldInvalid(false))
 
 function maskEmail(email) {
   if (!email || !email.includes('@')) return email || 'your email'
@@ -185,6 +195,10 @@ function createOtpStage(opts) {
 
     otp.setError()
     els.verifyBtn.disabled = false
+    // Supabase returns otp_expired for wrong codes too — only the countdown means "expired".
+    const reason = (channel === 'email' && OTP_CONFIG.useSupabaseEmail && res.reason === 'expired')
+      ? 'invalid'
+      : res.reason
     const messages = {
       expired: 'That code has expired. Tap “Resend code” for a new one.',
       invalid: res.attemptsLeft != null
@@ -193,7 +207,7 @@ function createOtpStage(opts) {
       locked: 'Too many attempts. Please request a new code.',
       no_otp: 'Please request a code first.',
     }
-    setStatus(els.status, 'error', messages[res.reason] || 'Verification failed. Please try again.')
+    setStatus(els.status, 'error', messages[reason] || 'Verification failed. Please try again.')
     otp.reset(); otp.focus()
   }
 
@@ -257,14 +271,18 @@ const phoneStage = createOtpStage({
 })
 
 $('phoneSendBtn').addEventListener('click', async () => {
-  const value = $('phoneInput').value.trim()
   setStatus($('phoneSendStatus'), 'error', '')
   $('phoneSendStatus').classList.remove('show')
-  if (value.replace(/\D/g, '').length < 7) {
+  setPhoneFieldInvalid(false)
+
+  if (!isPhoneValid()) {
+    setPhoneFieldInvalid(true)
     setStatus($('phoneSendStatus'), 'error', 'Please enter a valid mobile number.')
+    $('phoneInput').focus()
     return
   }
-  phoneNumber = value
+
+  phoneNumber = getPhoneE164()
   $('phoneLoadingSend').classList.add('show')
   $('phoneSendBtn').disabled = true
 
@@ -301,7 +319,7 @@ function goToPhoneStage() {
   $('mfaTitle').textContent = 'Confirm your phone'
   $('mfaSub').textContent = 'One more factor. Add a mobile number and we’ll text a 6-digit code.'
   if (phoneNumber) {
-    $('phoneInput').value = phoneNumber
+    setPhoneNumber(phoneNumber)
   }
   setTimeout(() => $('phoneInput').focus(), 200)
 }
