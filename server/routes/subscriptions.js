@@ -1,33 +1,52 @@
 const express = require('express')
 const { v4: uuidv4 } = require('uuid')
 const { requireIdempotencyKey } = require('../middleware/idempotency')
+const { attachSupabaseIdentity } = require('../middleware/subscription-auth')
 const svc  = require('../services/subscription.service')
 const pool = require('../db/pool')
 
 const router = express.Router()
 
-// Every write endpoint mandates an Idempotency-Key header
-router.use(['/subscribe', '/upgrade', '/charge'], requireIdempotencyKey)
+router.use(attachSupabaseIdentity)
+router.use(['/subscribe', '/upgrade', '/charge', '/subscription/confirm'], requireIdempotencyKey)
+
+function formatSubscriptionPayload(sub) {
+  if (!sub) return { tier: 'base', subscription: null }
+  return {
+    tier: sub.tier,
+    subscription: {
+      id:               sub.id,
+      status:           sub.status,
+      currentPeriodEnd: sub.current_period_end,
+      gracePeriodEnd:   sub.grace_period_end,
+      retryCount:       sub.retry_count,
+    },
+  }
+}
+
+async function resolveAuthUserId(req) {
+  if (req.auth.userId) return req.auth.userId
+  return svc.resolveUser(null, {
+    externalId: req.auth.externalId,
+    email: req.auth.email,
+  })
+}
 
 /* ─── POST /api/subscribe ───────────────────────────────────────
-   Initiates a subscription for a new or existing user.
+   Initiates a subscription for the authenticated user.
    Creates a PayMongo payment link and stores the subscription as
-   'pending'. Entitlements are unlocked ONLY by the webhook. */
+   'pending'. Entitlements are unlocked ONLY by the webhook (or dev confirm). */
 router.post('/subscribe', async (req, res) => {
-  const { tier, externalUserId, email } = req.body
+  const { tier } = req.body
 
   if (!['plus', 'prime'].includes(tier)) {
     return res.status(400).json({ error: 'INVALID_TIER', message: 'tier must be "plus" or "prime".' })
   }
-  if (!externalUserId || !email) {
-    return res.status(400).json({ error: 'MISSING_FIELDS', message: 'externalUserId and email are required.' })
-  }
 
-  const userId = await svc.resolveUser(null, { externalId: externalUserId, email })
+  const userId = await resolveAuthUserId(req)
 
-  // Reject if a live subscription already exists (mandate enforced at service + DB)
   const existing = await svc.getActiveSubscription(userId)
-  if (existing) {
+  if (existing && !(existing.tier === 'base' && existing.status === 'active')) {
     return res.status(409).json({
       error:   'DUPLICATE_SUBSCRIPTION',
       message: 'An active subscription already exists for this account.',
@@ -35,50 +54,31 @@ router.post('/subscribe', async (req, res) => {
     })
   }
 
-  // ── PayMongo: create a payment link ──────────────────────────
-  // Replace the block below with a real PayMongo Links API call.
-  // The shape of the response is what you'd receive from the SDK:
-  //   POST https://api.paymongo.com/v1/links
-  //   Body: { data: { attributes: { amount, description, currency } } }
-  // ----------------------------------------------------------
   const providerPaymentId = `pm_link_${uuidv4().replace(/-/g, '').slice(0, 16)}`
-  const checkoutUrl       = `https://checkout.paymongo.com/links/${providerPaymentId}` // swap → real API response
+  const checkoutUrl       = `https://checkout.paymongo.com/links/${providerPaymentId}`
 
   const subscription = await svc.createSubscription({
     userId,
     tier,
-    idempotencyKey:    req.idempotencyKey,
-    provider:          'paymongo',
+    idempotencyKey:     req.idempotencyKey,
+    provider:           'paymongo',
     providerPaymentId,
     providerCustomerId: null,
   })
 
   res.status(202).json({
-    subscriptionId: subscription.id,
-    status:         'pending',
+    subscriptionId:    subscription.id,
+    providerPaymentId,
+    status:            'pending',
     checkoutUrl,
-    message:        'Subscription pending payment. Entitlements activate upon confirmed webhook from PayMongo.',
+    message:           'Subscription pending payment. Entitlements activate upon confirmed webhook from PayMongo.',
   })
 })
 
 /* ─── POST /api/upgrade ─────────────────────────────────────────
-   Upgrades an active Plus subscription to Prime mid-cycle.
-   Computes pro-rata credit, returns net charge amount, and marks
-   the subscription pending until the upgrade charge webhook fires. */
+   Upgrades an active Plus subscription to Prime mid-cycle. */
 router.post('/upgrade', async (req, res) => {
-  const { externalUserId, email } = req.body
-
-  if (!externalUserId) {
-    return res.status(400).json({ error: 'MISSING_FIELDS', message: 'externalUserId is required.' })
-  }
-
-  const userId = await svc.resolveUser(null, { externalId: externalUserId, email: email || '' })
-
-  // ── PayMongo: create an immediate charge for the net amount ──
-  // In production: first call initiateUpgrade() to get chargeCentavos,
-  // then create the PayMongo payment intent for that amount, then
-  // pass providerPaymentId back into the service call.
-  // ----------------------------------------------------------
+  const userId = await resolveAuthUserId(req)
   const providerPaymentId = `pm_charge_${uuidv4().replace(/-/g, '').slice(0, 16)}`
 
   const { subscription, prorate } = await svc.initiateUpgrade({
@@ -90,11 +90,12 @@ router.post('/upgrade', async (req, res) => {
 
   res.status(202).json({
     subscriptionId: subscription.id,
+    providerPaymentId,
     prorate: {
-      remainingDays: prorate.remainingDays,
-      creditApplied: `PHP ${(prorate.creditCentavos  / 100).toFixed(2)}`,
-      netCharge:     `PHP ${(prorate.chargeCentavos   / 100).toFixed(2)}`,
-      chargeCentavos: prorate.chargeCentavos,
+      remainingDays:  prorate.remainingDays,
+      creditApplied:  `PHP ${(prorate.creditCentavos  / 100).toFixed(2)}`,
+      netCharge:        `PHP ${(prorate.chargeCentavos   / 100).toFixed(2)}`,
+      chargeCentavos:   prorate.chargeCentavos,
     },
     status:  'pending',
     message: 'Upgrade pending payment. Prime features activate upon confirmed webhook from PayMongo.',
@@ -102,25 +103,23 @@ router.post('/upgrade', async (req, res) => {
 })
 
 /* ─── POST /api/charge ──────────────────────────────────────────
-   Manual retry charge for a PAST_DUE subscription.
-   The grace-period window is already open; this endpoint lets the
-   client retry with a different payment method if needed. */
+   Manual retry charge for a PAST_DUE subscription. */
 router.post('/charge', async (req, res) => {
-  const { subscriptionId, externalUserId } = req.body
+  const { subscriptionId } = req.body
 
-  if (!subscriptionId || !externalUserId) {
+  if (!subscriptionId) {
     return res.status(400).json({
-      error: 'MISSING_FIELDS', message: 'subscriptionId and externalUserId are required.',
+      error: 'MISSING_FIELDS', message: 'subscriptionId is required.',
     })
   }
 
-  // Verify the subscription belongs to the requesting user
+  const userId = await resolveAuthUserId(req)
+
   const result = await pool.query(
     `SELECT s.id, s.tier, s.status, s.retry_count
      FROM subscriptions s
-     JOIN users u ON u.id = s.user_id
-     WHERE s.id = $1 AND u.external_id = $2 AND s.status = 'past_due'`,
-    [subscriptionId, externalUserId]
+     WHERE s.id = $1 AND s.user_id = $2 AND s.status = 'past_due'`,
+    [subscriptionId, userId]
   )
 
   if (!result.rows.length) {
@@ -129,22 +128,16 @@ router.post('/charge', async (req, res) => {
     })
   }
 
-  // ── PayMongo: retry charge with the customer's saved method ──
-  // In production: retrieve the customer's saved payment method from
-  // the gateway and create a new payment intent here.
   const providerPaymentId = `pm_retry_${uuidv4().replace(/-/g, '').slice(0, 16)}`
-
-  // Record the retry in the ledger
   const sub = result.rows[0]
+
   await pool.query(
     `INSERT INTO payment_ledger
        (user_id, subscription_id, type, amount_centavos, description,
         provider, provider_payment_id, idempotency_key, status)
-     SELECT u.id, $1, 'retry_charge',
-            $2, $3, 'paymongo', $4, $5, 'pending'
-     FROM subscriptions s JOIN users u ON u.id = s.user_id
-     WHERE s.id = $1`,
+     VALUES ($1, $2, 'retry_charge', $3, $4, 'paymongo', $5, $6, 'pending')`,
     [
+      userId,
       subscriptionId,
       require('../utils/prorate').TIER_PRICE_CENTAVOS[sub.tier],
       `Manual retry charge — retry #${sub.retry_count + 1}`,
@@ -161,26 +154,44 @@ router.post('/charge', async (req, res) => {
   })
 })
 
-/* ─── GET /api/subscription ─────────────────────────────────────
-   Safe endpoint for the frontend to sync localStorage tier with
-   the authoritative server state (e.g. on page load / app resume). */
-router.get('/subscription', async (req, res) => {
-  const { externalUserId } = req.query
-  if (!externalUserId) {
-    return res.status(400).json({ error: 'MISSING_FIELDS', message: 'externalUserId query param is required.' })
+/* ─── POST /api/subscription/confirm ────────────────────────────
+   Development-only: simulates PayMongo payment.paid webhook.
+   In production, entitlements unlock exclusively via verified webhooks. */
+router.post('/subscription/confirm', async (req, res) => {
+  const allowDev = process.env.NODE_ENV !== 'production'
+    || process.env.ALLOW_DEV_PAYMENT_CONFIRM === 'true'
+
+  if (!allowDev) {
+    return res.status(404).json({ error: 'NOT_FOUND', message: 'Endpoint not available.' })
   }
 
-  const user = await pool.query(
-    'SELECT id FROM users WHERE external_id = $1',
-    [externalUserId]
-  )
-  if (!user.rows.length) return res.json({ tier: 'base', subscription: null })
+  const userId = await resolveAuthUserId(req)
 
-  const sub = await svc.getActiveSubscription(user.rows[0].id)
-  if (!sub) return res.json({ tier: 'base', subscription: null })
+  const pending = await pool.query(
+    `SELECT s.id AS subscription_id, pl.provider_payment_id
+     FROM subscriptions s
+     JOIN payment_ledger pl
+       ON pl.subscription_id = s.id
+      AND pl.status = 'pending'
+      AND pl.type IN ('initial_charge', 'upgrade_charge', 'retry_charge')
+     WHERE s.user_id = $1 AND s.status = 'pending'
+     ORDER BY pl.created_at DESC
+     LIMIT 1`,
+    [userId]
+  )
+
+  if (!pending.rows.length) {
+    return res.status(404).json({
+      error: 'NOT_FOUND',
+      message: 'No pending subscription payment found for this account.',
+    })
+  }
+
+  const { subscription_id: subscriptionId, provider_payment_id: providerPaymentId } = pending.rows[0]
+  const sub = await svc.activateSubscription({ subscriptionId, providerPaymentId })
 
   res.json({
-    tier:         sub.tier,
+    tier: sub.tier,
     subscription: {
       id:               sub.id,
       status:           sub.status,
@@ -188,27 +199,85 @@ router.get('/subscription', async (req, res) => {
       gracePeriodEnd:   sub.grace_period_end,
       retryCount:       sub.retry_count,
     },
+    message: 'Payment confirmed (development). Subscription is now active.',
+  })
+})
+
+/* ─── GET /api/subscription ─────────────────────────────────────
+   Sync local tier with authoritative server state. */
+router.get('/subscription', async (req, res) => {
+  if (!req.auth.userId) {
+    return res.json({ tier: 'base', subscription: null })
+  }
+
+  let sub = await svc.getActiveSubscription(req.auth.userId)
+  if (!sub) {
+    const user = await pool.query(
+      'SELECT onboarding_complete FROM users WHERE id = $1',
+      [req.auth.userId]
+    )
+    if (user.rows[0]?.onboarding_complete) {
+      sub = await svc.ensureBaseSubscription(req.auth.userId)
+    } else {
+      return res.json({ tier: 'base', subscription: null })
+    }
+  }
+
+  res.json(formatSubscriptionPayload(sub))
+})
+
+/* ─── POST /api/subscription/downgrade ──────────────────────────
+   Persists a tier downgrade to the database. */
+router.post('/subscription/downgrade', async (req, res) => {
+  const { targetTier } = req.body
+
+  if (!['base', 'plus'].includes(targetTier)) {
+    return res.status(400).json({
+      error: 'INVALID_TIER',
+      message: 'targetTier must be "base" or "plus".',
+    })
+  }
+
+  if (!req.auth.userId) {
+    return res.status(404).json({ error: 'NOT_FOUND', message: 'User not found.' })
+  }
+
+  const sub = await svc.downgradeSubscription({
+    userId: req.auth.userId,
+    targetTier,
+  })
+
+  res.json({
+    ...formatSubscriptionPayload(sub),
+    message: `Subscription downgraded to ${sub.tier}.`,
   })
 })
 
 /* ─── DELETE /api/subscription ──────────────────────────────────
-   Cancels the active subscription. Access continues until period end. */
+   Cancels the active subscription. */
 router.delete('/subscription', async (req, res) => {
-  const { subscriptionId, externalUserId } = req.body
-  if (!subscriptionId || !externalUserId) {
-    return res.status(400).json({ error: 'MISSING_FIELDS' })
+  const { subscriptionId } = req.body
+  if (!subscriptionId) {
+    return res.status(400).json({ error: 'MISSING_FIELDS', message: 'subscriptionId is required.' })
   }
 
-  const user = await pool.query('SELECT id FROM users WHERE external_id = $1', [externalUserId])
-  if (!user.rows.length) return res.status(404).json({ error: 'NOT_FOUND' })
+  if (!req.auth.userId) {
+    return res.status(404).json({ error: 'NOT_FOUND' })
+  }
 
   const cancelled = await svc.cancelSubscription({
     subscriptionId,
-    userId: user.rows[0].id,
+    userId: req.auth.userId,
   })
 
-  if (!cancelled) return res.status(404).json({ error: 'NOT_FOUND', message: 'No cancellable subscription found.' })
-  res.json({ message: 'Subscription cancelled. Access continues until the current period ends.', subscription: cancelled })
+  if (!cancelled) {
+    return res.status(404).json({ error: 'NOT_FOUND', message: 'No cancellable subscription found.' })
+  }
+
+  res.json({
+    message: 'Subscription cancelled. Access continues until the current period ends.',
+    subscription: cancelled,
+  })
 })
 
 module.exports = router

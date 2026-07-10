@@ -1,6 +1,7 @@
 const express = require('express')
 const pool    = require('../db/pool')
 const { verifySupabaseToken } = require('../middleware/supabase-auth')
+const subscriptionSvc = require('../services/subscription.service')
 
 const router = express.Router()
 
@@ -104,12 +105,29 @@ router.post('/sync', async (req, res) => {
 router.post('/onboarding-complete', async (req, res) => {
   const payload = await verifySupabaseToken(req.headers.authorization)
 
+  const { rows } = await pool.query(
+    'SELECT id FROM users WHERE external_id = $1',
+    [payload.sub]
+  )
+  if (!rows.length) {
+    return res.status(404).json({ error: 'NOT_FOUND', message: 'User not found. Call /api/auth/sync first.' })
+  }
+
   await pool.query(
     'UPDATE users SET onboarding_complete = TRUE WHERE external_id = $1',
     [payload.sub]
   )
 
-  res.json({ ok: true })
+  const sub = await subscriptionSvc.ensureBaseSubscription(rows[0].id)
+
+  res.json({
+    ok: true,
+    tier: sub.tier,
+    subscription: {
+      id:     sub.id,
+      status: sub.status,
+    },
+  })
 })
 
 /* ─── Label → ID helper ─────────────────────────────────────────
@@ -293,14 +311,23 @@ router.post('/profile', async (req, res) => {
       )
     }
 
-    // 6. Mark onboarding complete
+    // 6. Mark onboarding complete + ensure starting Base subscription
     await client.query(
       'UPDATE users SET onboarding_complete = TRUE WHERE id = $1',
       [userId]
     )
 
+    const subscription = await subscriptionSvc.ensureBaseSubscription(userId, client)
+
     await client.query('COMMIT')
-    res.json({ ok: true })
+    res.json({
+      ok: true,
+      tier: subscription.tier,
+      subscription: {
+        id:     subscription.id,
+        status: subscription.status,
+      },
+    })
   } catch (err) {
     await client.query('ROLLBACK')
     console.error('[profile] save failed:', err.message)

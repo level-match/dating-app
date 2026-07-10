@@ -1,20 +1,30 @@
-import { requireAuth, initBodyFade, hydrateUser } from './app.js'
+import { requireAuth, initBodyFade, hydrateUser, hydrateSubscription } from './app.js'
 import { store } from './store.js'
 import { TIER_META } from './membership.js'
+import {
+  getSessionIdentity,
+  subscribe,
+  upgradeSubscription,
+  downgradeSubscription,
+  confirmPendingPayment,
+  pollUntilActive,
+  fetchSubscription,
+} from './subscription.js'
 
-requireAuth()
-initBodyFade()
-hydrateUser()
+const TIER_ORDER = ['base', 'plus', 'prime']
 
-const tier = store.getTier()
+function renderMembershipPage(tier) {
+  const meta = TIER_META[tier] || TIER_META.base
+  document.getElementById('currentPlanBadge').textContent = `Current plan: ${meta.name}`
+  document.getElementById('topbarTier').textContent = meta.name
 
-/* ─ Current plan badge ─ */
-const meta = TIER_META[tier] || TIER_META.base
-document.getElementById('currentPlanBadge').textContent = `Current plan: ${meta.name}`
-document.getElementById('topbarTier').textContent = meta.name
+  document.querySelectorAll('.mem-card--active').forEach(el => el.classList.remove('mem-card--active'))
+  document.getElementById(`card-${tier}`)?.classList.add('mem-card--active')
 
-/* ─ Highlight active card ─ */
-document.getElementById(`card-${tier}`)?.classList.add('mem-card--active')
+  renderCta('base', tier)
+  renderCta('plus', tier)
+  renderCta('prime', tier)
+}
 
 /* ─ Render CTAs ─ */
 function renderCta(cardTier, currentTier) {
@@ -34,27 +44,76 @@ function renderCta(cardTier, currentTier) {
   }
 }
 
-renderCta('base',  tier)
-renderCta('plus',  tier)
-renderCta('prime', tier)
+async function bootMembershipPage() {
+  requireAuth()
+  initBodyFade()
+  hydrateUser()
+  await hydrateSubscription()
+  renderMembershipPage(store.getTier())
+  checkPastDueState()
+}
+
+bootMembershipPage()
 
 /* ═══════════════════════════════════════════════════════
    Payment modal
    ═══════════════════════════════════════════════════════ */
-let _pendingTier    = null
+let _pendingTier     = null
 let _expressProvider = null  // 'apple' | 'google' | null (card)
+
+function showPaymentError(err) {
+  const message = err?.message || 'Payment could not be completed. Please try again.'
+  const el = document.getElementById('payErrorMsg')
+  if (el) {
+    el.textContent = message
+    el.classList.add('visible')
+  }
+  document.getElementById('paySubmitBtn') && (document.getElementById('paySubmitBtn').disabled = false)
+  showPanel('form')
+  const toast = document.createElement('div')
+  toast.className = 'toast animate-fadeUp'
+  toast.style.cssText = 'border-color:rgba(239,68,68,0.30);background:rgba(239,68,68,0.10);'
+  toast.innerHTML = `<span style="font-size:16px">⚠</span><span>${message}</span>`
+  document.body.appendChild(toast)
+  setTimeout(() => toast.remove(), 5000)
+}
+
+async function processSubscriptionPayment() {
+  const identity = await getSessionIdentity()
+  if (!identity) {
+    throw new Error('Sign in with your LEVEL account to subscribe.')
+  }
+
+  const currentTier = store.getTier()
+  const targetTier = _pendingTier
+
+  if (currentTier === 'plus' && targetTier === 'prime') {
+    await upgradeSubscription()
+  } else {
+    await subscribe(targetTier)
+  }
+
+  try {
+    await confirmPendingPayment()
+  } catch (e) {
+    if (e.status !== 404) throw e
+  }
+
+  const synced = await pollUntilActive(targetTier)
+  store.applySubscriptionSync(synced)
+  return synced
+}
 
 /* ─ Tier change entry point ─ */
 window.changeTier = function(newTier) {
   if (newTier === store.getTier()) return
-  const tiers = ['base', 'plus', 'prime']
-  const isUpgrade = tiers.indexOf(newTier) > tiers.indexOf(store.getTier())
+  const isUpgrade = TIER_ORDER.indexOf(newTier) > TIER_ORDER.indexOf(store.getTier())
   if (isUpgrade) {
     openPayModal(newTier)
   } else {
     const newMeta = TIER_META[newTier]
     if (!confirm(`Downgrade to ${newMeta.name}? You'll lose access to paid features at the end of the billing period.`)) return
-    applyTierChange(newTier)
+    applyTierChange(newTier).catch(showPaymentError)
   }
 }
 
@@ -238,9 +297,8 @@ window.submitPayment = function() {
    Step 4  Submit Token to Backend
    ═══════════════════════════════════════════════════════ */
 function runPaymentFlow() {
-  // For express payments steps 2 & 3 already happened in the sheet;
-  // we still animate them as "done" quickly so the user sees the full picture.
   const isExpress = !!_expressProvider
+  const paymentPromise = processSubscriptionPayment()
 
   const steps = [
     { id: 'pstep-1', delay: 0,    duration: isExpress ? 600  : 800  },
@@ -275,15 +333,41 @@ function runPaymentFlow() {
   })
 
   const totalTime = steps[steps.length - 1].delay + steps[steps.length - 1].duration + 400
-  setTimeout(() => {
-    showPanel('success')
-    setTimeout(() => applyTierChange(_pendingTier), 1800)
+  setTimeout(async () => {
+    try {
+      await paymentPromise
+      showPanel('success')
+      setTimeout(() => finishTierChange(_pendingTier), 1800)
+    } catch (err) {
+      showPaymentError(err)
+    }
   }, totalTime)
 }
 
-/* ─ Apply tier & reload ─ */
-function applyTierChange(newTier) {
-  store.setTier(newTier)
+/* ─ Apply tier & reload after successful server sync ─ */
+async function applyTierChange(newTier) {
+  const identity = await getSessionIdentity()
+
+  if (identity) {
+    await downgradeSubscription(newTier)
+    const synced = await fetchSubscription()
+    store.applySubscriptionSync(synced)
+  } else {
+    store.setTier(newTier)
+    store.clearPastDue()
+  }
+
+  localStorage.removeItem('level_match_cycle')
+  window.closePayModal()
+  const newMeta = TIER_META[newTier] || TIER_META.base
+  const toast = document.createElement('div')
+  toast.className = 'toast animate-fadeUp'
+  toast.innerHTML = `<span style="font-size:18px">✦</span><span>Plan updated to ${newMeta.name}. Reloading…</span>`
+  document.body.appendChild(toast)
+  setTimeout(() => window.location.reload(), 1400)
+}
+
+function finishTierChange(newTier) {
   store.clearPastDue()
   localStorage.removeItem('level_match_cycle')
   window.closePayModal()
@@ -304,11 +388,9 @@ function checkPastDueState() {
   const pd = store.getPastDue()
   if (!pd) return
 
-  // Grace period already expired — auto-downgrade now
+  // Grace period already expired — re-sync from server
   if (Date.now() > pd.gracePeriodEnd) {
-    store.setTier('base')
-    store.clearPastDue()
-    window.location.reload()
+    hydrateSubscription().then(() => window.location.reload())
     return
   }
 
@@ -358,9 +440,7 @@ function initGraceCountdown(endTime) {
     if (rem <= 0) {
       el.textContent = 'Expired'
       el.classList.add('expired')
-      store.setTier('base')
-      store.clearPastDue()
-      setTimeout(() => window.location.reload(), 1200)
+      hydrateSubscription().then(() => window.location.reload())
       return
     }
     const h = Math.floor(rem / 3_600_000)
@@ -534,5 +614,4 @@ function runDegradationFlow(tier, gracePeriodEnd) {
   }, 6800)
 }
 
-// Run PAST_DUE check on page load
-checkPastDueState()
+// Run PAST_DUE check after boot completes (boot also calls this)

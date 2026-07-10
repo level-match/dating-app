@@ -1,4 +1,4 @@
-import { requireAuth, hydrateUser, hydrateFromProfile, initBodyFade, initNav, initScrollReveal, initCompatBars } from './app.js'
+import { requireAuth, hydrateUser, hydrateFromProfile, hydrateSubscription, initBodyFade, initNav, initScrollReveal, initCompatBars } from './app.js'
 import { getMembersByScore } from './members.js'
 import { store } from './store.js'
 
@@ -158,6 +158,7 @@ function bootDashboard() {
   renderDashboard(user)
 
   hydrateFromProfile()
+    .then(() => hydrateSubscription())
     .then(() => {
       const fresh = hydrateUser()
       updateGreeting(fresh)

@@ -1,5 +1,5 @@
 import { store } from './store.js'
-import { requireAuth, initBodyFade } from './app.js'
+import { requireAuth, initBodyFade, hydrateSubscription } from './app.js'
 import { evaluateEligibility } from './matching-policy.js'
 import { getRefData, warmRefData } from './ref-data.js'
 import { renderOptionGrid, renderChipGrid } from './ref-ui.js'
@@ -170,7 +170,15 @@ async function showCompletion() {
   store.setMatchingEligibility(evaluateEligibility(answers.intentCategory || answers.step5?.[0]))
 
   try {
-    await apiFetch('/api/auth/onboarding-complete', { method: 'POST', body: JSON.stringify({}) })
+    const res = await apiFetch('/api/auth/onboarding-complete', { method: 'POST', body: JSON.stringify({}) })
+    if (res.ok) {
+      const data = await res.json()
+      if (data.tier) {
+        store.applySubscriptionSync(data)
+      } else {
+        await hydrateSubscription()
+      }
+    }
   } catch (e) {
     console.warn('[onboarding] onboarding-complete skipped:', e)
   }

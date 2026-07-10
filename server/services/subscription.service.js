@@ -29,6 +29,7 @@ async function getActiveSubscription(userId) {
     `SELECT * FROM subscriptions
      WHERE user_id = $1
        AND status IN ('active', 'pending', 'past_due')
+     ORDER BY created_at DESC, id DESC
      LIMIT 1`,
     [userId]
   )
@@ -51,13 +52,63 @@ async function createSubscription({
     const existing = await client.query(
       `SELECT id, tier, status FROM subscriptions
        WHERE user_id = $1 AND status IN ('active', 'pending', 'past_due')
-       LIMIT 1`,
+       ORDER BY created_at DESC, id DESC
+       LIMIT 1
+       FOR UPDATE`,
       [userId]
     )
     if (existing.rows.length) {
+      const current = existing.rows[0]
+      if (current.tier === 'base' && current.status === 'active') {
+        const upgraded = await client.query(
+          `UPDATE subscriptions
+           SET tier                     = $1,
+               status                   = 'pending',
+               provider                 = $2,
+               provider_subscription_id = $3,
+               provider_customer_id     = $4,
+               grace_period_end         = NULL,
+               retry_count              = 0,
+               updated_at               = NOW()
+           WHERE id = $5
+           RETURNING *`,
+          [tier, provider, providerPaymentId, providerCustomerId, current.id]
+        )
+
+        await client.query(
+          `INSERT INTO payment_ledger
+             (user_id, subscription_id, type, amount_centavos, description,
+              provider, provider_payment_id, idempotency_key, status)
+           VALUES ($1, $2, 'initial_charge', $3, $4, $5, $6, $7, 'pending')`,
+          [
+            userId,
+            upgraded.rows[0].id,
+            TIER_PRICE_CENTAVOS[tier],
+            `Initial ${tier} subscription charge`,
+            provider,
+            providerPaymentId,
+            idempotencyKey,
+          ]
+        )
+
+        await _writeHistory(client, {
+          subscriptionId: upgraded.rows[0].id,
+          userId,
+          fromTier:   'base',
+          toTier:     tier,
+          fromStatus: 'active',
+          toStatus:   'pending',
+          reason:     'upgrade_from_base',
+          triggeredBy: 'api',
+        })
+
+        await client.query('COMMIT')
+        return upgraded.rows[0]
+      }
+
       const err = new Error('User already has an active subscription.')
       err.code = 'DUPLICATE_SUBSCRIPTION'
-      err.existing = existing.rows[0]
+      err.existing = current
       throw err
     }
 
@@ -338,6 +389,157 @@ async function cancelSubscription({ subscriptionId, userId }) {
   return result.rows[0] || null
 }
 
+/* ─── Ensure base subscription ────────────────────────────────────
+   Creates an active LEVEL Base row when a user finishes onboarding.
+   Idempotent — returns the existing live subscription if one exists. */
+async function ensureBaseSubscription(userId, client = null) {
+  const db = client || pool
+  const ownsTx = !client
+
+  if (ownsTx) {
+    const outer = await pool.connect()
+    try {
+      await outer.query('BEGIN')
+      const sub = await _ensureBaseSubscriptionLocked(outer, userId)
+      await outer.query('COMMIT')
+      return sub
+    } catch (err) {
+      await outer.query('ROLLBACK')
+      throw err
+    } finally {
+      outer.release()
+    }
+  }
+
+  return _ensureBaseSubscriptionLocked(db, userId)
+}
+
+async function _ensureBaseSubscriptionLocked(db, userId) {
+  await db.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId])
+
+  const existing = await db.query(
+    `SELECT * FROM subscriptions
+     WHERE user_id = $1 AND status IN ('active', 'pending', 'past_due')
+     ORDER BY created_at DESC, id DESC
+     LIMIT 1
+     FOR UPDATE`,
+    [userId]
+  )
+  if (existing.rows.length) return existing.rows[0]
+
+  const ins = await db.query(
+    `INSERT INTO subscriptions (user_id, tier, status, provider, current_period_start)
+     VALUES ($1, 'base', 'active', 'manual', NOW())
+     RETURNING *`,
+    [userId]
+  )
+
+  await _writeHistory(db, {
+    subscriptionId: ins.rows[0].id,
+    userId,
+    toTier:      'base',
+    toStatus:    'active',
+    reason:      'onboarding_started',
+    triggeredBy: 'system',
+  })
+
+  return ins.rows[0]
+}
+
+/* ─── Downgrade subscription ──────────────────────────────────────
+   Persists tier changes: Prime → Plus (in-place) or any paid → Base. */
+async function downgradeSubscription({ userId, targetTier }) {
+  if (!['base', 'plus'].includes(targetTier)) {
+    const err = new Error('Downgrade target must be "base" or "plus".')
+    err.code = 'INVALID_TIER'
+    throw err
+  }
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+
+    const result = await client.query(
+      `SELECT * FROM subscriptions
+       WHERE user_id = $1 AND status IN ('active', 'past_due')
+       ORDER BY created_at DESC
+       LIMIT 1
+       FOR UPDATE`,
+      [userId]
+    )
+
+    if (!result.rows.length) {
+      const base = await ensureBaseSubscription(userId, client)
+      await client.query('COMMIT')
+      return base
+    }
+
+    const sub = result.rows[0]
+
+    if (sub.tier === targetTier) {
+      await client.query('COMMIT')
+      return sub
+    }
+
+    if (targetTier === 'plus' && sub.tier === 'prime') {
+      const updated = await client.query(
+        `UPDATE subscriptions
+         SET tier = 'plus', updated_at = NOW()
+         WHERE id = $1
+         RETURNING *`,
+        [sub.id]
+      )
+
+      await _writeHistory(client, {
+        subscriptionId: sub.id,
+        userId,
+        fromTier:    'prime',
+        toTier:      'plus',
+        fromStatus:  sub.status,
+        toStatus:    sub.status,
+        reason:      'downgrade_prime_to_plus',
+        triggeredBy: 'api',
+      })
+
+      await client.query('COMMIT')
+      return updated.rows[0]
+    }
+
+    if (targetTier === 'base') {
+      await client.query(
+        `UPDATE subscriptions
+         SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
+         WHERE id = $1`,
+        [sub.id]
+      )
+
+      await _writeHistory(client, {
+        subscriptionId: sub.id,
+        userId,
+        fromTier:    sub.tier,
+        toTier:      'base',
+        fromStatus:  sub.status,
+        toStatus:    'cancelled',
+        reason:      'downgrade_to_base',
+        triggeredBy: 'api',
+      })
+
+      const base = await ensureBaseSubscription(userId, client)
+      await client.query('COMMIT')
+      return base
+    }
+
+    const err = new Error(`Cannot downgrade from ${sub.tier} to ${targetTier}.`)
+    err.code = 'INVALID_DOWNGRADE_PATH'
+    throw err
+  } catch (err) {
+    await client.query('ROLLBACK')
+    throw err
+  } finally {
+    client.release()
+  }
+}
+
 /* ── Private helpers ─────────────────────────────────────────── */
 
 async function _downgradeToBase(client, sub, reason) {
@@ -385,4 +587,6 @@ module.exports = {
   handlePaymentFailure,
   initiateUpgrade,
   cancelSubscription,
+  ensureBaseSubscription,
+  downgradeSubscription,
 }

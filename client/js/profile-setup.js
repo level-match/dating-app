@@ -610,6 +610,11 @@ window.saveProfile = async function(e) {
       return
     }
 
+    const saved = await res.json()
+    if (saved.tier) {
+      store.applySubscriptionSync(saved)
+    }
+
     const intentForEligibility = payload.intentCategory || payload.primaryIntent
     store.setUser({
       ...user,

@@ -5,6 +5,7 @@
 import { store } from './store.js'
 import { getTierMeta } from './membership.js'
 import { syncPhotosToStore } from './profile-photos.js'
+import { fetchSubscription } from './subscription.js'
 
 // ─── Nav scroll effect ───
 export function initNav() {
@@ -166,6 +167,28 @@ export async function hydrateFromProfile({ force = false } = {}) {
     console.warn('[app] hydrateFromProfile skipped:', e.message)
     return null
   }
+}
+
+/** Sync membership tier from the subscriptions table (per auth account). */
+export async function hydrateSubscription() {
+  try {
+    const { supabase } = await import('./supabase.js')
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) return null
+
+    const data = await fetchSubscription()
+    return store.applySubscriptionSync(data)
+  } catch (e) {
+    console.warn('[app] hydrateSubscription skipped:', e.message)
+    return null
+  }
+}
+
+/** Load profile + membership from API into the local store. */
+export async function hydrateFromServer({ force = false } = {}) {
+  await hydrateFromProfile({ force })
+  await hydrateSubscription()
+  return store.getUser()
 }
 
 // ─── Body fade-in ───

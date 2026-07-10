@@ -267,6 +267,37 @@ export const store = {
     this.setUser(user)
   },
 
+  setSubscription(subscription) {
+    const user = this.getUser()
+    if (!user) return
+    user.subscription = subscription
+    this.setUser(user)
+  },
+
+  /** Apply server-authoritative subscription sync to the session user. */
+  applySubscriptionSync({ tier, subscription } = {}) {
+    const user = this.getUser()
+    if (!user) return null
+
+    user.tier = tier || 'base'
+    user.subscription = subscription || null
+
+    if (subscription?.status === 'past_due' && subscription.gracePeriodEnd) {
+      const graceEnd = new Date(subscription.gracePeriodEnd).getTime()
+      this.setPastDue({
+        tier: user.tier,
+        gracePeriodEnd: graceEnd,
+        retryCount: subscription.retryCount ?? 0,
+        nextRetry: graceEnd,
+      })
+    } else {
+      this.clearPastDue()
+    }
+
+    this.setUser(user)
+    return user
+  },
+
   /* ─── Matching eligibility (Intent Guardrail) ───────────────────
      The authoritative decision is produced by js/matching-policy.js
      (a protected business rule, server-side in production). We cache
