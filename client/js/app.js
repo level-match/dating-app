@@ -4,6 +4,7 @@
 
 import { store } from './store.js'
 import { getTierMeta } from './membership.js'
+import { syncPhotosToStore } from './profile-photos.js'
 
 // ─── Nav scroll effect ───
 export function initNav() {
@@ -157,6 +158,9 @@ export async function hydrateFromProfile({ force = false } = {}) {
     const { profile: p } = await res.json()
     const user = store.getUser() || store.getDefaultUser()
     applyProfileToStore(p, user)
+    await syncPhotosToStore().catch((e) => {
+      console.warn('[app] syncPhotosToStore skipped:', e.message)
+    })
     return p
   } catch (e) {
     console.warn('[app] hydrateFromProfile skipped:', e.message)

@@ -520,6 +520,9 @@
       grid-template-columns: repeat(3, 1fr);
       gap: 8px;
     }
+    .pf-photo-gallery--additional {
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
     .pf-photo-item {
       aspect-ratio: 1 / 1;
       border-radius: 12px;
@@ -667,7 +670,7 @@
       .profile-detail-col { padding: var(--s-5) var(--s-4); }
       .compat-breakdown { padding: var(--s-5) var(--s-4); }
       .pf-photo-gallery { grid-template-columns: repeat(2, 1fr); }
-      .pf-photo-main { grid-column: 1 / -1; aspect-ratio: 3 / 2; }
+      .pf-photo-gallery--additional { grid-template-columns: repeat(2, 1fr); }
     }
 
     @media (max-width: 480px) {

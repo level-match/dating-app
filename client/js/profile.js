@@ -1,6 +1,7 @@
 import { requireAuth, initBodyFade, initNav, showToast, hydrateFromProfile } from './app.js'
 import { store } from './store.js'
 import { getMember, getMembersByScore } from './members.js'
+import { syncPhotosToStore } from './profile-photos.js'
 
 requireAuth()
 initBodyFade()
@@ -301,14 +302,64 @@ function sendConnection() {
   }, 1600)
 }
 
+/* ─── Self-view photo helpers ─── */
+function normalizeSelfPhotos(user) {
+  const raw = (user.photos || [])
+    .filter(p => {
+      const src = typeof p === 'string' ? p : p?.src
+      return src && !src.startsWith('blob:')
+    })
+    .map(p => {
+      if (typeof p === 'string') {
+        return { src: p, displayOrder: 999, isPrimary: false }
+      }
+      return {
+        id: p.id,
+        src: p.src,
+        displayOrder: p.displayOrder ?? 999,
+        isPrimary: !!p.isPrimary,
+      }
+    })
+
+  const seen = new Set()
+  const ordered = raw
+    .filter(p => {
+      if (!p.id) return true
+      if (seen.has(p.id)) return false
+      seen.add(p.id)
+      return true
+    })
+    .sort((a, b) => a.displayOrder - b.displayOrder)
+
+  if (!ordered.length && user.mainPhoto && !user.mainPhoto.startsWith('blob:')) {
+    ordered.push({ src: user.mainPhoto, isPrimary: true, displayOrder: 1 })
+  }
+
+  const mainEntry = ordered.find(p => p.isPrimary) || ordered[0] || null
+  const mainPhoto = mainEntry?.src || null
+  const additional = ordered
+    .filter(p => p !== mainEntry)
+    .sort((a, b) => a.displayOrder - b.displayOrder)
+
+  const lightboxPhotos = mainPhoto
+    ? [mainPhoto, ...additional.map(p => p.src)]
+    : additional.map(p => p.src)
+
+  return { mainPhoto, additional, lightboxPhotos }
+}
+
 /* ─── Lightbox (self-view photos) ─── */
 let _lbPhotos = []
 let _lbIndex  = 0
 
-window.openLightbox = function (src) {
-  _lbIndex = _lbPhotos.indexOf(src)
-  if (_lbIndex < 0) _lbIndex = 0
-  document.getElementById('pfLightboxImg').src = src
+window.openLightbox = function (indexOrSrc) {
+  if (typeof indexOrSrc === 'number') {
+    _lbIndex = indexOrSrc
+  } else {
+    _lbIndex = _lbPhotos.indexOf(indexOrSrc)
+    if (_lbIndex < 0) _lbIndex = 0
+  }
+  document.getElementById('pfLightboxImg').src = _lbPhotos[_lbIndex]
   document.getElementById('pfLightbox').classList.add('active')
   document.body.style.overflow = 'hidden'
 }
@@ -343,14 +394,9 @@ function renderSelfProfile() {
   const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Your Profile'
   const title = u.role || u.professionalTitle || ''
   const location = u.location || u.city || ''
-  const photos = (u.photos || [])
-    .filter(p => p?.src && !p.src.startsWith('blob:'))
-    .map(p => p.src)
-  if (u.mainPhoto && !u.mainPhoto.startsWith('blob:') && !photos.includes(u.mainPhoto)) {
-    photos.unshift(u.mainPhoto)
-  }
-  _lbPhotos = photos
-  const mainPhoto = photos[0] || null
+  const { mainPhoto, additional, lightboxPhotos } = normalizeSelfPhotos(u)
+
+  _lbPhotos = lightboxPhotos
 
   document.title = 'LEVEL — My Profile'
 
@@ -359,14 +405,21 @@ function renderSelfProfile() {
   if (back) back.setAttribute('href', 'dashboard.html')
   if (backLabel) backLabel.textContent = 'Dashboard'
 
-  // Portrait column
+  // Portrait column — main photo only (additional photos live in the gallery below)
   const photoEl = document.getElementById('portraitPhoto')
   if (photoEl) {
     if (mainPhoto) {
-      photoEl.style.backgroundImage = `url('${mainPhoto}')`
+      photoEl.style.background = ''
+      photoEl.style.backgroundImage = `url('${mainPhoto.replace(/'/g, '%27')}')`
+      photoEl.style.backgroundSize = 'cover'
+      photoEl.style.backgroundPosition = 'center top'
+      photoEl.style.cursor = 'pointer'
+      photoEl.onclick = () => window.openLightbox(0)
     } else {
       photoEl.style.backgroundImage = ''
       photoEl.style.background = 'linear-gradient(135deg,#1A2F4A,#0D1E35)'
+      photoEl.style.cursor = ''
+      photoEl.onclick = null
     }
   }
 
@@ -393,20 +446,14 @@ function renderSelfProfile() {
 
   const sections = []
 
-  // Photos — always show section
-  if (photos.length) {
-    const [first, ...rest] = photos
-    const mainHTML = `
-      <div class="pf-photo-item pf-photo-main" onclick="openLightbox('${first}')">
-        <img src="${first}" alt="Main photo" />
-        <span class="pf-photo-badge">Main Photo</span>
-      </div>`
-    const restHTML = rest.map(src => `
-      <div class="pf-photo-item" onclick="openLightbox('${src}')">
-        <img src="${src}" alt="Profile photo" />
+  // Additional photos only — main photo is already in the portrait column
+  if (additional.length) {
+    const items = additional.map((photo, i) => `
+      <div class="pf-photo-item" onclick="openLightbox(${i + 1})">
+        <img src="${esc(photo.src)}" alt="Profile photo ${i + 2}" loading="lazy" />
       </div>`).join('')
-    sections.push(section('Photos', `<div class="pf-photo-gallery">${mainHTML}${restHTML}</div>`))
-  } else {
+    sections.push(section('Photos', `<div class="pf-photo-gallery pf-photo-gallery--additional">${items}</div>`))
+  } else if (!mainPhoto) {
     sections.push(section('Photos', `
       <div class="pf-empty-block">
         <p>No photos yet. Use <strong>Edit Profile</strong> on the left to add up to five images.</p>
@@ -458,7 +505,7 @@ function renderSelfProfile() {
     { label: 'Discretion mode', value: u.discretionMode == null ? null : (u.discretionMode ? 'On' : 'Off') },
   ])))
 
-  const hasAnyContent = photos.length || [
+  const hasAnyContent = lightboxPhotos.length || [
     title, location, u.bio, u.legacyVision, u.education, u.industry,
     u.genderIdentity, u.primaryIntent, u.longTermVision,
   ].some(hasText)
@@ -476,6 +523,7 @@ function renderSelfProfile() {
 async function bootProfile() {
   if (isSelfView) {
     await hydrateFromProfile().catch(() => {})
+    await syncPhotosToStore().catch(() => {})
     renderSelfProfile()
     return
   }

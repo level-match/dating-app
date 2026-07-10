@@ -9,6 +9,7 @@ const rateLimit    = require('express-rate-limit')
 
 const authRoutes         = require('./routes/auth')
 const refRoutes          = require('./routes/ref')
+const profilePhotoRoutes = require('./routes/profile-photos')
 const subscriptionRoutes = require('./routes/subscriptions')
 const webhookRoutes      = require('./routes/webhooks')
 const adminAuthRoutes    = require('./routes/admin-auth')
@@ -58,6 +59,7 @@ app.use((req, res, next) => {
 /* ─── Routes ────────────────────────────────────────────────────*/
 app.use('/api/auth',                         authRoutes)
 app.use('/api/ref',                          refRoutes)
+app.use('/api/profile',                      profilePhotoRoutes)
 app.use('/api',           paymentLimiter,    subscriptionRoutes)
 app.use('/webhooks',                         webhookRoutes)
 app.use('/admin/auth',    adminLoginLimiter,  adminAuthRoutes)
@@ -70,18 +72,33 @@ app.get('/health', (_, res) => res.json({ status: 'ok', ts: new Date().toISOStri
 app.use((err, req, res, _next) => {
   console.error('[server] Unhandled error:', err.message)
 
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({
+      error: 'FILE_TOO_LARGE',
+      message: 'Image must be 10 MB or smaller.',
+    })
+  }
+
   const statusMap = {
     DUPLICATE_SUBSCRIPTION:  409,
     NO_SUBSCRIPTION:         404,
     NOT_FOUND:               404,
     INVALID_UPGRADE_PATH:    400,
     INVALID_TIER:            400,
+    INVALID_REQUEST:         400,
+    INVALID_FILE_TYPE:       400,
+    FILE_TOO_LARGE:          400,
+    PHOTO_LIMIT_REACHED:     400,
+    MISSING_FILE:            400,
     ACCOUNT_LOCKED:          429,
     INVALID_CREDENTIALS:     401,
     INVALID_TOKEN:           401,
     INVALID_REFRESH_TOKEN:   401,
     TOKEN_REUSE_DETECTED:    401,
     ACCOUNT_INACTIVE:        403,
+    FORBIDDEN:               403,
+    STORAGE_UPLOAD_FAILED:   502,
+    STORAGE_DELETE_FAILED:   502,
     SERVER_MISCONFIGURED:    500,
   }
   if (statusMap[err.code]) {

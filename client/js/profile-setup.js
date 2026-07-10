@@ -2,6 +2,17 @@ import { store } from './store.js'
 import { evaluateEligibility } from './matching-policy.js'
 import { requireAuth, initBodyFade, showToast, hydrateFromProfile } from './app.js'
 import { firstLabel, labelsFromAnswers } from './ref-ui.js'
+import {
+  PHOTO_MAX_SLOTS,
+  validatePhotoFile,
+  fetchProfilePhotos,
+  uploadProfilePhoto,
+  replaceProfilePhoto,
+  deleteProfilePhoto,
+  reorderProfilePhotos,
+  setPrimaryProfilePhoto,
+  mapApiPhoto,
+} from './profile-photos.js'
 import { apiFetch } from './sso.js'
 import { supabase } from './supabase.js'
 
@@ -54,36 +65,12 @@ window.updatePreviewBio = function(el) {
 }
 
 /* ════════════════════════════════════════════════════════════
-   Photo uploader — frontend-only with mock upload.
+   Photo uploader — backed by /api/profile/photos (Supabase Storage).
    Up to 5 photos · slot 0 is always Main Photo.
-   Validation: type (JPG/PNG/WEBP) + size (max 5MB).
-   Persists to `level_user.photos` so the structure is ready
-   for a real backend upload swap later.
    ════════════════════════════════════════════════════════════ */
 
-const PHOTO_MAX_SLOTS  = 5
-const PHOTO_MAX_BYTES  = 5 * 1024 * 1024
-const PHOTO_TYPES      = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-
-// In-memory photo state — array of { src, name, size } indexed 0..4
 const photoState = new Array(PHOTO_MAX_SLOTS).fill(null)
 let activeSlotIndex = null
-
-/**
- * Converts the file to a base64 data URL so the photo survives page
- * navigation and localStorage round-trips. Blob URLs are session-scoped
- * and break as soon as the user leaves the upload page.
- *
- * Swap this out for a real signed-upload endpoint when a backend exists.
- */
-async function uploadPhoto(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload  = e => resolve(e.target.result)
-    reader.onerror = () => reject(new Error('Failed to read file'))
-    reader.readAsDataURL(file)
-  })
-}
 
 function showPhotoError(msg) {
   const banner = document.getElementById('photoError')
@@ -99,17 +86,38 @@ function clearPhotoError() {
   document.getElementById('photoError')?.classList.remove('active')
 }
 
-function validateFile(file) {
-  if (!file) return 'No file selected.'
-  const type = (file.type || '').toLowerCase()
-  if (!PHOTO_TYPES.includes(type)) {
-    return 'Only JPG, PNG, or WEBP images are allowed.'
+function applyPhotosToSlots(photos) {
+  photoState.fill(null)
+  photos
+    .slice()
+    .sort((a, b) => a.displayOrder - b.displayOrder)
+    .forEach((photo, i) => {
+      if (i < PHOTO_MAX_SLOTS) photoState[i] = photo
+    })
+}
+
+async function reloadPhotos() {
+  const photos = await fetchProfilePhotos()
+  applyPhotosToSlots(photos)
+  renderAllSlots()
+  return photos
+}
+
+function buildOrderForSlot(targetIdx, newPhotoId = null) {
+  const ids = []
+  for (let i = 0; i < PHOTO_MAX_SLOTS; i++) {
+    if (i === targetIdx && newPhotoId) ids.push(newPhotoId)
+    else if (photoState[i]?.id) ids.push(photoState[i].id)
   }
-  if (file.size > PHOTO_MAX_BYTES) {
-    const mb = (file.size / (1024 * 1024)).toFixed(1)
-    return `Image too large (${mb}MB). Max 5MB per photo.`
-  }
-  return null
+  return ids
+}
+
+async function syncSlotOrder(targetIdx, newPhotoId = null) {
+  const photoIds = buildOrderForSlot(targetIdx, newPhotoId)
+  if (!photoIds.length) return
+  await reorderProfilePhotos(photoIds)
+  if (photoIds[0]) await setPrimaryProfilePhoto(photoIds[0])
+  await reloadPhotos()
 }
 
 function renderSlot(slot, idx) {
@@ -201,9 +209,16 @@ function renderAllSlots() {
 function persistPhotos() {
   const user = store.getUser() || store.getDefaultUser()
   const photos = photoState
-    .map(p => p ? { src: p.src, name: p.name } : null)
     .filter(Boolean)
-  store.setUser({ ...user, photos, mainPhoto: photos[0]?.src || null })
+    .map(p => ({
+      id: p.id,
+      src: p.src,
+      name: p.name,
+      storagePath: p.storagePath,
+      displayOrder: p.displayOrder,
+      isPrimary: p.isPrimary,
+    }))
+  store.setUser({ ...user, photos, mainPhoto: photoState[0]?.src || null })
 }
 
 function openPickerForSlot(idx) {
@@ -217,7 +232,7 @@ function openPickerForSlot(idx) {
 }
 
 async function handleFile(file, idx) {
-  const err = validateFile(file)
+  const err = validatePhotoFile(file)
   if (err) {
     showPhotoError(err)
     return
@@ -227,28 +242,38 @@ async function handleFile(file, idx) {
   slot.classList.add('loading')
 
   try {
-    const src = await uploadPhoto(file)
-    photoState[idx] = { src, name: file.name, size: file.size }
-    renderAllSlots()
+    const existing = photoState[idx]
+    if (existing?.id) {
+      const updated = await replaceProfilePhoto(existing.id, file)
+      photoState[idx] = updated
+      renderAllSlots()
+      return
+    }
+
+    const uploaded = await uploadProfilePhoto(file)
+    await syncSlotOrder(idx, uploaded.id)
   } catch (e) {
-    showPhotoError('Upload failed. Please try again.')
+    console.error('[profile-setup] photo upload failed:', e)
+    showPhotoError(e.message || 'Upload failed. Please try again.')
     slot.classList.remove('loading')
   }
 }
 
-function removePhoto(idx) {
-  if (!photoState[idx]) return
-  photoState[idx] = null
+async function removePhoto(idx) {
+  const photo = photoState[idx]
+  if (!photo?.id) return
 
-  // If main photo (slot 0) was removed, promote the first remaining photo
-  if (idx === 0) {
-    const next = photoState.findIndex(p => p)
-    if (next > 0) {
-      photoState[0] = photoState[next]
-      photoState[next] = null
-    }
+  const slot = document.querySelector(`.photo-slot[data-index="${idx}"]`)
+  slot?.classList.add('loading')
+
+  try {
+    await deleteProfilePhoto(photo.id)
+    await reloadPhotos()
+  } catch (e) {
+    console.error('[profile-setup] photo delete failed:', e)
+    showPhotoError(e.message || 'Could not remove photo.')
+    slot?.classList.remove('loading')
   }
-  renderAllSlots()
 }
 
 /* ─── Photo slot ⋮ menu ─── */
@@ -333,9 +358,15 @@ document.getElementById('photoFileInput')?.addEventListener('change', (e) => {
   if (file && activeSlotIndex != null) handleFile(file, activeSlotIndex)
 })
 
-/* Hydrate photo slots from saved user state (localStorage or API). */
+/* Hydrate photo slots from API, with localStorage fallback. */
 function hydratePhotosFromUser(user) {
   if (!user) return
+
+  if (user.photos?.length && user.photos[0]?.id) {
+    applyPhotosToSlots(user.photos.map(p => mapApiPhoto(p)))
+    renderAllSlots()
+    return
+  }
 
   let cleaned = false
   if (user.photos?.length) {
@@ -450,7 +481,12 @@ async function bootProfileSetup() {
 
   fillOnboardingReview(user, ob)
   applyUserFieldsToForm(user, ob, settings)
-  hydratePhotosFromUser(user)
+  try {
+    await reloadPhotos()
+  } catch (e) {
+    console.warn('[profile-setup] photo API unavailable, using cached state:', e.message)
+    hydratePhotosFromUser(store.getUser() || user)
+  }
   window.updatePreview()
   updateCompletionRing()
 }

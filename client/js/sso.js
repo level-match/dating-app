@@ -93,7 +93,10 @@ export async function apiFetch(path, options = {}) {
   if (session?.access_token) {
     headers.set('Authorization', `Bearer ${session.access_token}`)
   }
-  if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
+  if (options.body && !headers.has('Content-Type') && !isFormData) {
+    headers.set('Content-Type', 'application/json')
+  }
   return fetch(`${API_BASE}${path}`, { ...options, headers })
 }
 
