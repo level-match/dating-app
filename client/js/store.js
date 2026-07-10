@@ -122,12 +122,41 @@ const MOCK_MESSAGES = {
 }
 
 export const store = {
+  // Session-only cache for large base64 photo previews (kept out of localStorage).
+  _photoPreview: null,
+
   getUser() {
-    return JSON.parse(localStorage.getItem(KEYS.USER) || 'null')
+    const user = JSON.parse(localStorage.getItem(KEYS.USER) || 'null')
+    if (!user || !this._photoPreview) return user
+    return {
+      ...user,
+      photos: this._photoPreview.photos ?? user.photos,
+      mainPhoto: this._photoPreview.mainPhoto ?? user.mainPhoto,
+    }
+  },
+
+  _leanUserForStorage(data) {
+    if (!data) return data
+    const lean = { ...data }
+    const hasDataUrlPhoto = (lean.mainPhoto || '').startsWith('data:')
+      || (lean.photos || []).some(p => p?.src?.startsWith('data:'))
+    if (hasDataUrlPhoto) {
+      this._photoPreview = {
+        photos: lean.photos,
+        mainPhoto: lean.mainPhoto,
+      }
+      if ((lean.mainPhoto || '').startsWith('data:')) lean.mainPhoto = null
+      if (Array.isArray(lean.photos)) {
+        lean.photos = lean.photos.map(p => (
+          p?.src?.startsWith('data:') ? { name: p.name, localPreview: true } : p
+        ))
+      }
+    }
+    return lean
   },
 
   setUser(data) {
-    localStorage.setItem(KEYS.USER, JSON.stringify(data))
+    localStorage.setItem(KEYS.USER, JSON.stringify(this._leanUserForStorage(data)))
   },
 
   getDefaultUser() {
@@ -379,6 +408,7 @@ export const store = {
   },
 
   logout() {
+    this._photoPreview = null
     localStorage.removeItem(KEYS.USER)
   },
 

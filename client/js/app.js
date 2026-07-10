@@ -81,45 +81,82 @@ export function hydrateUser() {
   return user
 }
 
+const PROFILE_CACHE_MS = 5 * 60 * 1000
+
+function applyProfileToStore(p, user) {
+  const mainPhoto = p.avatar_url || user.mainPhoto || null
+  const photos = user.photos?.length
+    ? user.photos
+    : (mainPhoto ? [{ src: mainPhoto, name: 'main-photo' }] : [])
+
+  store.setUser({
+    ...user,
+    firstName: p.first_name || user.firstName,
+    lastName: p.last_name || user.lastName,
+    role: p.professional_title || user.role,
+    professionalTitle: p.professional_title,
+    location: p.location,
+    education: p.education,
+    industry: p.industry,
+    age: p.age ?? user.age ?? null,
+    orientationVisibility: p.orientation_visibility ?? user.orientationVisibility,
+    blockColleagues: p.block_colleagues ?? user.blockColleagues,
+    discretionMode: p.discretion_mode ?? user.discretionMode,
+    legacyVision: p.legacy_vision,
+    bio: p.legacy_vision,
+    genderIdentity: p.gender_identity,
+    pronouns: (p.pronouns || []).map(x => x.label).join(', '),
+    sexualOrientation: p.orientation,
+    preferredGenders: (p.preferred_genders || []).map(x => x.label),
+    primaryIntent: p.primary_intent,
+    longTermVision: p.long_term_vision,
+    careerChapter: p.career_chapter,
+    lifeIntegration: p.life_integration,
+    mobilityProfile: p.mobility_profile,
+    emotionalStyle: p.emotional_style,
+    lifestyleValues: (p.lifestyle_values || []).map(x => x.label),
+    ageRangeMin: p.age_range_min,
+    ageRangeMax: p.age_range_max,
+    mainPhoto,
+    photos,
+    avatarUrl: null,
+    profileSavedToDb: true,
+    profileLoadedFromApi: true,
+    profileComplete: 100,
+    profileFetchedAt: Date.now(),
+  })
+
+  if (p.block_colleagues != null) {
+    store.updateSetting('privacy', 'blockColleagues', !!p.block_colleagues)
+  }
+  if (p.discretion_mode != null) {
+    store.updateSetting('privacy', 'discretionMode', !!p.discretion_mode)
+  }
+}
+
 /** Load saved profile from API into the local store (real name, alignment fields). */
-export async function hydrateFromProfile() {
+export async function hydrateFromProfile({ force = false } = {}) {
+  const cached = store.getUser()
+  if (
+    !force
+    && cached?.profileLoadedFromApi
+    && cached?.profileFetchedAt
+    && Date.now() - cached.profileFetchedAt < PROFILE_CACHE_MS
+  ) {
+    return cached
+  }
+
   try {
+    const { supabase } = await import('./supabase.js')
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) return null
+
     const { apiFetch } = await import('./sso.js')
     const res = await apiFetch('/api/auth/profile')
     if (!res.ok) return null
     const { profile: p } = await res.json()
     const user = store.getUser() || store.getDefaultUser()
-
-    store.setUser({
-      ...user,
-      firstName: p.first_name || user.firstName,
-      lastName: p.last_name || user.lastName,
-      role: p.professional_title || user.role,
-      professionalTitle: p.professional_title,
-      location: p.location,
-      education: p.education,
-      industry: p.industry,
-      legacyVision: p.legacy_vision,
-      bio: p.legacy_vision,
-      genderIdentity: p.gender_identity,
-      pronouns: (p.pronouns || []).map(x => x.label).join(', '),
-      sexualOrientation: p.orientation,
-      preferredGenders: (p.preferred_genders || []).map(x => x.label),
-      primaryIntent: p.primary_intent,
-      longTermVision: p.long_term_vision,
-      careerChapter: p.career_chapter,
-      lifeIntegration: p.life_integration,
-      mobilityProfile: p.mobility_profile,
-      emotionalStyle: p.emotional_style,
-      lifestyleValues: (p.lifestyle_values || []).map(x => x.label),
-      ageRangeMin: p.age_range_min,
-      ageRangeMax: p.age_range_max,
-      avatarUrl: p.avatar_url || user.avatarUrl || null,
-      mainPhoto: user.mainPhoto || p.avatar_url || null,
-      profileSavedToDb: true,
-      profileLoadedFromApi: true,
-      profileComplete: 100,
-    })
+    applyProfileToStore(p, user)
     return p
   } catch (e) {
     console.warn('[app] hydrateFromProfile skipped:', e.message)

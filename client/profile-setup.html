@@ -274,15 +274,16 @@
       color: rgba(245,237,224,0.86);
     }
 
-    /* Photo upload */
+    /* Photo upload — equal-size cards: 3 on top, 2 centered below */
     .photo-upload-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(6, 1fr);
       gap: var(--s-3);
     }
 
     .photo-slot {
-      aspect-ratio: 2/3;
+      grid-column: span 2;
+      aspect-ratio: 3/4;
       border-radius: var(--radius-xl);
       border: 1.5px dashed var(--border-mid);
       background: rgba(255,255,255,0.05);
@@ -291,10 +292,13 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: all var(--dur-normal) var(--ease-elegant);
+      transition: border-color var(--dur-normal) var(--ease-elegant),
+                  background-color var(--dur-normal) var(--ease-elegant),
+                  box-shadow var(--dur-normal) var(--ease-elegant);
       position: relative;
       overflow: hidden;
       -webkit-tap-highlight-color: transparent;
+      isolation: isolate;
     }
 
     .photo-slot:hover {
@@ -312,11 +316,16 @@
       border-style: solid;
       border-color: var(--border-light);
       background: #04101F;
+      overflow: visible;
     }
 
-    .photo-slot.primary {
-      grid-row: span 2;
+    .photo-slot.filled .photo-img {
+      border-radius: calc(var(--radius-xl) - 2px);
     }
+
+    /* Center the bottom row (photos 4 & 5) */
+    .photo-slot:nth-child(4) { grid-column: 2 / span 2; }
+    .photo-slot:nth-child(5) { grid-column: 4 / span 2; }
 
     .photo-slot .plus-icon {
       font-size: 28px;
@@ -324,7 +333,7 @@
       margin-bottom: var(--s-2);
       transition: transform var(--dur-normal) var(--ease-elegant);
     }
-    .photo-slot:hover .plus-icon { transform: scale(1.08); }
+    .photo-slot:hover .plus-icon { transform: scale(1.05); }
 
     .photo-slot .photo-hint {
       font-family: var(--font-sans);
@@ -359,73 +368,103 @@
       height: 100%;
       object-fit: cover;
       object-position: center;
+      z-index: 1;
       opacity: 0;
       animation: photoFadeIn 0.5s cubic-bezier(0.16,1,0.3,1) forwards;
     }
     @keyframes photoFadeIn {
-      from { opacity: 0; transform: scale(1.03); }
-      to   { opacity: 1; transform: scale(1); }
+      from { opacity: 0; }
+      to   { opacity: 1; }
     }
 
-    /* Gradient overlay so action buttons read on any image */
+    /* Gradient overlay — subtle only; actions live in the ⋮ menu */
     .photo-slot .photo-overlay {
       position: absolute;
       inset: 0;
-      background: linear-gradient(to bottom, transparent 55%, rgba(3,6,15,0.85) 100%);
+      background: linear-gradient(to bottom, rgba(3,6,15,0.35) 0%, transparent 28%);
       opacity: 0;
-      transition: opacity 0.25s ease;
       pointer-events: none;
       z-index: 2;
     }
-    .photo-slot.filled:hover .photo-overlay { opacity: 1; }
+    .photo-slot.filled .photo-overlay { opacity: 1; }
 
-    /* Action buttons (Change / Remove) — appear on hover only */
-    .photo-slot .photo-actions {
+    /* ⋮ menu — top-right on filled slots */
+    .photo-menu-wrap {
       position: absolute;
-      left: var(--s-3);
-      right: var(--s-3);
-      bottom: var(--s-3);
-      display: flex;
-      gap: 6px;
-      opacity: 0;
-      transform: translateY(6px);
-      transition: opacity 0.25s ease, transform 0.25s ease;
-      z-index: 4;
-    }
-    .photo-slot.filled:hover .photo-actions {
-      opacity: 1;
-      transform: translateY(0);
+      top: 6px;
+      right: 6px;
+      z-index: 5;
     }
 
-    .photo-action-btn {
-      flex: 1;
+    .photo-menu-trigger {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 5px;
-      padding: 7px 8px;
-      font-family: var(--font-sans);
-      font-size: 0.62rem;
-      font-weight: 500;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      background: rgba(6,12,26,0.85);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.18);
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: 1px solid rgba(255,255,255,0.22);
       border-radius: 999px;
-      color: rgba(255,255,255,0.85);
+      background: rgba(6,12,26,0.88);
+      backdrop-filter: blur(10px);
+      color: rgba(255,255,255,0.92);
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
-    .photo-action-btn:hover {
-      background: rgba(212,168,67,0.18);
-      border-color: rgba(212,168,67,0.50);
+    .photo-menu-trigger:hover,
+    .photo-menu-wrap.is-open .photo-menu-trigger {
+      background: rgba(212,168,67,0.22);
+      border-color: rgba(212,168,67,0.45);
       color: var(--gold-300);
     }
-    .photo-action-btn.danger:hover {
-      background: rgba(239,68,68,0.18);
-      border-color: rgba(239,68,68,0.50);
+
+    .photo-menu-dropdown {
+      position: absolute;
+      bottom: calc(100% + 4px);
+      top: auto;
+      right: 0;
+      min-width: 118px;
+      display: none;
+      flex-direction: column;
+      gap: 2px;
+      padding: 4px;
+      border-radius: 12px;
+      background: rgba(6,12,26,0.96);
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+      backdrop-filter: blur(12px);
+    }
+    .photo-menu-wrap.is-open .photo-menu-dropdown {
+      display: flex;
+    }
+
+    .photo-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 8px 10px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      font-family: var(--font-sans);
+      font-size: 0.72rem;
+      font-weight: 400;
+      color: rgba(255,255,255,0.9);
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.12s ease, color 0.12s ease;
+    }
+    .photo-menu-item:hover {
+      background: rgba(255,255,255,0.08);
+    }
+    .photo-menu-item.danger:hover {
+      background: rgba(239,68,68,0.16);
       color: #FCA5A5;
+    }
+    .photo-menu-item svg {
+      flex-shrink: 0;
+      opacity: 0.75;
     }
 
     /* Loading state — premium shimmer sweep (replaces spinner) */
@@ -568,32 +607,24 @@
       .setup-footer > div:last-child { justify-content: stretch; }
       .setup-footer .btn { flex: 1; }
 
-      /* ── Photo grid: mobile layout ── */
+      /* ── Photo grid: mobile — 2 equal columns ── */
       .photo-upload-grid {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(2, 1fr);
         gap: 10px;
       }
 
-      /* Primary slot spans full width on mobile */
-      .photo-slot.primary {
+      .photo-slot,
+      .photo-slot:nth-child(4),
+      .photo-slot:nth-child(5) {
+        grid-column: auto;
+        aspect-ratio: 3/4;
+      }
+
+      /* Center the 5th slot on its own row */
+      .photo-slot:nth-child(5) {
         grid-column: 1 / -1;
-        grid-row: span 1;
-        aspect-ratio: 3/2;
-      }
-
-      /* Other slots: fixed square-ish height */
-      .photo-slot:not(.primary) {
-        aspect-ratio: 1/1;
-      }
-
-      /* Touch: always show overlay + action buttons on filled slots */
-      .photo-slot.filled .photo-overlay {
-        opacity: 1;
-        background: linear-gradient(to bottom, transparent 40%, rgba(3,6,15,0.80) 100%);
-      }
-      .photo-slot.filled .photo-actions {
-        opacity: 1;
-        transform: translateY(0);
+        max-width: calc(50% - 5px);
+        justify-self: center;
       }
     }
 
@@ -602,11 +633,6 @@
       .setup-header { padding: var(--s-3) var(--s-4); }
 
       .photo-upload-grid { gap: 8px; }
-
-      .photo-action-btn {
-        font-size: 0.58rem;
-        padding: 6px 6px;
-      }
     }
   </style>
 </head>
@@ -877,7 +903,7 @@
               <div style="font-family:var(--font-sans);font-size:var(--text-xs);font-weight:300;color:var(--text-muted);margin-top:2px;">People at your current employer will not see your profile</div>
             </div>
             <label style="cursor:pointer;flex-shrink:0;">
-              <input type="checkbox" style="accent-color:var(--ocean-600);width:18px;height:18px;">
+              <input type="checkbox" id="blockColleaguesInput" style="accent-color:var(--ocean-600);width:18px;height:18px;">
             </label>
           </div>
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s-6);">
@@ -886,7 +912,7 @@
               <div style="font-family:var(--font-sans);font-size:var(--text-xs);font-weight:300;color:var(--text-muted);margin-top:2px;">Browse without appearing in "who viewed your profile"</div>
             </div>
             <label style="cursor:pointer;flex-shrink:0;">
-              <input type="checkbox" style="accent-color:var(--ocean-600);width:18px;height:18px;">
+              <input type="checkbox" id="discretionModeInput" style="accent-color:var(--ocean-600);width:18px;height:18px;">
             </label>
           </div>
         </div>
@@ -894,10 +920,9 @@
 
       <!-- Footer -->
       <div class="setup-footer">
-        <div style="font-family:var(--font-sans);font-size:var(--text-xs);font-weight:300;color:var(--text-muted);">Polish your public card, then save to publish.</div>
-        <div style="display:flex;gap:var(--s-3);">
+        <div style="display:flex;gap:var(--s-3);margin-left:auto;">
           <a href="dashboard.html" class="btn btn-ghost">Skip for now</a>
-          <button type="button" class="btn btn-primary btn-lg" id="saveProfileBtn" onclick="saveProfile(event)">Save &amp; View Profile</button>
+          <button type="button" class="btn btn-primary btn-lg" id="saveProfileBtn" onclick="saveProfile(event)">Save &amp; Publish</button>
         </div>
       </div>
 

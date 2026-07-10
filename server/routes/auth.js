@@ -211,6 +211,7 @@ router.post('/profile', async (req, res) => {
   const {
     firstName, lastName, avatarUrl,
     professionalTitle, location, education, industry,
+    age, orientationVisibility, blockColleagues, discretionMode,
     genderIdentity, pronouns, orientation, preferredGenders,
     ageRangeMin, ageRangeMax,
     primaryIntent,
@@ -254,6 +255,7 @@ router.post('/profile', async (req, res) => {
       `INSERT INTO profiles (
          user_id, first_name, last_name, avatar_url,
          professional_title, location, education, industry,
+         age, orientation_visibility, block_colleagues, discretion_mode,
          gender_identity_id, gender_identity_custom,
          orientation_id, orientation_custom,
          intent_id,
@@ -262,7 +264,7 @@ router.post('/profile', async (req, res) => {
          life_integration_id, mobility_profile_id,
          emotional_style_id, legacy_vision
        ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21
+         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25
        )
        ON CONFLICT (user_id) DO UPDATE SET
          first_name              = EXCLUDED.first_name,
@@ -272,6 +274,10 @@ router.post('/profile', async (req, res) => {
          location                = EXCLUDED.location,
          education               = EXCLUDED.education,
          industry                = EXCLUDED.industry,
+         age                     = EXCLUDED.age,
+         orientation_visibility  = EXCLUDED.orientation_visibility,
+         block_colleagues        = EXCLUDED.block_colleagues,
+         discretion_mode         = EXCLUDED.discretion_mode,
          gender_identity_id      = EXCLUDED.gender_identity_id,
          gender_identity_custom  = EXCLUDED.gender_identity_custom,
          orientation_id          = EXCLUDED.orientation_id,
@@ -295,6 +301,10 @@ router.post('/profile', async (req, res) => {
         location   || null,
         education  || null,
         industry   || null,
+        age != null && age !== '' ? Number(age) : null,
+        orientationVisibility || null,
+        blockColleagues != null ? !!blockColleagues : true,
+        discretionMode != null ? !!discretionMode : false,
         genderIdRes,
         genderCustom,
         orientationRes,
@@ -378,6 +388,10 @@ router.get('/profile', async (req, res) => {
          p.location,
          p.education,
          p.industry,
+         p.age,
+         p.orientation_visibility,
+         p.block_colleagues,
+         p.discretion_mode,
          p.age_range_min,
          p.age_range_max,
          p.legacy_vision,

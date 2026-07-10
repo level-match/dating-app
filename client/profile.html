@@ -598,6 +598,61 @@
       to   { opacity:1; transform:scale(1); }
     }
 
+    /* Self-profile field grid + empty states */
+    .pf-field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--s-4) var(--s-6);
+    }
+    @media (max-width: 640px) {
+      .pf-field-grid { grid-template-columns: 1fr; }
+    }
+    .pf-field-item { min-width: 0; }
+    .pf-field-label {
+      font-family: var(--font-sans);
+      font-size: 0.62rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .pf-field-value {
+      font-family: var(--font-sans);
+      font-size: 0.95rem;
+      font-weight: 400;
+      color: var(--text-primary);
+      line-height: 1.45;
+    }
+    .pf-field-value.is-empty {
+      color: var(--text-muted);
+      font-style: italic;
+      font-weight: 300;
+    }
+    .pf-empty-block {
+      padding: var(--s-6);
+      border-radius: var(--radius-xl);
+      border: 1px dashed rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.03);
+      text-align: center;
+    }
+    .pf-empty-block p {
+      font-family: var(--font-sans);
+      font-size: 0.88rem;
+      font-weight: 300;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      margin: 0 0 var(--s-4);
+    }
+    .pf-empty-value {
+      font-family: var(--font-sans);
+      font-size: 0.92rem;
+      font-weight: 300;
+      font-style: italic;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
     @media (max-width: 1100px) {
       .app-main { margin-left: 0; }
     }

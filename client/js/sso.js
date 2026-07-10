@@ -168,7 +168,7 @@ export async function handleOAuthReturn() {
       ...store.getDefaultUser(),
       firstName, lastName,
       email: user.email || '',
-      avatarUrl: avatar,
+      avatarUrl: null,
       authProvider: provider,
       oauthFields: {
         firstName: !!firstName,
@@ -299,7 +299,7 @@ function showOAuthConsentModal({ firstName, lastName, email, avatar, provider })
       firstName: fn,
       lastName: ln,
       email,
-      avatarUrl: avatar,
+      avatarUrl: null,
       authProvider: provider,
       oauthPrefilled: true,
       oauthFields: {

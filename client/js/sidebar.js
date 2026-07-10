@@ -597,7 +597,14 @@
   }
   wireTopbarIcons();
   // Also wire after DOM mutations (e.g. chat.html dynamically rebuilds its topbar)
-  const mo = new MutationObserver(wireTopbarIcons);
+  let moTimer = null;
+  const mo = new MutationObserver(() => {
+    if (moTimer) return;
+    moTimer = requestAnimationFrame(() => {
+      moTimer = null;
+      wireTopbarIcons();
+    });
+  });
   mo.observe(document.body, { childList: true, subtree: true });
 })();
 
@@ -1022,7 +1029,7 @@
     const fromPhotos = Array.isArray(u.photos)
       ? (u.photos[0]?.src || (typeof u.photos[0] === 'string' ? u.photos[0] : null))
       : null;
-    return u.mainPhoto || u.avatarUrl || fromPhotos || null;
+    return u.mainPhoto || fromPhotos || null;
   }
 
   function getUserInitials() {
@@ -1271,13 +1278,20 @@
     });
   }
 
-  ensureTopbarAvatar();
-  wirePopovers();
-  hydrateTopbarAvatars();
-  const mo2 = new MutationObserver(() => {
+  function syncTopbarUi() {
     ensureTopbarAvatar();
     wirePopovers();
     hydrateTopbarAvatars();
+  }
+
+  let mo2Timer = null;
+  syncTopbarUi();
+  const mo2 = new MutationObserver(() => {
+    if (mo2Timer) return;
+    mo2Timer = requestAnimationFrame(() => {
+      mo2Timer = null;
+      syncTopbarUi();
+    });
   });
   mo2.observe(document.body, { childList: true, subtree: true });
 })();

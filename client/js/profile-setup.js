@@ -136,19 +136,26 @@ function renderSlot(slot, idx) {
     overlay.className = 'photo-overlay'
     slot.appendChild(overlay)
 
-    const actions = document.createElement('div')
-    actions.className = 'photo-actions'
-    actions.innerHTML = `
-      <button type="button" class="photo-action-btn" data-act="change" aria-label="Change photo">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7M21 4v5h-5"/></svg>
-        Change
+    const menu = document.createElement('div')
+    menu.className = 'photo-menu-wrap'
+    menu.innerHTML = `
+      <button type="button" class="photo-menu-trigger" aria-label="Photo options" aria-expanded="false" aria-haspopup="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="5" r="1.75"/><circle cx="12" cy="12" r="1.75"/><circle cx="12" cy="19" r="1.75"/>
+        </svg>
       </button>
-      <button type="button" class="photo-action-btn danger" data-act="remove" aria-label="Remove photo">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
-        Remove
-      </button>
+      <div class="photo-menu-dropdown" role="menu">
+        <button type="button" class="photo-menu-item" data-act="change" role="menuitem">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-3-6.7M21 4v5h-5"/></svg>
+          Change
+        </button>
+        <button type="button" class="photo-menu-item danger" data-act="remove" role="menuitem">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+          Remove
+        </button>
+      </div>
     `
-    slot.appendChild(actions)
+    slot.appendChild(menu)
   } else {
     const plus = document.createElement('div')
     plus.className = 'plus-icon'
@@ -244,17 +251,51 @@ function removePhoto(idx) {
   renderAllSlots()
 }
 
+/* ─── Photo slot ⋮ menu ─── */
+
+function closeAllPhotoMenus() {
+  document.querySelectorAll('.photo-menu-wrap.is-open').forEach((wrap) => {
+    wrap.classList.remove('is-open')
+    wrap.querySelector('.photo-menu-trigger')?.setAttribute('aria-expanded', 'false')
+  })
+}
+
+function togglePhotoMenu(slot) {
+  const wrap = slot.querySelector('.photo-menu-wrap')
+  if (!wrap) return
+  const wasOpen = wrap.classList.contains('is-open')
+  closeAllPhotoMenus()
+  if (!wasOpen) {
+    wrap.classList.add('is-open')
+    wrap.querySelector('.photo-menu-trigger')?.setAttribute('aria-expanded', 'true')
+  }
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.photo-menu-wrap')) closeAllPhotoMenus()
+})
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeAllPhotoMenus()
+})
+
 /* ─── Wire up slots, actions, file input, drag-drop ─── */
 
 function wirePhotoSlot(slot) {
   const idx = +slot.dataset.index
 
-  // Click / keyboard: only open picker if the slot is empty.
-  // If filled, action buttons handle change/remove.
   slot.addEventListener('click', (e) => {
-    const actBtn = e.target.closest('.photo-action-btn')
-    if (actBtn) {
-      const act = actBtn.dataset.act
+    if (e.target.closest('.photo-menu-trigger')) {
+      e.stopPropagation()
+      e.preventDefault()
+      togglePhotoMenu(slot)
+      return
+    }
+    const menuItem = e.target.closest('.photo-menu-item')
+    if (menuItem) {
+      e.stopPropagation()
+      closeAllPhotoMenus()
+      const act = menuItem.dataset.act
       if (act === 'remove') removePhoto(idx)
       else if (act === 'change') openPickerForSlot(idx)
       return
@@ -292,28 +333,28 @@ document.getElementById('photoFileInput')?.addEventListener('change', (e) => {
   if (file && activeSlotIndex != null) handleFile(file, activeSlotIndex)
 })
 
-/* Hydrate from previously saved photos (e.g. user returns to page).
-   Blob URLs are session-scoped and will be dead if the user navigated
-   away — only restore data URLs (base64) which are persistent strings. */
-;(function hydratePhotos() {
-  const user = store.getUser()
-  if (!user?.photos?.length) return
+/* Hydrate photo slots from saved user state (localStorage or API). */
+function hydratePhotosFromUser(user) {
+  if (!user) return
 
   let cleaned = false
-  user.photos.slice(0, PHOTO_MAX_SLOTS).forEach((p, i) => {
-    if (!p?.src) return
-    if (p.src.startsWith('blob:')) { cleaned = true; return } // discard dead blob
-    photoState[i] = { src: p.src, name: p.name || `photo-${i + 1}` }
-  })
+  if (user.photos?.length) {
+    user.photos.slice(0, PHOTO_MAX_SLOTS).forEach((p, i) => {
+      if (!p?.src) return
+      if (p.src.startsWith('blob:')) { cleaned = true; return }
+      photoState[i] = { src: p.src, name: p.name || `photo-${i + 1}` }
+    })
+  } else if (user.mainPhoto && !user.mainPhoto.startsWith('blob:')) {
+    photoState[0] = { src: user.mainPhoto, name: 'main-photo' }
+  }
 
-  // If we found stale blobs, scrub them from the stored user object now
   if (cleaned) {
     const validPhotos = photoState.filter(Boolean).map(p => ({ src: p.src, name: p.name }))
     store.setUser({ ...user, photos: validPhotos, mainPhoto: validPhotos[0]?.src || null })
   }
 
   renderAllSlots()
-})()
+}
 
 // Keep the old API alive for any inline onclick still referencing it
 window.triggerUpload = openPickerForSlot
@@ -400,26 +441,30 @@ async function bootProfileSetup() {
   await hydrateFromProfile().catch(() => {})
   const ob = store.getOnboarding() || {}
   const user = store.getUser() || {}
+  const settings = store.getSettings()
 
-  // Visibility is a profile-setup concern (public card), not onboarding.
   setSelectByText(
     document.getElementById('orientationVisibilitySelect'),
     user.orientationVisibility || 'Only on mutual matches',
   )
 
   fillOnboardingReview(user, ob)
-  applyUserFieldsToForm(user, ob)
+  applyUserFieldsToForm(user, ob, settings)
+  hydratePhotosFromUser(user)
   window.updatePreview()
   updateCompletionRing()
 }
 
-function applyUserFieldsToForm(user, ob) {
+function applyUserFieldsToForm(user, ob, settings = store.getSettings()) {
   const fn = document.getElementById('firstNameInput')
   const ln = document.getElementById('lastNameInput')
   const email = document.getElementById('emailInput')
   if (fn) fn.value = user.firstName || ''
   if (ln) ln.value = user.lastName || ''
   if (email) email.value = user.email || ''
+
+  const age = document.getElementById('ageInput')
+  if (age && user.age != null && user.age !== '') age.value = user.age
 
   const title = document.getElementById('titleInput')
   if (title) title.value = user.professionalTitle || user.role || ''
@@ -431,7 +476,17 @@ function applyUserFieldsToForm(user, ob) {
   if (edu) edu.value = user.education || ''
 
   const industry = document.getElementById('industrySelect')
-  if (industry && user.industry) industry.value = user.industry
+  if (industry && user.industry) setSelectByText(industry, user.industry)
+
+  const blockColleagues = document.getElementById('blockColleaguesInput')
+  if (blockColleagues) {
+    blockColleagues.checked = user.blockColleagues ?? settings.privacy.blockColleagues
+  }
+
+  const discretionMode = document.getElementById('discretionModeInput')
+  if (discretionMode) {
+    discretionMode.checked = user.discretionMode ?? settings.privacy.discretionMode
+  }
 
   const bio = document.getElementById('bioInput')
   const legacy = user.legacyVision || user.bio || ob.step10 || ''
@@ -448,13 +503,25 @@ window.saveProfile = async function(e) {
   const ob = store.getOnboarding() || {}
   const bioInput = document.getElementById('bioInput')
   const orientationVisibility = document.getElementById('orientationVisibilitySelect')?.value || ''
+  const blockColleagues = document.getElementById('blockColleaguesInput')?.checked ?? true
+  const discretionMode = document.getElementById('discretionModeInput')?.checked ?? false
+  const ageRaw = document.getElementById('ageInput')?.value?.trim()
+  const age = ageRaw ? Number(ageRaw) : null
+  const mainPhoto = photoState[0]?.src || user.mainPhoto || null
+  const photos = photoState
+    .filter(Boolean)
+    .map(p => ({ src: p.src, name: p.name }))
 
   // Alignment / identity fields come from onboarding (or previously saved
   // profile) — profile setup no longer re-edits them.
   const payload = {
     firstName: document.getElementById('firstNameInput')?.value?.trim() || user.firstName || '',
     lastName: document.getElementById('lastNameInput')?.value?.trim() || user.lastName || '',
-    avatarUrl: user.avatarUrl || user.mainPhoto || '',
+    avatarUrl: mainPhoto || '',
+    age,
+    orientationVisibility,
+    blockColleagues,
+    discretionMode,
     professionalTitle: document.getElementById('titleInput')?.value?.trim() || '',
     location: document.getElementById('locationInput')?.value?.trim() || '',
     education: document.getElementById('educationInput')?.value?.trim() || '',
@@ -513,6 +580,7 @@ window.saveProfile = async function(e) {
       firstName: payload.firstName,
       lastName: payload.lastName,
       email: user.email,
+      age: payload.age,
       role: payload.professionalTitle,
       professionalTitle: payload.professionalTitle,
       bio: payload.legacyVision,
@@ -524,6 +592,8 @@ window.saveProfile = async function(e) {
       pronouns: Array.isArray(payload.pronouns) ? payload.pronouns[0] || '' : payload.pronouns,
       sexualOrientation: payload.orientation,
       orientationVisibility,
+      blockColleagues,
+      discretionMode,
       preferredGenders: payload.preferredGenders,
       ageRangeMin: payload.ageRangeMin,
       ageRangeMax: payload.ageRangeMax,
@@ -535,9 +605,14 @@ window.saveProfile = async function(e) {
       emotionalStyle: payload.emotionalCompatibility,
       lifestyleValues: payload.lifestyleValues,
       relationshipGoals: intentForEligibility || user.relationshipGoals || null,
+      mainPhoto,
+      photos,
+      avatarUrl: null,
       profileSavedToDb: true,
       profileComplete: 100,
     })
+    store.updateSetting('privacy', 'blockColleagues', blockColleagues)
+    store.updateSetting('privacy', 'discretionMode', discretionMode)
     if (intentForEligibility) store.setMatchingEligibility(evaluateEligibility(intentForEligibility))
 
     window.location.href = 'profile.html?me=1'
@@ -547,7 +622,7 @@ window.saveProfile = async function(e) {
   } finally {
     if (btn) {
       btn.disabled = false
-      btn.textContent = 'Save & View Profile'
+      btn.textContent = 'Save & Publish'
     }
   }
 }
@@ -556,11 +631,13 @@ window.saveProfile = async function(e) {
 function updateCompletionRing() {
   const fields = [
     document.getElementById('firstNameInput')?.value?.trim(),
+    document.getElementById('ageInput')?.value?.trim(),
     document.getElementById('titleInput')?.value?.trim(),
     document.getElementById('locationInput')?.value?.trim(),
     document.getElementById('industrySelect')?.value?.trim(),
+    document.getElementById('educationInput')?.value?.trim(),
     document.getElementById('bioInput')?.value?.trim(),
-    store.getUser()?.photos?.length || photoState[0]?.src,
+    photoState[0]?.src,
   ]
   const filled = fields.filter(Boolean).length
   const pct = Math.min(100, Math.round((filled / fields.length) * 100))

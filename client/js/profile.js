@@ -1,4 +1,4 @@
-import { requireAuth, initBodyFade, initNav, showToast } from './app.js'
+import { requireAuth, initBodyFade, initNav, showToast, hydrateFromProfile } from './app.js'
 import { store } from './store.js'
 import { getMember, getMembersByScore } from './members.js'
 
@@ -8,7 +8,11 @@ initNav()
 
 /* ─── Resolve which member to show ─── */
 const params = new URLSearchParams(window.location.search)
-const isSelfView = params.get('me') === 'true' || params.get('me') === '1'
+const isSelfView =
+  params.has('me') ||
+  params.has('m') ||
+  params.get('me') === 'true' ||
+  params.get('me') === '1'
 const requestedId = params.get('id')
 const member = isSelfView ? null : (getMember(requestedId) || getMembersByScore()[0])
 
@@ -16,6 +20,43 @@ function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[ch]))
+}
+
+function hasText(v) {
+  if (v == null) return false
+  if (Array.isArray(v)) return v.filter(Boolean).length > 0
+  return String(v).trim() !== ''
+}
+
+function displayText(v, emptyLabel = 'Not added yet') {
+  if (!hasText(v)) return { text: emptyLabel, empty: true }
+  if (Array.isArray(v)) return { text: v.filter(Boolean).join(', '), empty: false }
+  return { text: String(v).trim(), empty: false }
+}
+
+function fieldItem(label, value, emptyLabel) {
+  const d = displayText(value, emptyLabel)
+  return `<div class="pf-field-item">
+    <div class="pf-field-label">${esc(label)}</div>
+    <div class="pf-field-value${d.empty ? ' is-empty' : ''}">${esc(d.text)}</div>
+  </div>`
+}
+
+function fieldGrid(fields) {
+  return `<div class="pf-field-grid">${fields.map(f => fieldItem(f.label, f.value, f.emptyLabel)).join('')}</div>`
+}
+
+function chipList(items, emptyLabel = 'Not added yet') {
+  const list = (items || []).map(x => (typeof x === 'string' ? x : x?.label)).filter(Boolean)
+  if (!list.length) return `<p class="pf-empty-value">${esc(emptyLabel)}</p>`
+  return `<div class="values-grid">${list.map(v => `<span class="chip">${esc(v)}</span>`).join('')}</div>`
+}
+
+function ageRangeLabel(min, max) {
+  if (min != null && max != null) return `${min}–${max}`
+  if (min != null) return `${min}+`
+  if (max != null) return `Up to ${max}`
+  return null
 }
 
 /* ─── Verification badges ─── */
@@ -82,18 +123,30 @@ function section(label, inner) {
 }
 
 function overviewSection(m) {
-  const paras = (m.overview.paragraphs || []).map(p => `<p class="pf-para">${esc(p)}</p>`).join('')
+  const quote = m.overview?.quote
+  const paras = (m.overview?.paragraphs || []).filter(Boolean)
+  if (!hasText(quote) && !paras.length) {
+    return section('Overview', `<p class="pf-empty-value">Not provided</p>`)
+  }
+  const parasHtml = paras.map(p => `<p class="pf-para">${esc(p)}</p>`).join('')
   return section('Overview', `
-    <p class="pf-quote">“${esc(m.overview.quote)}”</p>
-    ${paras}`)
+    ${hasText(quote) ? `<p class="pf-quote">“${esc(quote)}”</p>` : ''}
+    ${parasHtml}`)
 }
 
 function legacySection(m) {
+  if (!hasText(m.legacy)) {
+    return section('Legacy & Vision', `<p class="pf-empty-value">Not provided</p>`)
+  }
   return section('Legacy & Vision', `<p class="pf-lead">${esc(m.legacy)}</p>`)
 }
 
 function careerSection(m) {
-  const items = (m.career || []).map(c => `
+  const items = (m.career || []).filter(c => hasText(c.role) || hasText(c.org))
+  if (!items.length) {
+    return section('Career Journey', `<p class="pf-empty-value">Not provided</p>`)
+  }
+  const html = items.map(c => `
     <div class="pf-tl-item">
       <div class="pf-tl-marker"><div class="pf-tl-dot"></div><div class="pf-tl-line"></div></div>
       <div>
@@ -103,19 +156,26 @@ function careerSection(m) {
         ${c.note ? `<div class="pf-tl-note">${esc(c.note)}</div>` : ''}
       </div>
     </div>`).join('')
-  return section('Career Journey', `<div class="pf-timeline">${items}</div>`)
+  return section('Career Journey', `<div class="pf-timeline">${html}</div>`)
 }
 
 function valuesSection(m) {
-  const chips = (m.values || []).map(v => `<span class="chip">${esc(v)}</span>`).join('')
-  const principles = (m.principles || []).map(p => `<div class="pf-principle">${esc(p)}</div>`).join('')
+  const values = (m.values || []).filter(Boolean)
+  const principles = (m.principles || []).filter(Boolean)
+  if (!values.length && !principles.length) {
+    return section('Values & Principles', `<p class="pf-empty-value">Not provided</p>`)
+  }
+  const chips = values.map(v => `<span class="chip">${esc(v)}</span>`).join('')
+  const principlesHtml = principles.map(p => `<div class="pf-principle">${esc(p)}</div>`).join('')
   return section('Values & Principles', `
-    <div class="values-grid">${chips}</div>
-    <div class="pf-principles">${principles}</div>`)
+    ${values.length ? `<div class="values-grid">${chips}</div>` : ''}
+    ${principles.length ? `<div class="pf-principles">${principlesHtml}</div>` : ''}`)
 }
 
 function rowList(rows) {
-  return `<div class="pf-rows">${rows.map(r => `
+  const valid = (rows || []).filter(r => hasText(r.value))
+  if (!valid.length) return `<p class="pf-empty-value">Not provided</p>`
+  return `<div class="pf-rows">${valid.map(r => `
     <div class="pf-row">
       <div class="pf-row-label">${esc(r.label)}</div>
       <div class="pf-row-value">${esc(r.value)}</div>
@@ -127,15 +187,25 @@ function lifestyleSection(m) {
 }
 
 function relationshipSection(m) {
+  const relRows = (m.relationship || []).filter(r => hasText(r.value))
+  const lead = hasText(m.intentLong)
+    ? `<p class="pf-lead">${esc(m.intentLong)}</p>`
+    : ''
+  if (!lead && !relRows.length) {
+    return section('Relationship Intent', `<p class="pf-empty-value">Not provided</p>`)
+  }
   return section('Relationship Intent', `
-    <p class="pf-lead">${esc(m.intentLong)}</p>
+    ${lead}
     <div style="margin-top:var(--s-5);">${rowList(m.relationship || [])}</div>`)
 }
 
 function mobilitySection(m) {
+  if (!hasText(m.mobility) && !hasText(m.location)) {
+    return section('Mobility Profile', `<p class="pf-empty-value">Not provided</p>`)
+  }
   return section('Mobility Profile', `
-    <p class="pf-lead">${esc(m.mobility)}</p>
-    <p class="pf-lead-sub">Primary base: ${esc(m.location)}. Mobility is part of how compatibility is scored — schedules and anchors are matched, not just cities.</p>`)
+    ${hasText(m.mobility) ? `<p class="pf-lead">${esc(m.mobility)}</p>` : ''}
+    ${hasText(m.location) ? `<p class="pf-lead-sub">Primary base: ${esc(m.location)}. Mobility is part of how compatibility is scored — schedules and anchors are matched, not just cities.</p>` : ''}`)
 }
 
 function compatibilitySection(m) {
@@ -150,7 +220,11 @@ function compatibilitySection(m) {
 }
 
 function verificationSection(m) {
-  const notes = (m.badges || []).map(b => `
+  const badges = m.badges || []
+  if (!badges.length) {
+    return section('Verification & Trust', `<p class="pf-empty-value">Not provided</p>`)
+  }
+  const notes = badges.map(b => `
     <div class="pf-verify-note">${CHECK_SVG}<span>${esc(VERIFY_NOTE[b])}</span></div>`).join('')
   return section('Verification & Trust', `
     <div class="lvl-vbadge-cluster">${badgeCluster(m.badges)}</div>
@@ -158,12 +232,16 @@ function verificationSection(m) {
 }
 
 function sharedSection(m) {
-  const items = (m.shared || []).map(s => `
+  const items = (m.shared || []).filter(s => hasText(s.label) || hasText(s.note))
+  if (!items.length) {
+    return section('Shared Alignment Indicators', `<p class="pf-empty-value">Not provided</p>`)
+  }
+  const html = items.map(s => `
     <div class="pf-shared-item">
       <div class="pf-shared-label"><span class="pf-shared-check">${CHECK_SVG}</span>${esc(s.label)}</div>
       <div class="pf-shared-note">${esc(s.note)}</div>
     </div>`).join('')
-  return section('Shared Alignment Indicators', `<div class="pf-shared">${items}</div>`)
+  return section('Shared Alignment Indicators', `<div class="pf-shared">${html}</div>`)
 }
 
 /* ─── Render detail column in the requested order ─── */
@@ -262,8 +340,9 @@ document.addEventListener('keydown', e => {
 /* ─── Self-view renderer ─── */
 function renderSelfProfile() {
   const u = store.getUser() || store.getDefaultUser()
-  const name  = [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Your Profile'
-  // Blob URLs are session-scoped and break after page navigation — skip them
+  const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Your Profile'
+  const title = u.role || u.professionalTitle || ''
+  const location = u.location || u.city || ''
   const photos = (u.photos || [])
     .filter(p => p?.src && !p.src.startsWith('blob:'))
     .map(p => p.src)
@@ -275,12 +354,18 @@ function renderSelfProfile() {
 
   document.title = 'LEVEL — My Profile'
 
-  // Portrait
+  const back = document.getElementById('navBack')
+  const backLabel = document.getElementById('navBackLabel')
+  if (back) back.setAttribute('href', 'dashboard.html')
+  if (backLabel) backLabel.textContent = 'Dashboard'
+
+  // Portrait column
   const photoEl = document.getElementById('portraitPhoto')
   if (photoEl) {
     if (mainPhoto) {
       photoEl.style.backgroundImage = `url('${mainPhoto}')`
     } else {
+      photoEl.style.backgroundImage = ''
       photoEl.style.background = 'linear-gradient(135deg,#1A2F4A,#0D1E35)'
     }
   }
@@ -289,18 +374,26 @@ function renderSelfProfile() {
     <div class="portrait-score-num" style="font-size:1rem;letter-spacing:0.1em;">MY</div>
     <div class="portrait-score-label">Profile</div>`
 
+  const metaItems = []
+  if (hasText(location)) metaItems.push(`<div class="portrait-meta-item">📍 ${esc(location)}</div>`)
+  if (u.age != null && u.age !== '') metaItems.push(`<div class="portrait-meta-item">· ${esc(String(u.age))} years</div>`)
+  if (hasText(u.pronouns)) metaItems.push(`<div class="portrait-meta-item">· ${esc(u.pronouns)}</div>`)
+
   document.getElementById('portraitInfo').innerHTML = `
     <div class="portrait-name">${esc(name)}</div>
-    <div class="portrait-role">${esc(u.role || '')}</div>
-    ${u.location || u.city ? `<div class="portrait-meta"><div class="portrait-meta-item">📍 ${esc(u.location || u.city)}</div>${u.age ? `<div class="portrait-meta-item">· ${esc(String(u.age))} years</div>` : ''}</div>` : ''}
+    ${hasText(title)
+      ? `<div class="portrait-role">${esc(title)}</div>`
+      : `<div class="portrait-role" style="opacity:0.45;font-style:italic;">Add your professional title</div>`}
+    ${metaItems.length
+      ? `<div class="portrait-meta">${metaItems.join('')}</div>`
+      : `<div class="portrait-meta"><div class="portrait-meta-item" style="opacity:0.45;font-style:italic;">Location & details not added yet</div></div>`}
     <div class="portrait-actions" style="margin-top:var(--s-5);">
       <a href="profile-setup.html" class="btn btn-gold" style="flex:1;justify-content:center;">Edit Profile</a>
     </div>`
 
-  // Detail sections
   const sections = []
 
-  // ── Photos gallery ──
+  // Photos — always show section
   if (photos.length) {
     const [first, ...rest] = photos
     const mainHTML = `
@@ -313,47 +406,80 @@ function renderSelfProfile() {
         <img src="${src}" alt="Profile photo" />
       </div>`).join('')
     sections.push(section('Photos', `<div class="pf-photo-gallery">${mainHTML}${restHTML}</div>`))
-  }
-
-  // ── Bio / Legacy ──
-  if (u.bio) {
-    sections.push(section('Legacy & Vision', `<p class="pf-lead">${esc(u.bio)}</p>`))
-  }
-
-  // ── Education ──
-  if (u.education) {
-    sections.push(section('Education', `<p class="pf-lead">${esc(u.education)}</p>`))
-  }
-
-  // ── Interests ──
-  const interests = u.interests || u.lifestyleValues || []
-  if (interests.length) {
-    const chips = interests.map(v => `<span class="chip">${esc(v)}</span>`).join('')
-    sections.push(section('Lifestyle & Values', `<div class="values-grid">${chips}</div>`))
-  }
-
-  if (!sections.length) {
-    sections.push(`<div style="padding:var(--s-8) 0;text-align:center;">
-      <p style="font-family:var(--font-serif);font-size:1.5rem;font-weight:300;color:var(--cream-50);margin-bottom:12px;">Your profile is waiting.</p>
-      <p style="font-size:0.9rem;line-height:1.7;color:var(--text-secondary);max-width:360px;margin:0 auto 24px;">Complete your profile so your matches can see what makes you remarkable.</p>
-      <a href="profile-setup.html" class="btn btn-gold">Complete Profile</a>
-    </div>`)
   } else {
-    sections.push(`<div style="margin-top:var(--s-6);">
-      <a href="profile-setup.html" class="btn btn-outline btn-lg" style="display:inline-flex;align-items:center;gap:10px;">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
-        Edit Profile
-      </a>
+    sections.push(section('Photos', `
+      <div class="pf-empty-block">
+        <p>No photos yet. Use <strong>Edit Profile</strong> on the left to add up to five images.</p>
+      </div>`))
+  }
+
+  // About — always show all fields with empty placeholders
+  sections.push(section('About You', fieldGrid([
+    { label: 'Professional title', value: title },
+    { label: 'Industry', value: u.industry },
+    { label: 'Location', value: location },
+    { label: 'Age', value: u.age },
+    { label: 'Education', value: u.education },
+    { label: 'Email', value: u.email, emptyLabel: 'Not linked' },
+  ])))
+
+  // Legacy & Vision
+  sections.push(section('Legacy & Vision',
+    hasText(u.bio || u.legacyVision)
+      ? `<p class="pf-lead">${esc(u.bio || u.legacyVision)}</p>`
+      : `<p class="pf-empty-value">Share what you're building and what partnership means in your next chapter.</p>`))
+
+  // Screening answers — show grid with empty placeholders per field
+  sections.push(section('Screening & Matching', fieldGrid([
+    { label: 'Gender identity', value: u.genderIdentity },
+    { label: 'Pronouns', value: u.pronouns },
+    { label: 'Orientation', value: u.sexualOrientation },
+    { label: 'Partner age range', value: ageRangeLabel(u.ageRangeMin, u.ageRangeMax) },
+    { label: 'Primary intent', value: u.primaryIntent },
+    { label: 'Career chapter', value: u.careerChapter },
+    { label: 'Life integration', value: u.lifeIntegration },
+    { label: 'Mobility', value: u.mobilityProfile },
+    { label: 'Long-term vision', value: u.longTermVision, emptyLabel: 'Not answered' },
+    { label: 'Emotional style', value: u.emotionalStyle, emptyLabel: 'Not answered' },
+  ]) + `
+    <div style="margin-top:var(--s-5);">
+      <div class="pf-field-label" style="margin-bottom:10px;">Looking to meet</div>
+      ${chipList(u.preferredGenders, 'Not answered')}
+    </div>
+    <div style="margin-top:var(--s-5);">
+      <div class="pf-field-label" style="margin-bottom:10px;">Lifestyle & values</div>
+      ${chipList(u.lifestyleValues || u.interests, 'Not answered')}
+    </div>`))
+
+  // Visibility
+  sections.push(section('Profile Visibility', fieldGrid([
+    { label: 'Show orientation publicly', value: u.orientationVisibility, emptyLabel: 'Not set' },
+    { label: 'Block colleagues', value: u.blockColleagues == null ? null : (u.blockColleagues ? 'On' : 'Off') },
+    { label: 'Discretion mode', value: u.discretionMode == null ? null : (u.discretionMode ? 'On' : 'Off') },
+  ])))
+
+  const hasAnyContent = photos.length || [
+    title, location, u.bio, u.legacyVision, u.education, u.industry,
+    u.genderIdentity, u.primaryIntent, u.longTermVision,
+  ].some(hasText)
+
+  if (!hasAnyContent) {
+    sections.unshift(`<div class="pf-empty-block" style="margin-bottom:var(--s-8);">
+      <p style="font-family:var(--font-serif);font-size:1.35rem;color:var(--cream-50);">Your profile is waiting.</p>
+      <p>Complete the details on the left with <strong>Edit Profile</strong> so matches can see what makes you remarkable.</p>
     </div>`)
   }
 
   document.getElementById('profileDetail').innerHTML = sections.join('')
 }
 
-/* ─── Boot ─── */
-if (isSelfView) {
-  renderSelfProfile()
-} else {
+async function bootProfile() {
+  if (isSelfView) {
+    await hydrateFromProfile().catch(() => {})
+    renderSelfProfile()
+    return
+  }
+
   document.title = `LEVEL — ${member.name}`
 
   const from = params.get('from')
@@ -376,3 +502,5 @@ if (isSelfView) {
     if (e.target.closest('#connectBtn') || e.target.closest('#connectBtnFooter')) sendConnection()
   })
 }
+
+bootProfile().catch(err => console.error('[profile] init failed:', err))

@@ -14,11 +14,12 @@
     "migrate:005": "node db/migrations/20260629_005_preferred_genders.js",
     "migrate:006": "node db/migrations/20260629_006_profile_setup_fields.js",
     "migrate:007": "node db/migrations/20260708_007_onboarding_complete.js",
+    "migrate:008": "node db/migrations/20260710_008_profile_privacy_fields.js",
     "seed:001": "node db/seeds/20260629_001_admin_user.js",
     "seed:002": "node db/seeds/20260629_002_lookup_values.js",
     "seed:003": "node db/seeds/20260629_003_preferred_genders.js",
     "db:reset": "node db/reset.js",
-    "db:fresh": "npm run db:reset && npm run migrate:001 && npm run migrate:002 && npm run migrate:003 && npm run migrate:004 && npm run migrate:005 && npm run migrate:006 && npm run migrate:007 && npm run seed:001 && npm run seed:002 && npm run seed:003"
+    "db:fresh": "npm run db:reset && npm run migrate:001 && npm run migrate:002 && npm run migrate:003 && npm run migrate:004 && npm run migrate:005 && npm run migrate:006 && npm run migrate:007 && npm run migrate:008 && npm run seed:001 && npm run seed:002 && npm run seed:003"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
