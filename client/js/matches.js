@@ -1,6 +1,7 @@
 import { requireAuth, initBodyFade } from './app.js'
 import { getMembersByScore, STATUS_LABELS } from './members.js'
 import { store } from './store.js'
+import { fetchMatches } from './matches-api.js'
 import {
   partitionByGeoReach, getRemainingMatchQuota, recordMatchDelivery,
   lockedMatchCard, currentTier,
@@ -9,6 +10,8 @@ import { requiredTierForGeo, getTierMeta } from './membership.js'
 
 requireAuth()
 initBodyFade()
+
+const FALLBACK_GRADIENT = 'linear-gradient(160deg,#1A2F4A,#0D1E35,#1E1008)'
 
 /* ─── Verification badge glyphs (line-style, restrained) ─── */
 const BADGE_SVG = {
@@ -35,7 +38,7 @@ function badgeCluster(badges) {
 function cardTemplate(m) {
   const bg = m.photo
     ? `<img class="match-card-bg" src="${m.photo}" alt="${escapeHtml(m.name)}" loading="lazy">`
-    : `<div class="match-card-bg" style="background:${m.fallback};"></div>`
+    : `<div class="match-card-bg" style="background:${m.fallback || FALLBACK_GRADIENT};"></div>`
 
   return `
     <article class="match-card" data-id="${m.id}" data-status="${m.status}" data-score="${m.score}"
@@ -60,11 +63,6 @@ function cardTemplate(m) {
 
 const grid = document.getElementById('matchesGrid')
 
-/* ─── Intent Guardrail (respectful) ─────────────────────────────
-   The matching network is reserved for serious, long-term intent.
-   When the protected policy marks a member ineligible, we replace the
-   curated grid with a respectful explanation and constructive options —
-   never a punitive "you're banned" message. */
 function intentGate() {
   return `
     <div class="intent-gate">
@@ -88,78 +86,60 @@ function intentGate() {
     </div>`
 }
 
-if (!store.isMatchingEligible()) {
-  // Ineligible: show the respectful gate; hide filters + stats.
+function locationGate(message) {
+  return `
+    <div class="intent-gate">
+      <div class="intent-gate-eyebrow">Location required</div>
+      <h2 class="intent-gate-title">Set your location to unlock matches</h2>
+      <p class="intent-gate-body">${escapeHtml(message)}</p>
+      <div class="intent-gate-actions">
+        <a class="btn btn-gold" href="profile-setup.html">Complete profile setup</a>
+      </div>
+    </div>`
+}
+
+function showIntentGate() {
   grid.innerHTML = intentGate()
   document.getElementById('matchFilters')?.style.setProperty('display', 'none')
   document.querySelector('.quick-stats')?.style.setProperty('display', 'none')
   const sub = document.querySelector('.section-card-sub')
   if (sub) sub.textContent = 'Curated introductions resume once your relationship goals reflect long-term intent.'
-} else {
-  const allMembers = getMembersByScore()
+}
 
-  /* ─ Tier-based access: geo filter + daily quota ─────────────
-     1. Split curated set into geo-accessible vs geo-locked.
-     2. For Base tier, cap accessible profiles by today's quota.
-     3. Filter out any members the user has already requested.
-     4. If no actionable profiles remain, show the subscription gate.
-     ─────────────────────────────────────────────────────────── */
-  const { accessible, locked: geoLocked } = partitionByGeoReach(allMembers)
-  const quota       = getRemainingMatchQuota()
-  const withinQuota = isFinite(quota) ? accessible.slice(0, quota) : accessible
-  const quotaLocked = isFinite(quota) ? accessible.slice(quota) : []
+function exhaustedGate(tierOverride) {
+  const tier   = tierOverride || currentTier()
+  const isBase = tier === 'base'
+  const isPlus = tier === 'plus'
+  const upgTitle = isBase
+    ? 'Upgrade to see more matches'
+    : 'Your next curated set is on its way'
+  const upgBody  = isBase
+    ? 'LEVEL Plus unlocks expanded national reach, unlimited profile delivery, and in-app reservations — ₱499/month.'
+    : isPlus
+      ? 'Upgrade to Prime for global reach, real-time priority ranking, and personal concierge assistance.'
+      : 'New curated introductions are prepared every 24 hours. Check back tomorrow.'
+  const upgCta   = tier === 'prime'
+    ? `<a href="dashboard.html" class="btn btn-gold btn-sm">Back to dashboard</a>`
+    : `<a href="membership.html" class="btn btn-gold btn-sm">See upgrade options</a>`
 
-  // Strip members who already received a connection request this session
-  const sentIds  = store.getSentRequestIds()
-  const shown    = withinQuota.filter(m => !sentIds.includes(m.id))
-  const pending  = withinQuota.filter(m =>  sentIds.includes(m.id))
+  return `
+    <div style="grid-column:1/-1;display:flex;flex-direction:column;align-items:center;text-align:center;
+                padding:var(--s-16) var(--s-8);gap:var(--s-4);">
+      <div style="font-size:36px;opacity:0.35;">✦</div>
+      <div style="font-family:var(--font-sans);font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;
+                  color:var(--gold-400);font-weight:500;">Queue complete</div>
+      <h3 style="font-family:var(--font-serif);font-size:1.9rem;font-weight:300;color:var(--cream-50);
+                 letter-spacing:-0.02em;line-height:1.1;max-width:480px;">${upgTitle}</h3>
+      <p style="font-family:var(--font-sans);font-size:0.92rem;font-weight:300;color:rgba(255,255,255,0.55);
+                line-height:1.7;max-width:440px;">${upgBody}</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:var(--s-2);">
+        ${upgCta}
+        <a href="chat.html" class="btn btn-outline-dark btn-sm">View pending requests</a>
+      </div>
+    </div>`
+}
 
-  // Record delivery only for newly surfaced profiles
-  if (isFinite(quota) && shown.length > 0) recordMatchDelivery(shown.length)
-
-  /* ─ Exhausted gate: show when no actionable matches remain ── */
-  function exhaustedGate() {
-    const tier     = currentTier()
-    const meta     = getTierMeta(tier)
-    const isBase   = tier === 'base'
-    const isPlus   = tier === 'plus'
-    const upgTitle = isBase
-      ? 'Upgrade to see more matches'
-      : 'Your next curated set is on its way'
-    const upgBody  = isBase
-      ? 'LEVEL Plus unlocks expanded national reach, unlimited profile delivery, and in-app reservations — ₱499/month.'
-      : isPlus
-        ? 'Upgrade to Prime for global reach, real-time priority ranking, and personal concierge assistance.'
-        : 'New curated introductions are prepared every 24 hours. Check back tomorrow.'
-    const upgCta   = tier === 'prime'
-      ? `<a href="dashboard.html" class="btn btn-gold btn-sm">Back to dashboard</a>`
-      : `<a href="membership.html" class="btn btn-gold btn-sm">See upgrade options</a>`
-
-    return `
-      <div style="grid-column:1/-1;display:flex;flex-direction:column;align-items:center;text-align:center;
-                  padding:var(--s-16) var(--s-8);gap:var(--s-4);">
-        <div style="font-size:36px;opacity:0.35;">✦</div>
-        <div style="font-family:var(--font-sans);font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;
-                    color:var(--gold-400);font-weight:500;">Queue complete</div>
-        <h3 style="font-family:var(--font-serif);font-size:1.9rem;font-weight:300;color:var(--cream-50);
-                   letter-spacing:-0.02em;line-height:1.1;max-width:480px;">${upgTitle}</h3>
-        <p style="font-family:var(--font-sans);font-size:0.92rem;font-weight:300;color:rgba(255,255,255,0.55);
-                  line-height:1.7;max-width:440px;">${upgBody}</p>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:var(--s-2);">
-          ${upgCta}
-          <a href="chat.html" class="btn btn-outline-dark btn-sm">View pending requests</a>
-        </div>
-      </div>`
-  }
-
-  grid.innerHTML = [
-    ...shown.map(cardTemplate),
-    shown.length === 0 ? exhaustedGate() : '',
-    ...quotaLocked.map(() => lockedMatchCard({ reason: 'quota', requiredTier: 'plus' })),
-    ...geoLocked.map(m => lockedMatchCard({ reason: 'geo', requiredTier: requiredTierForGeo(m.geoTier) })),
-  ].join('')
-
-  /* Open a profile — locked and exhausted cards have no data-id so do nothing. */
+function wireGridInteractions() {
   const openProfile = id => { if (id) window.location = `profile.html?id=${encodeURIComponent(id)}` }
 
   grid.addEventListener('click', e => {
@@ -172,7 +152,6 @@ if (!store.isMatchingEligible()) {
     if (card) { e.preventDefault(); openProfile(card.dataset.id) }
   })
 
-  /* Filters */
   const filters = document.querySelectorAll('#matchFilters .filter-tab')
   filters.forEach(tab => {
     tab.addEventListener('click', () => {
@@ -189,3 +168,86 @@ if (!store.isMatchingEligible()) {
     })
   })
 }
+
+function renderMatchGrid({ shown, quotaLocked = [], geoLocked = [], tier }) {
+  grid.innerHTML = [
+    ...shown.map(cardTemplate),
+    shown.length === 0 ? exhaustedGate(tier) : '',
+    ...quotaLocked.map(() => lockedMatchCard({ reason: 'quota', requiredTier: 'plus' })),
+    ...geoLocked.map(m => lockedMatchCard({
+      reason: 'geo',
+      requiredTier: m.requiredTier || requiredTierForGeo(m.geoTier),
+    })),
+  ].join('')
+  wireGridInteractions()
+}
+
+function enrichApiMatch(m) {
+  const badges = []
+  if (m.photo) badges.push('photo')
+  if (m.memberTier === 'prime' || m.memberTier === 'plus') badges.push('premium')
+  return { ...m, badges, fallback: FALLBACK_GRADIENT }
+}
+
+function renderFromMock() {
+  if (!store.isMatchingEligible()) {
+    showIntentGate()
+    return
+  }
+
+  const allMembers = getMembersByScore()
+  const { accessible, locked: geoLocked } = partitionByGeoReach(allMembers)
+  const quota       = getRemainingMatchQuota()
+  const withinQuota = isFinite(quota) ? accessible.slice(0, quota) : accessible
+  const quotaLocked = isFinite(quota) ? accessible.slice(quota) : []
+  const sentIds     = store.getSentRequestIds()
+  const shown       = withinQuota.filter(m => !sentIds.includes(m.id))
+
+  if (isFinite(quota) && shown.length > 0) recordMatchDelivery(shown.length)
+
+  renderMatchGrid({ shown, quotaLocked, geoLocked })
+}
+
+function renderFromApi(payload) {
+  if (!payload.matchingEligible) {
+    showIntentGate()
+    return
+  }
+
+  if (payload.tier) {
+    const user = store.getUser()
+    if (user) store.setUser({ ...user, tier: payload.tier })
+  }
+
+  const sentIds = store.getSentRequestIds()
+  const shown = (payload.matches || [])
+    .map(enrichApiMatch)
+    .filter(m => !sentIds.includes(m.id))
+
+  const geoLocked = (payload.locked || []).filter(l => l.reason === 'geo')
+
+  renderMatchGrid({
+    shown,
+    geoLocked,
+    tier: payload.tier,
+  })
+}
+
+async function bootMatchesPage() {
+  try {
+    const payload = await fetchMatches()
+    renderFromApi(payload)
+    return
+  } catch (err) {
+    if (err.code === 'LOCATION_REQUIRED') {
+      grid.innerHTML = locationGate(err.message)
+      document.getElementById('matchFilters')?.style.setProperty('display', 'none')
+      return
+    }
+    console.warn('[matches] API unavailable, using mock data:', err.message)
+  }
+
+  renderFromMock()
+}
+
+bootMatchesPage()

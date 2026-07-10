@@ -12,6 +12,7 @@ const refRoutes          = require('./routes/ref')
 const locationRoutes     = require('./routes/location')
 const profilePhotoRoutes = require('./routes/profile-photos')
 const subscriptionRoutes = require('./routes/subscriptions')
+const matchRoutes          = require('./routes/matches')
 const webhookRoutes      = require('./routes/webhooks')
 const adminAuthRoutes    = require('./routes/admin-auth')
 const adminApiRoutes     = require('./routes/admin-api')
@@ -62,6 +63,7 @@ app.use('/api/auth',                         authRoutes)
 app.use('/api/ref/location',                 locationRoutes)
 app.use('/api/ref',                          refRoutes)
 app.use('/api/profile',                      profilePhotoRoutes)
+app.use('/api',                              matchRoutes)
 app.use('/api',           paymentLimiter,    subscriptionRoutes)
 app.use('/webhooks',                         webhookRoutes)
 app.use('/admin/auth',    adminLoginLimiter,  adminAuthRoutes)
@@ -104,6 +106,8 @@ app.use((err, req, res, _next) => {
     STORAGE_UPLOAD_FAILED:   502,
     STORAGE_DELETE_FAILED:   502,
     SERVER_MISCONFIGURED:    500,
+    PROFILE_NOT_FOUND:       404,
+    LOCATION_REQUIRED:       400,
   }
   if (statusMap[err.code]) {
     return res.status(statusMap[err.code]).json({ error: err.code, message: err.message })
