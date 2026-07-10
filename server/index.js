@@ -9,6 +9,7 @@ const rateLimit    = require('express-rate-limit')
 
 const authRoutes         = require('./routes/auth')
 const refRoutes          = require('./routes/ref')
+const locationRoutes     = require('./routes/location')
 const profilePhotoRoutes = require('./routes/profile-photos')
 const subscriptionRoutes = require('./routes/subscriptions')
 const webhookRoutes      = require('./routes/webhooks')
@@ -58,6 +59,7 @@ app.use((req, res, next) => {
 
 /* ─── Routes ────────────────────────────────────────────────────*/
 app.use('/api/auth',                         authRoutes)
+app.use('/api/ref/location',                 locationRoutes)
 app.use('/api/ref',                          refRoutes)
 app.use('/api/profile',                      profilePhotoRoutes)
 app.use('/api',           paymentLimiter,    subscriptionRoutes)

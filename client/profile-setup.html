@@ -783,7 +783,18 @@
 
           <div class="form-group">
             <label class="form-label">Location</label>
-            <input type="text" class="form-input" id="locationInput" placeholder="City, State" oninput="updatePreview()">
+            <p style="font-family:var(--font-sans);font-size:0.78rem;font-weight:300;color:rgba(245,237,224,0.45);line-height:1.55;margin:-4px 0 12px;">
+              Used for membership geo matching — local (your region), national (your country), and international reach.
+            </p>
+            <select class="form-input form-select" id="countrySelect" data-lvl-search="true" data-lvl-search-placeholder="Search countries…" onchange="updatePreview()">
+              <option value="" disabled selected>Select country</option>
+            </select>
+            <select class="form-input form-select" id="regionSelect" style="margin-top:10px;" data-lvl-search="true" data-lvl-search-placeholder="Search regions…" disabled onchange="updatePreview()">
+              <option value="" disabled selected>Select region / state</option>
+            </select>
+            <select class="form-input form-select" id="citySelect" style="margin-top:10px;" data-lvl-search="true" data-lvl-search-min="6" data-lvl-search-placeholder="Search cities…" disabled onchange="updatePreview()">
+              <option value="" disabled selected>Select city (optional)</option>
+            </select>
           </div>
 
           <div class="form-group">

@@ -15,9 +15,23 @@ import {
 } from './profile-photos.js'
 import { apiFetch } from './sso.js'
 import { supabase } from './supabase.js'
+import { initLocationPicker } from './location-picker.js'
 
 requireAuth()
 initBodyFade()
+
+let locationPickerApi = null
+
+function getLocationFromForm() {
+  return locationPickerApi?.getValues() || {
+    countryCode: '',
+    countryName: '',
+    regionCode: '',
+    regionName: '',
+    city: '',
+    location: '',
+  }
+}
 
 bootProfileSetup().catch(err => console.error('[profile-setup] init failed:', err))
 
@@ -26,7 +40,7 @@ window.updatePreview = function() {
   const last = document.getElementById('lastNameInput')?.value.trim() || ''
   const age = document.getElementById('ageInput')?.value.trim() || ''
   const title = document.getElementById('titleInput')?.value.trim() || ''
-  const location = document.getElementById('locationInput')?.value.trim() || ''
+  const location = getLocationFromForm().location
 
   const previewName = document.getElementById('previewName')
   if (previewName) {
@@ -481,6 +495,28 @@ async function bootProfileSetup() {
 
   fillOnboardingReview(user, ob)
   applyUserFieldsToForm(user, ob, settings)
+
+  try {
+    locationPickerApi = await initLocationPicker({
+      countrySelect: document.getElementById('countrySelect'),
+      regionSelect: document.getElementById('regionSelect'),
+      citySelect: document.getElementById('citySelect'),
+      initial: {
+        countryCode: user.countryCode,
+        countryName: user.countryName,
+        regionCode: user.regionCode,
+        regionName: user.regionName,
+        city: user.city,
+      },
+      onChange: () => {
+        window.updatePreview()
+        updateCompletionRing()
+      },
+    })
+  } catch (e) {
+    console.warn('[profile-setup] location picker unavailable:', e.message)
+  }
+
   try {
     await reloadPhotos()
   } catch (e) {
@@ -504,9 +540,6 @@ function applyUserFieldsToForm(user, ob, settings = store.getSettings()) {
 
   const title = document.getElementById('titleInput')
   if (title) title.value = user.professionalTitle || user.role || ''
-
-  const loc = document.getElementById('locationInput')
-  if (loc) loc.value = user.location || ''
 
   const edu = document.getElementById('educationInput')
   if (edu) edu.value = user.education || ''
@@ -548,6 +581,14 @@ window.saveProfile = async function(e) {
     .filter(Boolean)
     .map(p => ({ src: p.src, name: p.name }))
 
+  const loc = getLocationFromForm()
+  const regionEl = document.getElementById('regionSelect')
+  const needsRegion = regionEl && !regionEl.disabled && regionEl.options.length > 1
+  if (!loc.countryCode || (needsRegion && !loc.regionCode)) {
+    showToast('Select your country and region / state.', '✕')
+    return
+  }
+
   // Alignment / identity fields come from onboarding (or previously saved
   // profile) — profile setup no longer re-edits them.
   const payload = {
@@ -559,7 +600,12 @@ window.saveProfile = async function(e) {
     blockColleagues,
     discretionMode,
     professionalTitle: document.getElementById('titleInput')?.value?.trim() || '',
-    location: document.getElementById('locationInput')?.value?.trim() || '',
+    location: loc.location,
+    countryCode: loc.countryCode,
+    countryName: loc.countryName,
+    regionCode: loc.regionCode,
+    regionName: loc.regionName,
+    city: loc.city || null,
     education: document.getElementById('educationInput')?.value?.trim() || '',
     industry: document.getElementById('industrySelect')?.value || '',
     legacyVision: bioInput?.value?.trim() || ob.step10 || '',
@@ -627,6 +673,11 @@ window.saveProfile = async function(e) {
       bio: payload.legacyVision,
       legacyVision: payload.legacyVision,
       location: payload.location,
+      countryCode: payload.countryCode,
+      countryName: payload.countryName,
+      regionCode: payload.regionCode,
+      regionName: payload.regionName,
+      city: payload.city,
       education: payload.education,
       industry: payload.industry,
       genderIdentity: payload.genderIdentity,
@@ -674,7 +725,8 @@ function updateCompletionRing() {
     document.getElementById('firstNameInput')?.value?.trim(),
     document.getElementById('ageInput')?.value?.trim(),
     document.getElementById('titleInput')?.value?.trim(),
-    document.getElementById('locationInput')?.value?.trim(),
+    document.getElementById('countrySelect')?.value,
+    document.getElementById('regionSelect')?.value,
     document.getElementById('industrySelect')?.value?.trim(),
     document.getElementById('educationInput')?.value?.trim(),
     document.getElementById('bioInput')?.value?.trim(),

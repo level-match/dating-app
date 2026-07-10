@@ -2,6 +2,7 @@ const express = require('express')
 const pool    = require('../db/pool')
 const { verifySupabaseToken } = require('../middleware/supabase-auth')
 const subscriptionSvc = require('../services/subscription.service')
+const { formatLocationLabel } = require('../utils/location')
 
 const router = express.Router()
 
@@ -171,6 +172,7 @@ router.post('/profile', async (req, res) => {
   const {
     firstName, lastName, avatarUrl,
     professionalTitle, location, education, industry,
+    countryCode, countryName, regionCode, regionName, city,
     age, orientationVisibility, blockColleagues, discretionMode,
     genderIdentity, pronouns, orientation, preferredGenders,
     ageRangeMin, ageRangeMax,
@@ -210,11 +212,18 @@ router.post('/profile', async (req, res) => {
     const genderCustom      = genderIdRes    === 99 ? (genderIdentity || null)  : null
     const orientationCustom = orientationRes === 99 ? (orientation    || null)  : null
 
+    const displayLocation = location || formatLocationLabel({
+      city: city || null,
+      regionName: regionName || null,
+      countryName: countryName || null,
+    })
+
     // 3. Upsert profile row
     const { rows: profRows } = await client.query(
       `INSERT INTO profiles (
          user_id, first_name, last_name, avatar_url,
          professional_title, location, education, industry,
+         country_code, country_name, region_code, region_name, city,
          age, orientation_visibility, block_colleagues, discretion_mode,
          gender_identity_id, gender_identity_custom,
          orientation_id, orientation_custom,
@@ -224,7 +233,7 @@ router.post('/profile', async (req, res) => {
          life_integration_id, mobility_profile_id,
          emotional_style_id, legacy_vision
        ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25
+         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30
        )
        ON CONFLICT (user_id) DO UPDATE SET
          first_name              = EXCLUDED.first_name,
@@ -234,6 +243,11 @@ router.post('/profile', async (req, res) => {
          location                = EXCLUDED.location,
          education               = EXCLUDED.education,
          industry                = EXCLUDED.industry,
+         country_code            = EXCLUDED.country_code,
+         country_name            = EXCLUDED.country_name,
+         region_code             = EXCLUDED.region_code,
+         region_name             = EXCLUDED.region_name,
+         city                    = EXCLUDED.city,
          age                     = EXCLUDED.age,
          orientation_visibility  = EXCLUDED.orientation_visibility,
          block_colleagues        = EXCLUDED.block_colleagues,
@@ -258,9 +272,14 @@ router.post('/profile', async (req, res) => {
         lastName   || null,
         avatarUrl  || null,
         professionalTitle || null,
-        location   || null,
+        displayLocation || null,
         education  || null,
         industry   || null,
+        countryCode ? String(countryCode).toUpperCase().slice(0, 2) : null,
+        countryName || null,
+        regionCode  ? String(regionCode).toUpperCase().slice(0, 20) : null,
+        regionName  || null,
+        city        || null,
         age != null && age !== '' ? Number(age) : null,
         orientationVisibility || null,
         blockColleagues != null ? !!blockColleagues : true,
@@ -355,6 +374,11 @@ router.get('/profile', async (req, res) => {
          p.avatar_url,
          p.professional_title,
          p.location,
+         p.country_code,
+         p.country_name,
+         p.region_code,
+         p.region_name,
+         p.city,
          p.education,
          p.industry,
          p.age,
