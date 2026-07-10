@@ -83,6 +83,10 @@ All commands below are run from the **repo root**.
 
 | Command | What it does |
 |---|---|
+| `npm run dev` | **Start both** frontend + backend (one terminal) |
+| `npm run dev:stop` | Kill running dev servers (ports 3000–3003, 4000) |
+| `npm run dev:restart` | Stop, then start both again |
+| `npm run dev:status` | Show which dev ports are in use |
 | `npm run dev:client` | Start Vite frontend on **port 3000** |
 | `npm run dev:server` | Start Express backend on **port 4000** |
 | `npm run build` | Build frontend for production |

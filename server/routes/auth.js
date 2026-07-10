@@ -70,6 +70,44 @@ async function verifySupabaseToken(authHeader) {
   }
 }
 
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+
+/** Look up a user by email and whether they have a saved profile row. */
+async function lookupEmailAccount(client, email) {
+  const { rows } = await client.query(
+    `SELECT u.external_id,
+            EXISTS(SELECT 1 FROM profiles p WHERE p.user_id = u.id) AS has_profile
+     FROM users u
+     WHERE lower(u.email) = lower($1)
+     LIMIT 1`,
+    [email]
+  )
+  if (!rows.length) return null
+  return { externalId: rows[0].external_id, hasProfile: !!rows[0].has_profile }
+}
+
+/* ─── GET /api/auth/check-email ─────────────────────────────────
+   Public pre-check before sign-up. Returns whether the email is
+   already registered and linked to a profile.
+*/
+router.get('/check-email', async (req, res) => {
+  const email = (req.query.email || '').trim().toLowerCase()
+  if (!email || !EMAIL_RE.test(email)) {
+    return res.status(400).json({ error: 'INVALID_EMAIL', message: 'Enter a valid email address.' })
+  }
+
+  const client = await pool.connect()
+  try {
+    const account = await lookupEmailAccount(client, email)
+    res.json({
+      exists: !!account,
+      hasProfile: !!account?.hasProfile,
+    })
+  } finally {
+    client.release()
+  }
+})
+
 /* ─── POST /api/auth/sync ───────────────────────────────────────
    Called after every successful auth (OAuth or email OTP).
    - Upserts the user row into `users`
@@ -85,6 +123,15 @@ router.post('/sync', async (req, res) => {
 
   const client = await pool.connect()
   try {
+    const existing = email ? await lookupEmailAccount(client, email) : null
+    if (existing?.hasProfile && existing.externalId !== supabaseId) {
+      return res.status(409).json({
+        error: 'EMAIL_EXISTS',
+        message: 'An account with this email already exists. Please sign in.',
+        redirectToSignIn: true,
+      })
+    }
+
     // Upsert — insert on first login, do nothing on subsequent logins
     await client.query(
       `INSERT INTO users (external_id, email)

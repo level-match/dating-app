@@ -27,6 +27,27 @@ const PROVIDER_ID = { google: 'google', apple: 'apple', linkedin: 'linkedin_oidc
 /** Where to send the user after MFA completes, by intent. */
 const DESTINATION = { apply: 'onboarding.html', signin: 'dashboard.html' }
 
+/** True when this email already has a user row with a linked profile. */
+async function emailHasExistingProfile(email) {
+  const target = (email || '').trim().toLowerCase()
+  if (!target) return false
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/auth/check-email?email=${encodeURIComponent(target)}`,
+    )
+    if (!res.ok) return false
+    const { exists, hasProfile } = await res.json()
+    return !!(exists && hasProfile)
+  } catch (e) {
+    console.warn('[sso] check-email failed:', e)
+    return false
+  }
+}
+
+function redirectToSignInWithNotice() {
+  window.location.replace('auth.html?mode=login&notice=account_exists')
+}
+
 /**
  * Begin the OAuth flow. Redirects away to the provider; control returns to
  * auth.html where handleOAuthReturn() finishes the job.
@@ -101,8 +122,19 @@ export async function handleOAuthReturn() {
 
   const user     = session.user
   const provider = user.app_metadata?.provider || 'oauth'
+  const intent   = params.get('intent') || 'signin'
   const { firstName, lastName } = splitName(user.user_metadata)
   const avatar   = user.user_metadata?.avatar_url || user.user_metadata?.picture || ''
+
+  // Sign-up with an email that already has a profile → send to Sign In.
+  if (intent === 'apply' && user.email) {
+    const alreadyRegistered = await emailHasExistingProfile(user.email)
+    if (alreadyRegistered) {
+      await signOut()
+      redirectToSignInWithNotice()
+      return true
+    }
+  }
 
   // ── Check if this is a RETURNING user (already in our DB) ─────────────────
   // We probe without syncing — if they already exist, skip the consent modal.
@@ -246,6 +278,14 @@ function showOAuthConsentModal({ firstName, lastName, email, avatar, provider })
         method: 'POST',
         body: JSON.stringify({ firstName: fn, lastName: ln }),
       })
+      if (res.status === 409) {
+        const body = await res.json().catch(() => ({}))
+        if (body.redirectToSignIn) {
+          await signOut()
+          redirectToSignInWithNotice()
+          return
+        }
+      }
       if (res.ok) {
         const { needsOnboarding } = await res.json()
         dest = needsOnboarding ? 'onboarding.html' : 'dashboard.html'

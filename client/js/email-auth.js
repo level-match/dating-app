@@ -47,6 +47,24 @@ window.handleEmailAuth = async function (intent) {
     return
   }
 
+  if (intent === 'apply') {
+    try {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'
+      const res = await fetch(
+        `${apiBase}/api/auth/check-email?email=${encodeURIComponent(email)}`,
+      )
+      if (res.ok) {
+        const { exists, hasProfile } = await res.json()
+        if (exists && hasProfile) {
+          window.location.replace('auth.html?mode=login&notice=account_exists')
+          return
+        }
+      }
+    } catch (e) {
+      console.warn('[email-auth] check-email failed:', e)
+    }
+  }
+
   const btn = input?.parentElement.querySelector('.email-auth-btn')
   if (btn) { btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = 'Sending code…' }
   setStatus(status, 'info', 'Sending a code to your inbox…')
@@ -188,6 +206,14 @@ async function finishSession(email, intent) {
       method: 'POST',
       body: JSON.stringify({}),
     })
+    if (res.status === 409) {
+      const body = await res.json().catch(() => ({}))
+      if (body.redirectToSignIn) {
+        await supabase.auth.signOut()
+        window.location.replace('auth.html?mode=login&notice=account_exists')
+        return
+      }
+    }
     if (res.ok) ({ needsOnboarding } = await res.json())
   } catch { /* backend optional — fall back to safe default */ }
 

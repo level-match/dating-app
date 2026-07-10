@@ -36,3 +36,24 @@ handleOAuthReturn().then(handled => {
 /* Deep-link: ?mode=register opens the Apply panel. */
 const params = new URLSearchParams(window.location.search)
 if (params.get('mode') === 'register') window.switchTab('register')
+
+function showAuthNotice() {
+  const notice = params.get('notice')
+  if (notice !== 'account_exists') return
+
+  const banner = document.createElement('div')
+  banner.className = 'auth-notice'
+  banner.setAttribute('role', 'status')
+  banner.innerHTML =
+    'An account with this email already exists. Please <strong>sign in</strong> to continue.'
+
+  const panel = document.getElementById('loginPanel')
+  panel?.insertBefore(banner, panel.firstChild)
+
+  // Drop query params so refresh does not repeat the banner.
+  const clean = new URL(window.location.href)
+  clean.searchParams.delete('notice')
+  window.history.replaceState({}, '', clean)
+}
+
+showAuthNotice()
