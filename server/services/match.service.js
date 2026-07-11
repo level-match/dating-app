@@ -286,6 +286,7 @@ async function mapCandidateRow(viewer, row, connection = null) {
     alignmentSummary: buildAlignmentSummary(viewer, row, score),
     status: conn.status,
     connectionStatus: conn.connectionStatus,
+    connectionId: connection?.id || null,
     photo,
     memberTier: row.member_tier || 'base',
     intentShort: row.primary_intent || null,
@@ -772,9 +773,41 @@ async function acceptConnectionRequest(viewerUserId, profileId) {
   }
 }
 
+/**
+ * Decline an incoming connection request.
+ */
+async function declineConnectionRequest(viewerUserId, profileId) {
+  const candidate = await loadCandidateByProfileId(profileId)
+  if (!candidate) {
+    const err = new Error('Profile not found.')
+    err.code = 'NOT_FOUND'
+    throw err
+  }
+
+  const existing = await getConnectionBetween(viewerUserId, candidate.user_id)
+  if (!existing || existing.status !== 'pending' || existing.to_user_id !== viewerUserId) {
+    const err = new Error('No incoming connection request found.')
+    err.code = 'NOT_FOUND'
+    throw err
+  }
+
+  const { rows } = await pool.query(
+    `UPDATE connection_requests
+     SET status = 'declined', updated_at = NOW()
+     WHERE id = $1
+     RETURNING *`,
+    [existing.id],
+  )
+
+  return { connection: rows[0] }
+}
+
 module.exports = {
   getMatchesForUser,
   getMatchProfile,
   sendConnectionRequest,
   acceptConnectionRequest,
+  declineConnectionRequest,
+  loadViewer,
+  computeCompatibilityScore,
 }

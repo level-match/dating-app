@@ -20,6 +20,7 @@
     "migrate:011": "node db/migrations/20260710_011_profile_location_fields.js",
     "migrate:012": "node db/migrations/20260710_012_match_deliveries.js",
     "migrate:013": "node db/migrations/20260710_013_connection_requests.js",
+    "migrate:014": "node db/migrations/20260710_014_chat_messages.js",
     "storage:setup": "node scripts/ensure-profile-images-bucket.js",
     "seed:001": "node db/seeds/20260629_001_admin_user.js",
     "seed:002": "node db/seeds/20260629_002_lookup_values.js",

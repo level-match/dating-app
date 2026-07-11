@@ -218,7 +218,14 @@ async function handleCardAction(profileId, action) {
   }
 
   if (action === 'message') {
-    window.location.href = 'chat.html'
+    if (match.connectionStatus !== 'mutual' && match.status !== 'mutual') {
+      showToast('Messaging unlocks once you both accept the connection.', '⚠', 3000)
+      return
+    }
+    const qs = match.connectionId
+      ? `?connection=${encodeURIComponent(match.connectionId)}`
+      : ''
+    window.location.href = `chat.html${qs}`
     return
   }
 

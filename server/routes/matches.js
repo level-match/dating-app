@@ -66,4 +66,19 @@ router.post('/matches/:profileId/accept', async (req, res) => {
   })
 })
 
+/* ─── POST /api/matches/:profileId/decline ───────────────────────
+   Decline an incoming connection request. */
+router.post('/matches/:profileId/decline', async (req, res) => {
+  if (!isUuid(req.params.profileId)) return invalidProfileId(res)
+
+  const result = await matchSvc.declineConnectionRequest(req.auth.userId, req.params.profileId)
+  res.json({
+    connection: {
+      id: result.connection.id,
+      status: result.connection.status,
+    },
+    message: 'Connection request declined.',
+  })
+})
+
 module.exports = router

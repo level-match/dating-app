@@ -23,6 +23,11 @@ const requestedId = params.get('id')
 let member = null
 let memberFromApi = false
 
+function chatHref(connectionId) {
+  const id = connectionId || member?.connectionId
+  return id ? `chat.html?connection=${encodeURIComponent(id)}` : 'chat.html'
+}
+
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -349,10 +354,10 @@ async function sendConnection() {
         type: 'match',
         title: `Connected with ${member.name}`,
         body: 'Messaging is unlocked — say hello when you are ready.',
-        href: 'chat.html',
+        href: chatHref(result.connection?.id),
       })
       showToast(`You're connected with ${member.name.split(' ')[0]}.`, '✦', 2500)
-      setTimeout(() => { window.location.href = 'chat.html' }, 1400)
+      setTimeout(() => { window.location.href = chatHref(result.connection?.id) }, 1400)
     } catch (err) {
       showToast(err.message || 'Could not accept the request.', '⚠', 3500)
     }
@@ -368,7 +373,7 @@ async function sendConnection() {
       if (result.connection?.mutual) {
         markButtonsMutual()
         showToast(`You're connected with ${member.name.split(' ')[0]}.`, '✦', 2500)
-        setTimeout(() => { window.location.href = 'chat.html' }, 1400)
+        setTimeout(() => { window.location.href = chatHref(result.connection?.id) }, 1400)
         return
       }
 
@@ -689,7 +694,7 @@ async function bootProfile() {
     const btn = e.target.closest('#connectBtn, #connectBtnFooter')
     if (!btn) return
     if (connectionStatus === 'mutual') {
-      window.location.href = 'chat.html'
+      window.location.href = chatHref()
       return
     }
     sendConnection()

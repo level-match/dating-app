@@ -77,7 +77,15 @@ export function partitionByGeoReach(members) {
 
 /* ── Messaging thread gate ──────────────────────────────────── */
 
+let _activeThreadCount = null
+
+/** Set active thread count from the chat inbox API (preferred). */
+export function setActiveThreadCount(count) {
+  _activeThreadCount = Number.isFinite(count) ? count : null
+}
+
 export function getActiveThreadCount() {
+  if (_activeThreadCount !== null) return _activeThreadCount
   try {
     const all = JSON.parse(localStorage.getItem('level_messages') || 'null') || {}
     return Object.values(all).filter(t => Array.isArray(t) && t.length > 0).length

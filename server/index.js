@@ -13,6 +13,7 @@ const locationRoutes     = require('./routes/location')
 const profilePhotoRoutes = require('./routes/profile-photos')
 const subscriptionRoutes = require('./routes/subscriptions')
 const matchRoutes          = require('./routes/matches')
+const chatRoutes           = require('./routes/chat')
 const webhookRoutes      = require('./routes/webhooks')
 const adminAuthRoutes    = require('./routes/admin-auth')
 const adminApiRoutes     = require('./routes/admin-api')
@@ -64,6 +65,7 @@ app.use('/api/ref/location',                 locationRoutes)
 app.use('/api/ref',                          refRoutes)
 app.use('/api/profile',                      profilePhotoRoutes)
 app.use('/api',                              matchRoutes)
+app.use('/api',                              chatRoutes)
 app.use('/api',           paymentLimiter,    subscriptionRoutes)
 app.use('/webhooks',                         webhookRoutes)
 app.use('/admin/auth',    adminLoginLimiter,  adminAuthRoutes)
@@ -113,6 +115,9 @@ app.use((err, req, res, _next) => {
     ALREADY_CONNECTED:       409,
     CONNECTION_EXISTS:       409,
     INVALID_PROFILE_ID:      400,
+    INVALID_CONNECTION_ID:   400,
+    INVALID_MESSAGE:         400,
+    MESSAGING_LOCKED:        403,
   }
   if (statusMap[err.code]) {
     return res.status(statusMap[err.code]).json({ error: err.code, message: err.message })
