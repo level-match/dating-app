@@ -109,6 +109,8 @@ function applyProfileToStore(p, user) {
     orientationVisibility: p.orientation_visibility ?? user.orientationVisibility,
     blockColleagues: p.block_colleagues ?? user.blockColleagues,
     discretionMode: p.discretion_mode ?? user.discretionMode,
+    mutualOnlyVisibility: p.mutual_only_visibility ?? user.mutualOnlyVisibility,
+    readReceipts: p.read_receipts ?? user.readReceipts,
     legacyVision: p.legacy_vision,
     bio: p.legacy_vision,
     genderIdentity: p.gender_identity,
@@ -138,6 +140,12 @@ function applyProfileToStore(p, user) {
   }
   if (p.discretion_mode != null) {
     store.updateSetting('privacy', 'discretionMode', !!p.discretion_mode)
+  }
+  if (p.mutual_only_visibility != null) {
+    store.updateSetting('privacy', 'mutualOnlyVisibility', !!p.mutual_only_visibility)
+  }
+  if (p.read_receipts != null) {
+    store.updateSetting('privacy', 'readReceipts', !!p.read_receipts)
   }
 }
 

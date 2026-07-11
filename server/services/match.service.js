@@ -9,6 +9,10 @@ const {
   requiredTierForGeo,
   getDailyMatchLimit,
 } = require('../utils/entitlements')
+const {
+  shouldBlockColleaguePair,
+  applyMutualOnlyVisibility,
+} = require('../utils/privacy')
 
 const PROFILE_SELECT = `
   SELECT
@@ -27,6 +31,10 @@ const PROFILE_SELECT = `
     p.region_name,
     p.city,
     p.age,
+    p.block_colleagues,
+    p.discretion_mode,
+    p.mutual_only_visibility,
+    p.read_receipts,
     p.legacy_vision,
     p.career_chapter_id,
     p.life_integration_id,
@@ -293,6 +301,15 @@ async function mapCandidateRow(viewer, row, connection = null) {
   }
 }
 
+async function recordProfileView(viewerUserId, profileId, viewerRow) {
+  if (viewerRow?.discretion_mode) return
+  await pool.query(
+    `INSERT INTO profile_views (viewer_user_id, viewed_profile_id)
+     VALUES ($1, $2)`,
+    [viewerUserId, profileId],
+  )
+}
+
 async function mapPublicProfile(viewer, row, { connection, score, geoTier, geoAccessible }) {
   const extras = await loadProfileExtras(row.id)
   const conn = mapConnectionStatus(connection, viewer.user_id)
@@ -303,7 +320,7 @@ async function mapPublicProfile(viewer, row, { connection, score, geoTier, geoAc
   if (photo) badges.push('photo')
   if (row.member_tier === 'prime' || row.member_tier === 'plus') badges.push('premium')
 
-  return {
+  const fullProfile = {
     id: row.id,
     userId: row.user_id,
     name: formatDisplayName(row.first_name, row.last_name),
@@ -347,6 +364,8 @@ async function mapPublicProfile(viewer, row, { connection, score, geoTier, geoAc
     ].filter(r => r.value && r.value !== '—'),
     shared: buildSharedIndicators(viewer, row),
   }
+
+  return applyMutualOnlyVisibility(fullProfile, row, connection)
 }
 
 async function loadViewer(userId) {
@@ -448,13 +467,16 @@ async function getMatchesForUser(userId) {
 
   const scored = []
   for (const row of candidateRes.rows) {
+    const connection = connections.get(row.user_id) || null
+    if (!connection && shouldBlockColleaguePair(viewer, row)) continue
+
     const geoTier = classifyRelativeGeoTier(viewer, row)
     if (!geoTier) continue
     scored.push({
       row,
       geoTier,
       score: computeCompatibilityScore(viewer, row),
-      connection: connections.get(row.user_id) || null,
+      connection,
     })
   }
 
@@ -630,10 +652,18 @@ async function getMatchProfile(viewerUserId, profileId) {
 
   const tier = await getViewerTier(viewerUserId)
   const connection = await getConnectionBetween(viewerUserId, candidate.user_id)
+
+  if (!connection && shouldBlockColleaguePair(viewer, candidate)) {
+    const err = new Error('Profile not available.')
+    err.code = 'NOT_FOUND'
+    throw err
+  }
+
   const { geoTier, geoAccessible } = await assertGeoAccess(
     viewerUserId, tier, viewer, candidate, connection,
   )
   const score = computeCompatibilityScore(viewer, candidate)
+  await recordProfileView(viewerUserId, profileId, viewer)
   const profile = await mapPublicProfile(viewer, candidate, {
     connection,
     score,
@@ -660,6 +690,12 @@ async function sendConnectionRequest(viewerUserId, profileId) {
 
   const tier = await getViewerTier(viewerUserId)
   const existing = await getConnectionBetween(viewerUserId, candidate.user_id)
+
+  if (!existing && shouldBlockColleaguePair(viewer, candidate)) {
+    const err = new Error('Profile not available.')
+    err.code = 'NOT_FOUND'
+    throw err
+  }
 
   if (existing?.status === 'accepted') {
     const err = new Error('You are already connected with this member.')

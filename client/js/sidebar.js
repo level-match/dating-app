@@ -751,36 +751,132 @@
       });
   }
 
-  /** Ensure every app topbar has a clickable avatar for the account menu. */
-  function ensureTopbarAvatar() {
-    const topbar = document.querySelector('.app-topbar');
+  const MSG_PATH = 'M8 12h.01';
+  const BELL_PATH = 'M15 17h5';
+
+  function topbarHasIcon(container, pathFragment) {
+    return [...container.querySelectorAll('.topbar-icon-btn svg path')].some(p => {
+      const d = p.getAttribute('d') || '';
+      return d.includes(pathFragment);
+    });
+  }
+
+  function buildTopbarMessageLink() {
+    return (
+      '<a href="chat.html" class="topbar-messages-link">' +
+        '<div class="topbar-icon-btn" title="Messages">' +
+          '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">' +
+            '<path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round"/>' +
+          '</svg>' +
+          '<div class="notif-dot" style="display:none;"></div>' +
+        '</div>' +
+      '</a>'
+    );
+  }
+
+  function buildTopbarBellLink() {
+    return (
+      '<a href="notifications.html" class="topbar-notifications-link">' +
+        '<div class="topbar-icon-btn" title="Notifications">' +
+          '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">' +
+            '<path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round"/>' +
+          '</svg>' +
+          '<div class="notif-dot" style="display:none;"></div>' +
+        '</div>' +
+      '</a>'
+    );
+  }
+
+  function buildTopbarAvatarLink() {
+    return (
+      '<a href="profile.html?me=1" class="topbar-avatar-link" aria-label="Account menu">' +
+        '<div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:2px solid var(--border-gold);cursor:pointer;">' +
+          '<div style="width:100%;height:100%;background:linear-gradient(135deg,#1A2F4A,#0D1E35);"></div>' +
+        '</div>' +
+      '</a>'
+    );
+  }
+
+  function ensureTopbarActionsContainer(topbar) {
+    let actions = topbar.querySelector('.topbar-actions');
+    if (actions) return actions;
+
+    const extras = [...topbar.children].filter(el => {
+      if (el.classList.contains('topbar-title')) return false;
+      if (el.classList.contains('mobile-menu-btn')) return false;
+      return true;
+    });
+
+    actions = document.createElement('div');
+    actions.className = 'topbar-actions';
+    topbar.appendChild(actions);
+    extras.forEach(el => actions.appendChild(el));
+    return actions;
+  }
+
+  function ensureAppTopbarShell() {
+    const layout = document.querySelector('.app-layout');
+    if (!layout || !layout.querySelector('.app-sidebar')) return null;
+
+    const main = layout.querySelector('.app-main');
+    if (!main) return null;
+
+    let topbar = main.querySelector(':scope > .app-topbar');
+    if (topbar) return topbar;
+
+    const page = window.location.pathname.split('/').pop() || 'dashboard.html';
+    const titles = {
+      'restaurants.html': 'Experiences',
+      'profile.html': 'Profile',
+    };
+
+    topbar = document.createElement('div');
+    topbar.className = 'app-topbar';
+    topbar.innerHTML = `<div class="topbar-title">${titles[page] || 'LEVEL'}</div>`;
+    main.insertBefore(topbar, main.firstChild);
+    return topbar;
+  }
+
+  /** Ensure every sidebar page topbar has messages, notifications, and avatar. */
+  function ensureConsistentTopbar() {
+    const topbar = document.querySelector('.app-topbar') || ensureAppTopbarShell();
     if (!topbar) return;
 
-    const existing = topbarAvatarLinks().find(a => topbar.contains(a));
-    if (existing) {
-      existing.setAttribute('href', 'profile.html?me=1');
-      existing.classList.add('topbar-avatar-link');
-      existing.setAttribute('aria-label', 'Account menu');
+    const actions = ensureTopbarActionsContainer(topbar);
+
+    if (!topbarHasIcon(actions, MSG_PATH)) {
+      actions.insertAdjacentHTML('afterbegin', buildTopbarMessageLink());
+    }
+
+    if (!topbarHasIcon(actions, BELL_PATH)) {
+      const msgLink = actions.querySelector('.topbar-messages-link')
+        || actions.querySelector('a[href="chat.html"]');
+      if (msgLink) {
+        msgLink.insertAdjacentHTML('afterend', buildTopbarBellLink());
+      } else {
+        actions.insertAdjacentHTML('afterbegin', buildTopbarBellLink());
+      }
+    }
+
+    const existingAvatar = topbarAvatarLinks().find(a => topbar.contains(a));
+    if (existingAvatar) {
+      existingAvatar.setAttribute('href', 'profile.html?me=1');
+      existingAvatar.classList.add('topbar-avatar-link');
+      existingAvatar.setAttribute('aria-label', 'Account menu');
+      if (existingAvatar.parentElement !== actions) {
+        actions.appendChild(existingAvatar);
+      }
       return;
     }
 
-    let actions = topbar.querySelector('.topbar-actions');
-    if (!actions) {
-      actions = document.createElement('div');
-      actions.className = 'topbar-actions';
-      actions.style.cssText = 'display:flex;align-items:center;gap:12px;margin-left:auto;';
-      topbar.appendChild(actions);
+    if (!actions.querySelector('.topbar-avatar-link')) {
+      actions.insertAdjacentHTML('beforeend', buildTopbarAvatarLink());
     }
+  }
 
-    const a = document.createElement('a');
-    a.href = 'profile.html?me=1';
-    a.className = 'topbar-avatar-link';
-    a.setAttribute('aria-label', 'Account menu');
-    a.innerHTML =
-      '<div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:2px solid var(--border-gold);cursor:pointer;">' +
-      '<div style="width:100%;height:100%;background:linear-gradient(135deg,#1A2F4A,#0D1E35);"></div>' +
-      '</div>';
-    actions.appendChild(a);
+  /** @deprecated alias — use ensureConsistentTopbar */
+  function ensureTopbarAvatar() {
+    ensureConsistentTopbar();
   }
 
   async function handleSignOut(ev) {
@@ -949,7 +1045,7 @@
   }
   // Expose so profile-setup.js / dashboard can re-hydrate after load or upload
   window.__hydrateTopbarAvatars = function () {
-    ensureTopbarAvatar();
+    ensureConsistentTopbar();
     hydrateTopbarAvatars();
     wirePopovers();
   };
@@ -979,7 +1075,7 @@
 
   function syncTopbarUi() {
     removeTopbarSearchButtons();
-    ensureTopbarAvatar();
+    ensureConsistentTopbar();
     wirePopovers();
     hydrateTopbarAvatars();
     window.__levelTopbar?.refresh?.();

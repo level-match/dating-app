@@ -174,6 +174,7 @@ router.post('/profile', async (req, res) => {
     professionalTitle, location, education, industry,
     countryCode, countryName, regionCode, regionName, city,
     age, orientationVisibility, blockColleagues, discretionMode,
+    mutualOnlyVisibility, readReceipts,
     genderIdentity, pronouns, orientation, preferredGenders,
     ageRangeMin, ageRangeMax,
     primaryIntent,
@@ -225,6 +226,7 @@ router.post('/profile', async (req, res) => {
          professional_title, location, education, industry,
          country_code, country_name, region_code, region_name, city,
          age, orientation_visibility, block_colleagues, discretion_mode,
+         mutual_only_visibility, read_receipts,
          gender_identity_id, gender_identity_custom,
          orientation_id, orientation_custom,
          intent_id,
@@ -233,7 +235,7 @@ router.post('/profile', async (req, res) => {
          life_integration_id, mobility_profile_id,
          emotional_style_id, legacy_vision
        ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30
+         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32
        )
        ON CONFLICT (user_id) DO UPDATE SET
          first_name              = EXCLUDED.first_name,
@@ -252,6 +254,8 @@ router.post('/profile', async (req, res) => {
          orientation_visibility  = EXCLUDED.orientation_visibility,
          block_colleagues        = EXCLUDED.block_colleagues,
          discretion_mode         = EXCLUDED.discretion_mode,
+         mutual_only_visibility  = EXCLUDED.mutual_only_visibility,
+         read_receipts           = EXCLUDED.read_receipts,
          gender_identity_id      = EXCLUDED.gender_identity_id,
          gender_identity_custom  = EXCLUDED.gender_identity_custom,
          orientation_id          = EXCLUDED.orientation_id,
@@ -284,6 +288,8 @@ router.post('/profile', async (req, res) => {
         orientationVisibility || null,
         blockColleagues != null ? !!blockColleagues : true,
         discretionMode != null ? !!discretionMode : false,
+        mutualOnlyVisibility != null ? !!mutualOnlyVisibility : false,
+        readReceipts != null ? !!readReceipts : true,
         genderIdRes,
         genderCustom,
         orientationRes,
@@ -385,6 +391,8 @@ router.get('/profile', async (req, res) => {
          p.orientation_visibility,
          p.block_colleagues,
          p.discretion_mode,
+         p.mutual_only_visibility,
+         p.read_receipts,
          p.age_range_min,
          p.age_range_max,
          p.legacy_vision,
@@ -498,6 +506,72 @@ router.get('/me', async (req, res) => {
   }
 
   res.json({ user: rows[0] })
+})
+
+/* ─── PATCH /api/auth/profile/privacy ─────────────────────────────
+   Partial update for privacy fields already stored on profiles.
+   Used by Settings (and kept in sync with profile setup).
+*/
+router.patch('/profile/privacy', async (req, res) => {
+  const payload = await verifySupabaseToken(req.headers.authorization)
+  const {
+    blockColleagues,
+    discretionMode,
+    mutualOnlyVisibility,
+    readReceipts,
+  } = req.body || {}
+
+  if (
+    blockColleagues == null
+    && discretionMode == null
+    && mutualOnlyVisibility == null
+    && readReceipts == null
+  ) {
+    return res.status(400).json({
+      error: 'INVALID_BODY',
+      message: 'Send at least one privacy field to update.',
+    })
+  }
+
+  const client = await pool.connect()
+  try {
+    const { rows: userRows } = await client.query(
+      'SELECT id FROM users WHERE external_id = $1',
+      [payload.sub]
+    )
+    if (!userRows.length) {
+      return res.status(404).json({ error: 'NOT_FOUND', message: 'User not found. Call /api/auth/sync first.' })
+    }
+    const userId = userRows[0].id
+
+    const blockVal = blockColleagues != null ? !!blockColleagues : null
+    const discVal = discretionMode != null ? !!discretionMode : null
+    const mutualVal = mutualOnlyVisibility != null ? !!mutualOnlyVisibility : null
+    const readVal = readReceipts != null ? !!readReceipts : null
+
+    const { rows } = await client.query(
+      `INSERT INTO profiles (
+         user_id, block_colleagues, discretion_mode, mutual_only_visibility, read_receipts
+       ) VALUES ($1, COALESCE($2, TRUE), COALESCE($3, FALSE), COALESCE($4, FALSE), COALESCE($5, TRUE))
+       ON CONFLICT (user_id) DO UPDATE SET
+         block_colleagues       = COALESCE($2, profiles.block_colleagues),
+         discretion_mode        = COALESCE($3, profiles.discretion_mode),
+         mutual_only_visibility = COALESCE($4, profiles.mutual_only_visibility),
+         read_receipts          = COALESCE($5, profiles.read_receipts)
+       RETURNING block_colleagues, discretion_mode, mutual_only_visibility, read_receipts`,
+      [userId, blockVal, discVal, mutualVal, readVal]
+    )
+
+    res.json({
+      ok: true,
+      blockColleagues: !!rows[0].block_colleagues,
+      discretionMode: !!rows[0].discretion_mode,
+      mutualOnlyVisibility: !!rows[0].mutual_only_visibility,
+      readReceipts: !!rows[0].read_receipts,
+    })
+  } finally {
+    client.release()
+  }
 })
 
 module.exports = router

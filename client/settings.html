@@ -177,6 +177,12 @@
       color: rgba(255,255,255,0.78);
       font-weight: 400;
     }
+    .set-row-side {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
 
     /* iOS-style toggle */
     .set-toggle {
@@ -395,14 +401,16 @@
               <div class="set-row-title">Name</div>
               <div class="set-row-sub" id="setName">—</div>
             </div>
-            <span class="set-row-value">Verified</span>
           </div>
           <div class="set-row">
             <div class="set-row-text">
               <div class="set-row-title">Email</div>
               <div class="set-row-sub" id="setEmail">—</div>
             </div>
-            <button class="set-btn" onclick="alert('To change your email, contact us at inquire@level-match.com.')">Change</button>
+            <div class="set-row-side">
+              <span class="set-row-value" id="setEmailStatus" hidden>Verified</span>
+              <button class="set-btn" id="setEmailChangeBtn" onclick="alert('To change your email, contact us at inquire@level-match.com.')">Change</button>
+            </div>
           </div>
           <div class="set-row">
             <div class="set-row-text">

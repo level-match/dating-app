@@ -68,6 +68,41 @@ function assertMutualConnection(connection) {
   }
 }
 
+async function loadReadReceiptsEnabled(userId) {
+  const { rows } = await pool.query(
+    'SELECT read_receipts FROM profiles WHERE user_id = $1',
+    [userId],
+  )
+  return rows[0]?.read_receipts !== false
+}
+
+async function markMessagesRead(connectionId, readerUserId) {
+  await pool.query(
+    `INSERT INTO chat_message_reads (message_id, reader_user_id)
+     SELECT cm.id, $2
+     FROM chat_messages cm
+     WHERE cm.connection_id = $1
+       AND cm.sender_user_id <> $2
+       AND NOT EXISTS (
+         SELECT 1 FROM chat_message_reads r
+         WHERE r.message_id = cm.id AND r.reader_user_id = $2
+       )`,
+    [connectionId, readerUserId],
+  )
+}
+
+async function loadReadReceiptMap(messageIds, readerUserId) {
+  if (!messageIds.length) return new Map()
+  const { rows } = await pool.query(
+    `SELECT message_id, read_at
+     FROM chat_message_reads
+     WHERE message_id = ANY($1::uuid[])
+       AND reader_user_id = $2`,
+    [messageIds, readerUserId],
+  )
+  return new Map(rows.map(r => [String(r.message_id), r.read_at]))
+}
+
 async function loadConnectionForUser(connectionId, viewerUserId) {
   const { rows } = await pool.query(
     `SELECT cr.*,
@@ -232,13 +267,31 @@ async function getMessages(connectionId, viewerUserId) {
     [connectionId],
   )
 
-  const messages = rows.map(m => ({
-    id: m.id,
-    from: m.sender_user_id === viewerUserId ? 'me' : 'them',
-    text: m.body,
-    time: formatMessageTime(m.created_at),
-    createdAt: m.created_at,
-  }))
+  await markMessagesRead(connectionId, viewerUserId)
+
+  const otherUserId = connection.from_user_id === viewerUserId
+    ? connection.to_user_id
+    : connection.from_user_id
+  const otherSharesReads = await loadReadReceiptsEnabled(otherUserId)
+  const myMessageIds = rows
+    .filter(m => m.sender_user_id === viewerUserId)
+    .map(m => m.id)
+  const readByOther = otherSharesReads
+    ? await loadReadReceiptMap(myMessageIds, otherUserId)
+    : new Map()
+
+  const messages = rows.map(m => {
+    const fromMe = m.sender_user_id === viewerUserId
+    return {
+      id: m.id,
+      from: fromMe ? 'me' : 'them',
+      text: m.body,
+      time: formatMessageTime(m.created_at),
+      createdAt: m.created_at,
+      read: fromMe ? readByOther.has(String(m.id)) : false,
+      showReadReceipt: fromMe && otherSharesReads,
+    }
+  })
 
   const viewer = await loadViewer(viewerUserId).catch(() => null)
   const inboxItem = await mapInboxRow(
@@ -279,6 +332,7 @@ async function sendMessage(connectionId, viewerUserId, body) {
   )
 
   const m = rows[0]
+  const viewerSharesReads = await loadReadReceiptsEnabled(viewerUserId)
   return {
     message: {
       id: m.id,
@@ -286,6 +340,8 @@ async function sendMessage(connectionId, viewerUserId, body) {
       text: m.body,
       time: formatMessageTime(m.created_at),
       createdAt: m.created_at,
+      read: false,
+      showReadReceipt: viewerSharesReads,
     },
   }
 }

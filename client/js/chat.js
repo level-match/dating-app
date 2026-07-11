@@ -348,12 +348,17 @@ function renderMessages(messages, conv) {
     row.innerHTML = `
       <div class="msg-content">
         <div class="msg-bubble-text">${escapeHtml(msg.text)}</div>
-        <div class="msg-time">${escapeHtml(msg.time)}${msg.from === 'me' ? ' ✓' : ''}</div>
+        <div class="msg-time">${escapeHtml(msg.time)}${formatReadReceipt(msg)}</div>
       </div>`
     area.appendChild(row)
   })
 
   area.scrollTop = area.scrollHeight
+}
+
+function formatReadReceipt(msg) {
+  if (msg.from !== 'me' || !msg.showReadReceipt) return ''
+  return msg.read ? ' ✓✓' : ' ✓'
 }
 
 async function openConnection(connectionId) {
@@ -464,7 +469,7 @@ async function sendMessage() {
     row.innerHTML = `
       <div class="msg-content">
         <div class="msg-bubble-text">${escapeHtml(msg.text)}</div>
-        <div class="msg-time">${escapeHtml(msg.time)} ✓</div>
+        <div class="msg-time">${escapeHtml(msg.time)}${formatReadReceipt(msg)}</div>
       </div>`
     area?.appendChild(row)
     area.scrollTop = area.scrollHeight

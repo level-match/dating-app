@@ -1498,6 +1498,14 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
 .topbar-title { color: var(--text-primary) !important; }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3, 12px);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .topbar-icon-btn {
   background: rgba(255, 255, 255, 0.06) !important;
   border-color: rgba(255, 255, 255, 0.09) !important;

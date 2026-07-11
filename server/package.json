@@ -22,6 +22,7 @@
     "migrate:013": "node db/migrations/20260710_013_connection_requests.js",
     "migrate:014": "node db/migrations/20260710_014_chat_messages.js",
     "migrate:015": "node db/migrations/20260710_015_notification_reads.js",
+    "migrate:017": "node db/migrations/20260710_017_privacy_enforcement.js",
     "storage:setup": "node scripts/ensure-profile-images-bucket.js",
     "seed:001": "node db/seeds/20260629_001_admin_user.js",
     "seed:002": "node db/seeds/20260629_002_lookup_values.js",
