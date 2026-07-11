@@ -2,8 +2,6 @@
    LEVEL — App State Store (localStorage-backed)
    ============================================================ */
 
-import { SEED_ACCOUNTS as DEMO_SEED_ACCOUNTS } from './demo-data.js'
-
 const KEYS = {
   USER:          'level_user',
   MATCHES:       'level_matches',
@@ -40,86 +38,6 @@ const DEFAULT_SETTINGS = {
   },
 }
 
-const SEED_ACCOUNTS = DEMO_SEED_ACCOUNTS
-
-/* geoTier drives geographic reach filtering per membership tier:
-   local    → Base and above   (same metro)
-   national → Plus and above   (same country / regional hubs)
-   global   → Prime only       (international) */
-const MOCK_MATCHES = [
-  { id: 1, name: 'James T.',   role: 'Founder & CEO',         age: 38, city: 'NYC',    score: 96, tone: 'tone-3', status: 'new',       lastSeen: 'Online', geoTier: 'local'    },
-  { id: 2, name: 'David K.',   role: 'CTO',                   age: 35, city: 'SF',     score: 91, tone: 'tone-2', status: 'new',       lastSeen: '2h ago',  geoTier: 'national' },
-  { id: 3, name: 'Marcus L.',  role: 'Attorney, Partner',     age: 40, city: 'NYC',    score: 88, tone: 'tone-1', status: 'new',       lastSeen: '1h ago',  geoTier: 'local'    },
-  { id: 4, name: 'Oliver H.',  role: 'Investment Director',   age: 37, city: 'London', score: 85, tone: 'tone-2', status: 'viewed',    lastSeen: '3h ago',  geoTier: 'global'   },
-  { id: 5, name: 'Ryan M.',    role: 'Cardiologist',          age: 34, city: 'Boston', score: 88, tone: 'tone-1', status: 'request',   lastSeen: '8h ago',  geoTier: 'national' },
-  { id: 6, name: 'Thomas K.',  role: 'Managing Director',     age: 42, city: 'NYC',    score: 79, tone: 'tone-3', status: 'viewed',    lastSeen: '5h ago',  geoTier: 'local'    },
-  { id: 7, name: 'Daniel P.',  role: 'Neurosurgeon',          age: 39, city: 'Boston', score: 91, tone: 'tone-2', status: 'request',   lastSeen: '1h ago',  geoTier: 'national' },
-]
-
-const MOCK_NOTIFICATIONS = [
-  {
-    id: 'n1',
-    type: 'match',
-    title: 'New high-compatibility match',
-    body: 'James T. — Founder & CEO · 96% alignment. Curated this morning.',
-    timeISO: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
-    href: 'matches.html',
-    read: false,
-  },
-  {
-    id: 'n2',
-    type: 'message',
-    title: 'New message from James T.',
-    body: '"That sounds wonderful — I know a great place in Tribeca. Friday works for me."',
-    timeISO: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-    href: 'chat.html',
-    read: false,
-  },
-  {
-    id: 'n3',
-    type: 'request',
-    title: 'Connection request from Daniel P.',
-    body: 'Neurosurgeon · Boston · 91% alignment. Awaiting your reply.',
-    timeISO: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
-    href: 'matches.html',
-    read: false,
-  },
-  {
-    id: 'n5',
-    type: 'concierge',
-    title: 'Your concierge confirmed Friday',
-    body: 'Tribeca · 7:30 PM. Tap to view, modify, or add a note for the host.',
-    timeISO: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    href: 'reservations.html',
-    read: true,
-  },
-  {
-    id: 'n6',
-    type: 'system',
-    title: 'Welcome to LEVEL, Alexandra.',
-    body: "You're all set. Your first curated introductions are ready.",
-    timeISO: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
-    href: 'dashboard.html',
-    read: true,
-  },
-]
-
-const MOCK_MESSAGES = {
-  1: [
-    { from: 'them', text: "I noticed you're based in New York — do you have a favorite neighborhood?", time: '10:14 AM' },
-    { from: 'me',   text: "I love the Upper West Side — there's something about being near the park that recharges me.", time: '10:22 AM' },
-    { from: 'them', text: "The West Village on Sunday is perfect. I'd love to find out more about what you do outside of work.", time: '10:28 AM' },
-    { from: 'me',   text: "I'd love that too. Are you open to grabbing dinner this week?", time: '10:35 AM' },
-    { from: 'them', text: "That sounds wonderful — I know a great place in Tribeca. Friday works for me.", time: '2:21 PM' },
-  ],
-  2: [
-    { from: 'them', text: "I'd love to know more about your work in private equity.", time: '9:00 AM' },
-    { from: 'me',   text: "Happy to share more! The deals are fascinating but honestly the people are the best part.", time: '9:15 AM' },
-  ],
-  3: [
-    { from: 'them', text: "Your profile is exceptional. Would you be open to connecting?", time: 'Yesterday' },
-  ]
-}
 
 export const store = {
   // Session-only cache for large base64 photo previews (kept out of localStorage).
@@ -324,7 +242,7 @@ export const store = {
   },
 
   getMatches() {
-    return JSON.parse(localStorage.getItem(KEYS.MATCHES) || 'null') || MOCK_MATCHES
+    return JSON.parse(localStorage.getItem(KEYS.MATCHES) || 'null') || []
   },
 
   updateMatchStatus(id, status) {
@@ -336,12 +254,12 @@ export const store = {
   },
 
   getMessages(matchId) {
-    const all = JSON.parse(localStorage.getItem(KEYS.MESSAGES) || 'null') || MOCK_MESSAGES
+    const all = JSON.parse(localStorage.getItem(KEYS.MESSAGES) || '{}')
     return all[matchId] || []
   },
 
   addMessage(matchId, text) {
-    const all = JSON.parse(localStorage.getItem(KEYS.MESSAGES) || 'null') || MOCK_MESSAGES
+    const all = JSON.parse(localStorage.getItem(KEYS.MESSAGES) || '{}')
     if (!all[matchId]) all[matchId] = []
     all[matchId].push({
       from: 'me',
@@ -447,8 +365,7 @@ export const store = {
   getNotifications() {
     const stored = localStorage.getItem(KEYS.NOTIFICATIONS)
     if (stored) return JSON.parse(stored)
-    localStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify(MOCK_NOTIFICATIONS))
-    return MOCK_NOTIFICATIONS
+    return []
   },
 
   unreadNotificationCount() {
@@ -482,37 +399,6 @@ export const store = {
     return record
   },
 
-  /* ─── Accounts (mock auth) ─── */
-  getAccounts() {
-    const stored = localStorage.getItem(KEYS.ACCOUNTS)
-    if (stored) return JSON.parse(stored)
-    localStorage.setItem(KEYS.ACCOUNTS, JSON.stringify(SEED_ACCOUNTS))
-    return SEED_ACCOUNTS
-  },
-
-  findAccount(email) {
-    const target = (email || '').trim().toLowerCase()
-    return this.getAccounts().find(a => a.email.toLowerCase() === target) || null
-  },
-
-  addAccount(account) {
-    const accounts = this.getAccounts()
-    const email = (account.email || '').trim().toLowerCase()
-    if (accounts.some(a => a.email.toLowerCase() === email)) {
-      return { ok: false, reason: 'exists' }
-    }
-    const record = { ...account, email }
-    accounts.push(record)
-    localStorage.setItem(KEYS.ACCOUNTS, JSON.stringify(accounts))
-    return { ok: true, account: record }
-  },
-
-  verifyAccount(email, password) {
-    const acc = this.findAccount(email)
-    if (!acc) return { ok: false, reason: 'not_found' }
-    if (acc.password !== password) return { ok: false, reason: 'bad_password' }
-    return { ok: true, account: acc }
-  },
 
   /* ─── Settings ─── */
   getSettings() {

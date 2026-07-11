@@ -1,6 +1,6 @@
 import { requireAuth, hydrateUser, hydrateFromProfile, hydrateSubscription, initBodyFade, initNav, initScrollReveal, initCompatBars } from './app.js'
-import { getMembersByScore } from './members.js'
 import { store } from './store.js'
+import { fetchMatches } from './matches-api.js'
 
 requireAuth()
 initBodyFade()
@@ -19,7 +19,7 @@ function updateGreeting(user) {
   if (topbarTitle) topbarTitle.textContent = `${greeting}, ${user.firstName || 'there'}.`
 }
 
-function renderDashboard(user) {
+function renderDashboard(user, topMatches = []) {
   const hasSavedProfile = !!user.profileSavedToDb
   const isNewAccount = !hasSavedProfile && store.getSentRequestIds().length === 0
 
@@ -72,8 +72,7 @@ function renderDashboard(user) {
         </div>
       </div>`
   } else {
-    const sentIds = store.getSentRequestIds()
-    const top = getMembersByScore().filter(m => !sentIds.includes(m.id)).slice(0, 3)
+    const top = topMatches
 
     if (top.length === 0) {
       dashGrid.innerHTML = `
@@ -151,25 +150,31 @@ window.setFilter = function (el) {
   el.classList.add('active')
 }
 
-function bootDashboard() {
+async function bootDashboard() {
   let user = hydrateUser()
   const wasNewAccount = !user.profileSavedToDb
   refreshTopbarAvatars()
-  renderDashboard(user)
+  renderDashboard(user, [])
 
-  hydrateFromProfile()
-    .then(() => hydrateSubscription())
-    .then(() => {
-      const fresh = hydrateUser()
-      updateGreeting(fresh)
-      refreshTopbarAvatars()
-      if (wasNewAccount && fresh.profileSavedToDb) {
-        const dashGrid = document.getElementById('dashMatches')
-        if (dashGrid) dashGrid.dataset.rendered = ''
-        renderDashboard(fresh)
-      }
-    })
-    .catch(() => {})
+  try { await hydrateFromProfile() } catch {}
+  try { await hydrateSubscription() } catch {}
+
+  const fresh = hydrateUser()
+  updateGreeting(fresh)
+  refreshTopbarAvatars()
+
+  let topMatches = []
+  if (fresh.profileSavedToDb && store.isMatchingEligible()) {
+    try {
+      const payload = await fetchMatches()
+      const sentIds = store.getSentRequestIds()
+      topMatches = (payload.matches || []).filter(m => !sentIds.includes(m.id)).slice(0, 3)
+    } catch {}
+  }
+
+  const dashGrid = document.getElementById('dashMatches')
+  if (dashGrid) dashGrid.dataset.rendered = ''
+  renderDashboard(fresh, topMatches)
 }
 
 bootDashboard()

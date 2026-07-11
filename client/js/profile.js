@@ -1,6 +1,5 @@
 import { requireAuth, initBodyFade, initNav, showToast, hydrateFromProfile } from './app.js'
 import { store } from './store.js'
-import { getMember, getMembersByScore } from './members.js'
 import { syncPhotosToStore } from './profile-photos.js'
 import {
   fetchMatchProfile,
@@ -627,7 +626,7 @@ async function loadMemberProfile() {
     return data.profile
   }
 
-  return getMember(requestedId) || getMembersByScore()[0]
+  return null
 }
 
 function renderProfileNotFound(message) {
