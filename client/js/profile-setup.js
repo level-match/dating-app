@@ -22,6 +22,23 @@ initBodyFade()
 
 let locationPickerApi = null
 
+const setupPreloader = document.getElementById('setupPreloader')
+const setupLayout = document.getElementById('setupLayout')
+
+function showSetupPreloader() {
+  setupPreloader?.classList.remove('is-hidden')
+  setupPreloader?.setAttribute('aria-busy', 'true')
+  setupLayout?.classList.add('is-loading')
+  setupLayout?.setAttribute('aria-hidden', 'true')
+}
+
+function hideSetupPreloader() {
+  setupPreloader?.classList.add('is-hidden')
+  setupPreloader?.setAttribute('aria-busy', 'false')
+  setupLayout?.classList.remove('is-loading')
+  setupLayout?.removeAttribute('aria-hidden')
+}
+
 function getLocationFromForm() {
   return locationPickerApi?.getValues() || {
     countryCode: '',
@@ -418,6 +435,7 @@ function setSelectByText(selectEl, text) {
     const opt = selectEl.options[i]
     if (opt.text.trim().toLowerCase() === target || opt.value.trim().toLowerCase() === target) {
       selectEl.selectedIndex = i
+      window.lvlSelectRefresh?.(selectEl)
       return
     }
   }
@@ -426,6 +444,7 @@ function setSelectByText(selectEl, text) {
   opt.textContent = text
   selectEl.appendChild(opt)
   selectEl.value = text
+  window.lvlSelectRefresh?.(selectEl)
 }
 
 function setReviewText(id, value) {
@@ -483,48 +502,49 @@ function fillOnboardingReview(user, ob) {
 }
 
 async function bootProfileSetup() {
-  await hydrateFromProfile().catch(() => {})
-  const ob = store.getOnboarding() || {}
-  const user = store.getUser() || {}
-  const settings = store.getSettings()
-
-  setSelectByText(
-    document.getElementById('orientationVisibilitySelect'),
-    user.orientationVisibility || 'Only on mutual matches',
-  )
-
-  fillOnboardingReview(user, ob)
-  applyUserFieldsToForm(user, ob, settings)
-
+  showSetupPreloader()
   try {
-    locationPickerApi = await initLocationPicker({
-      countrySelect: document.getElementById('countrySelect'),
-      regionSelect: document.getElementById('regionSelect'),
-      citySelect: document.getElementById('citySelect'),
-      initial: {
-        countryCode: user.countryCode,
-        countryName: user.countryName,
-        regionCode: user.regionCode,
-        regionName: user.regionName,
-        city: user.city,
-      },
-      onChange: () => {
-        window.updatePreview()
-        updateCompletionRing()
-      },
-    })
-  } catch (e) {
-    console.warn('[profile-setup] location picker unavailable:', e.message)
-  }
+    const cachedUser = store.getUser() || {}
+    await hydrateFromProfile({ force: !!cachedUser.profileSavedToDb }).catch(() => {})
+    const ob = store.getOnboarding() || {}
+    const user = store.getUser() || {}
+    const settings = store.getSettings()
 
-  try {
-    await reloadPhotos()
-  } catch (e) {
-    console.warn('[profile-setup] photo API unavailable, using cached state:', e.message)
-    hydratePhotosFromUser(store.getUser() || user)
+    fillOnboardingReview(user, ob)
+    applyUserFieldsToForm(user, ob, settings)
+
+    try {
+      locationPickerApi = await initLocationPicker({
+        countrySelect: document.getElementById('countrySelect'),
+        regionSelect: document.getElementById('regionSelect'),
+        citySelect: document.getElementById('citySelect'),
+        initial: {
+          countryCode: user.countryCode,
+          countryName: user.countryName,
+          regionCode: user.regionCode,
+          regionName: user.regionName,
+          city: user.city,
+        },
+        onChange: () => {
+          window.updatePreview()
+          updateCompletionRing()
+        },
+      })
+    } catch (e) {
+      console.warn('[profile-setup] location picker unavailable:', e.message)
+    }
+
+    try {
+      await reloadPhotos()
+    } catch (e) {
+      console.warn('[profile-setup] photo API unavailable, using cached state:', e.message)
+      hydratePhotosFromUser(store.getUser() || user)
+    }
+    window.updatePreview()
+    updateCompletionRing()
+  } finally {
+    hideSetupPreloader()
   }
-  window.updatePreview()
-  updateCompletionRing()
 }
 
 function applyUserFieldsToForm(user, ob, settings = store.getSettings()) {
@@ -546,6 +566,11 @@ function applyUserFieldsToForm(user, ob, settings = store.getSettings()) {
 
   const industry = document.getElementById('industrySelect')
   if (industry && user.industry) setSelectByText(industry, user.industry)
+
+  const orientationVisibility = document.getElementById('orientationVisibilitySelect')
+  if (orientationVisibility && user.orientationVisibility) {
+    setSelectByText(orientationVisibility, user.orientationVisibility)
+  }
 
   const blockColleagues = document.getElementById('blockColleaguesInput')
   if (blockColleagues) {

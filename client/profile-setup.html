@@ -634,16 +634,73 @@
 
       .photo-upload-grid { gap: 8px; }
     }
+
+    /* Full-page preloader — blocks edit until profile data is ready */
+    .setup-preloader {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--s-6);
+      background: rgba(1, 15, 36, 0.94);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      transition: opacity 0.35s var(--ease-smooth), visibility 0.35s var(--ease-smooth);
+    }
+    .setup-preloader.is-hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .setup-preloader-card {
+      width: min(380px, 100%);
+      padding: var(--s-8) var(--s-6);
+      border-radius: var(--radius-2xl);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      text-align: center;
+      box-shadow: var(--shadow-xl);
+    }
+    .setup-preloader-title {
+      font-family: var(--font-serif);
+      font-size: 1.35rem;
+      font-weight: 400;
+      color: var(--charcoal);
+      margin: var(--s-5) 0 var(--s-2);
+    }
+    .setup-preloader-copy {
+      font-family: var(--font-sans);
+      font-size: var(--text-sm);
+      font-weight: 300;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: var(--s-6);
+    }
+    .setup-layout.is-loading {
+      pointer-events: none;
+      user-select: none;
+    }
   </style>
 </head>
 <body>
+  <div id="setupPreloader" class="setup-preloader" role="status" aria-live="polite" aria-busy="true">
+    <div class="setup-preloader-card">
+      <div class="skeleton-circle" style="width:52px;height:52px;margin:0 auto;"></div>
+      <div class="setup-preloader-title">Preparing your profile</div>
+      <p class="setup-preloader-copy">Loading your saved details and photos so everything is ready to edit.</p>
+      <div class="loading-bar" aria-hidden="true"><span></span></div>
+    </div>
+  </div>
+
   <div class="bg-glows">
     <div class="bg-glow bg-glow-1"></div>
     <div class="bg-glow bg-glow-2"></div>
     <div class="bg-glow bg-glow-3"></div>
     <div class="bg-glow bg-glow-4"></div>
   </div>
-  <div class="setup-layout" style="position:relative;z-index:1;">
+  <div class="setup-layout is-loading" id="setupLayout" style="position:relative;z-index:1;" aria-hidden="true">
 
     <!-- ═══ LEFT: Live Preview ═══ -->
     <div class="setup-preview">
