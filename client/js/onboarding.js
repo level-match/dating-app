@@ -252,33 +252,6 @@ function setVerifyState(cardId, state, label) {
   }
 }
 
-window.selectIdType = function (btn, typeName) {
-  document.querySelectorAll('.ob-id-type-btn').forEach(b => b.classList.remove('selected'))
-  btn.classList.add('selected')
-  document.getElementById('idTypeLabel').textContent = `Uploading: ${typeName} — official document only`
-  document.getElementById('idTypeSelector').style.display = 'none'
-  document.getElementById('idUploadZone').style.display = 'block'
-  document.getElementById('verifyIdDropTitle').textContent = `Drag your ${typeName} here, or browse`
-}
-
-window.resetIdType = function () {
-  document.querySelectorAll('.ob-id-type-btn').forEach(b => b.classList.remove('selected'))
-  document.getElementById('idUploadZone').style.display = 'none'
-  document.getElementById('idTypeSelector').style.display = 'block'
-  const input = document.getElementById('verifyIdFile')
-  if (input) input.value = ''
-  document.getElementById('verifyIdDropTitle').textContent = 'Drag your document here, or browse'
-  setVerifyState('vcID', 'idle', 'Not started')
-}
-
-window.onVerifyIdFile = function (ev) {
-  const file = ev.target.files?.[0]
-  if (!file) return
-  const title = document.getElementById('verifyIdDropTitle')
-  if (title) title.textContent = file.name + ' · uploaded'
-  setVerifyState('vcID', 'pending', 'Reviewing')
-  setTimeout(() => setVerifyState('vcID', 'verified'), 1200)
-}
 
 window.captureSelfie = async function () {
   const modal = document.getElementById('cameraModal')
@@ -356,28 +329,6 @@ window.captureSelfie = async function () {
   closeBtn.onclick = closeCamera
 }
 
-document.addEventListener('dragover', (e) => {
-  const drop = e.target.closest?.('#verifyIdDrop')
-  if (drop) { e.preventDefault(); drop.classList.add('is-dragging') }
-})
-document.addEventListener('dragleave', (e) => {
-  const drop = e.target.closest?.('#verifyIdDrop')
-  if (drop) drop.classList.remove('is-dragging')
-})
-document.addEventListener('drop', (e) => {
-  const drop = e.target.closest?.('#verifyIdDrop')
-  if (!drop) return
-  e.preventDefault()
-  drop.classList.remove('is-dragging')
-  const file = e.dataTransfer?.files?.[0]
-  if (file) {
-    const input = document.getElementById('verifyIdFile')
-    const dt = new DataTransfer()
-    dt.items.add(file)
-    input.files = dt.files
-    window.onVerifyIdFile({ target: input })
-  }
-})
 
 document.querySelectorAll('.ob-textarea').forEach(ta => {
   ta.addEventListener('input', () => {

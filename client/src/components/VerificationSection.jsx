@@ -9,8 +9,7 @@ const fadeUp = (delay = 0) => ({
 })
 
 const LAYERS = [
-  { label: 'Government ID', note: 'Matched to a verified identity', color: '#9BCBB4' },
-  { label: 'Selfie & Photo', note: 'Live capture compared to ID', color: '#B8A8D4' },
+  { label: 'Selfie & Photo', note: 'Live capture for identity confirmation', color: '#B8A8D4' },
   { label: 'Career & Title', note: 'Confirmed against public record', color: '#E8C7A0' },
   { label: 'Email verification', note: 'One-time email code on sign-in', color: '#E5B5B5' },
 ]
@@ -67,7 +66,7 @@ export default function VerificationSection() {
                 <div className="font-display text-cream-50" style={{ fontSize: '1.5rem', fontWeight: 400 }}>Adrian Reyes</div>
                 <div className="font-sans text-cream-100/60" style={{ fontSize: '0.78rem', marginTop: 2 }}>Cardiothoracic Surgeon · Toronto</div>
                 <div className="flex flex-wrap gap-1.5" style={{ marginTop: 14 }}>
-                  {[['ID', '#9BCBB4'], ['Career', '#E8C7A0'], ['Photo', '#B8A8D4'], ['Premium', '#E5B5B5']].map(([t, c]) => (
+                  {[['Career', '#E8C7A0'], ['Photo', '#B8A8D4'], ['Premium', '#E5B5B5']].map(([t, c]) => (
                     <span key={t} className="inline-flex items-center gap-1 font-sans" style={{ fontSize: '0.56rem', letterSpacing: '0.12em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 999, color: c, background: `${c}1A`, border: `1px solid ${c}40` }}>
                       <span style={{ width: 8, height: 8, color: c }}>{CHECK}</span>{t}
                     </span>

@@ -312,6 +312,20 @@
       color: var(--gold-300);
     }
 
+    a.set-verify-btn {
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+      border-color: rgba(212,168,67,0.50);
+      color: var(--gold-300);
+      background: linear-gradient(135deg, rgba(212,168,67,0.14), rgba(212,168,67,0.04));
+    }
+    a.set-verify-btn:hover {
+      background: linear-gradient(135deg, rgba(212,168,67,0.24), rgba(212,168,67,0.08));
+      color: var(--gold-200);
+    }
+
     @media (max-width: 1024px) {
       .app-main { margin-left: 0; }
       .app-content { padding: var(--s-6); }
@@ -406,11 +420,43 @@
           </div>
         </section>
 
-        <!-- ─── Privacy ─── -->
+        <!-- ─── Verification ─── -->
         <section class="set-section">
           <div class="set-section-head">
             <div>
               <div class="set-section-label">Section 02</div>
+              <div class="set-section-title">Identity Verification</div>
+              <div class="set-section-sub">Strengthen your profile trust score. Verified members receive priority placement in curated introductions.</div>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">Phone Number</div>
+              <div class="set-row-sub">Confirm your mobile number for an added layer of account security.</div>
+            </div>
+            <a href="maintenance.html" class="set-btn set-verify-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:6px;"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+              Verify
+            </a>
+          </div>
+          <div class="set-row">
+            <div class="set-row-text">
+              <div class="set-row-title">ID Picture</div>
+              <div class="set-row-sub">Upload a clear photo of yourself alongside a valid photo ID to confirm your identity.</div>
+            </div>
+            <a href="maintenance.html" class="set-btn set-verify-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:6px;"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0112 0v2"/></svg>
+              Verify
+            </a>
+          </div>
+        </section>
+
+        <!-- ─── Privacy ─── -->
+        <section class="set-section">
+          <div class="set-section-head">
+            <div>
+              <div class="set-section-label">Section 03</div>
               <div class="set-section-title">Privacy</div>
               <div class="set-section-sub">Control who can see you, what they see, and what you broadcast.</div>
             </div>
@@ -462,7 +508,7 @@
         <section class="set-section">
           <div class="set-section-head">
             <div>
-              <div class="set-section-label">Section 03</div>
+              <div class="set-section-label">Section 04</div>
               <div class="set-section-title">Notifications</div>
               <div class="set-section-sub">Decide which updates land in your feed. We never send push noise.</div>
             </div>
@@ -524,7 +570,7 @@
         <section class="set-section">
           <div class="set-section-head">
             <div>
-              <div class="set-section-label">Section 04</div>
+              <div class="set-section-label">Section 05</div>
               <div class="set-section-title">Appearance</div>
               <div class="set-section-sub">Visual and motion preferences for this device.</div>
             </div>
@@ -553,7 +599,7 @@
         <section class="set-section">
           <div class="set-section-head">
             <div>
-              <div class="set-section-label">Section 05</div>
+              <div class="set-section-label">Section 06</div>
               <div class="set-section-title">Account controls</div>
               <div class="set-section-sub">Step away from LEVEL — quietly or permanently.</div>
             </div>

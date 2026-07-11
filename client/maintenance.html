@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEVEL — Coming Soon</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;1,300;1,400&family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:    #07060F;
+      --navy-2:  #0D0C1E;
+      --cream:   #FBF7EE;
+      --cream-60: rgba(251,247,238,0.60);
+      --cream-40: rgba(251,247,238,0.40);
+      --cream-25: rgba(251,247,238,0.25);
+      --gold:    #D4A574;
+      --gold-2:  #E8C7A0;
+      --gold-dim: rgba(212,165,116,0.18);
+      --lilac:   #B8A8D4;
+      --sage:    #9BCBB4;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--navy);
+      color: var(--cream);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 32px 24px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Background glows */
+    .bg-glow {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .bg-glow-1 {
+      width: 600px; height: 600px;
+      top: -200px; left: -100px;
+      background: radial-gradient(circle, rgba(184,168,212,0.10) 0%, transparent 70%);
+    }
+    .bg-glow-2 {
+      width: 500px; height: 500px;
+      bottom: -150px; right: -80px;
+      background: radial-gradient(circle, rgba(155,203,180,0.08) 0%, transparent 70%);
+    }
+    .bg-glow-3 {
+      width: 800px; height: 400px;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(ellipse, rgba(212,165,116,0.06) 0%, transparent 65%);
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      max-width: 560px;
+      width: 100%;
+    }
+
+    /* Wordmark */
+    .wordmark {
+      font-family: 'Fraunces', serif;
+      font-size: 0.72rem;
+      font-weight: 300;
+      letter-spacing: 0.38em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 52px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .wordmark::before, .wordmark::after {
+      content: '';
+      width: 28px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold));
+    }
+    .wordmark::after {
+      background: linear-gradient(270deg, transparent, var(--gold));
+    }
+
+    /* Connector visual */
+    .connector-wrap {
+      position: relative;
+      width: 320px;
+      height: 140px;
+      margin-bottom: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .connector-svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    /* Spark glow between the connectors */
+    @keyframes spark-pulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.85); }
+      50%       { opacity: 1;   transform: scale(1.15); }
+    }
+    @keyframes plug-left {
+      0%, 100% { transform: translateX(0); }
+      50%       { transform: translateX(6px); }
+    }
+    @keyframes plug-right {
+      0%, 100% { transform: translateX(0); }
+      50%       { transform: translateX(-6px); }
+    }
+    @keyframes float-dot {
+      0%, 100% { opacity: 0; transform: translateY(0) scale(0.5); }
+      30%       { opacity: 1; }
+      70%       { opacity: 0.6; }
+      100%      { opacity: 0; transform: translateY(-28px) scale(1); }
+    }
+
+    .plug-left  { animation: plug-left  2.4s cubic-bezier(0.45,0,0.55,1) infinite; }
+    .plug-right { animation: plug-right 2.4s cubic-bezier(0.45,0,0.55,1) infinite; }
+    .spark      { animation: spark-pulse 2.4s ease-in-out infinite; transform-origin: center; }
+
+    .dot-1 { animation: float-dot 2.4s ease-out 0.0s infinite; }
+    .dot-2 { animation: float-dot 2.4s ease-out 0.8s infinite; }
+    .dot-3 { animation: float-dot 2.4s ease-out 1.6s infinite; }
+
+    /* Copy */
+    .eyebrow {
+      font-size: 0.62rem;
+      font-weight: 500;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      font-family: 'Fraunces', serif;
+      font-size: clamp(2.2rem, 6vw, 3.4rem);
+      font-weight: 300;
+      color: var(--cream);
+      line-height: 1.06;
+      letter-spacing: -0.025em;
+      margin-bottom: 20px;
+    }
+
+    h1 em {
+      font-family: 'Instrument Serif', serif;
+      font-style: italic;
+      background: linear-gradient(135deg, var(--gold), var(--gold-2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .body-text {
+      font-size: 0.95rem;
+      font-weight: 300;
+      color: var(--cream-60);
+      line-height: 1.80;
+      max-width: 420px;
+      margin-bottom: 40px;
+    }
+
+    /* Progress bar */
+    .progress-wrap {
+      width: 240px;
+      height: 2px;
+      background: rgba(251,247,238,0.08);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 40px;
+    }
+    @keyframes progress-shimmer {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(250%); }
+    }
+    .progress-fill {
+      height: 100%;
+      width: 40%;
+      background: linear-gradient(90deg, transparent, var(--gold), var(--gold-2), transparent);
+      border-radius: 999px;
+      animation: progress-shimmer 2s ease-in-out infinite;
+    }
+
+    /* Back button */
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.76rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--cream-40);
+      text-decoration: none;
+      border: 1px solid rgba(251,247,238,0.10);
+      padding: 10px 22px;
+      border-radius: 999px;
+      transition: color 0.25s, border-color 0.25s, background 0.25s;
+    }
+    .back-btn:hover {
+      color: var(--cream);
+      border-color: rgba(212,165,116,0.40);
+      background: rgba(212,165,116,0.06);
+    }
+    .back-btn svg {
+      transition: transform 0.25s;
+    }
+    .back-btn:hover svg {
+      transform: translateX(-3px);
+    }
+
+    /* Footer note */
+    .footer-note {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.70rem;
+      color: var(--cream-25);
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+      z-index: 1;
+    }
+    .footer-note a {
+      color: var(--cream-40);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer-note a:hover {
+      color: var(--gold);
+    }
+
+    @media (max-width: 480px) {
+      .connector-wrap { width: 260px; height: 114px; }
+      .wordmark { margin-bottom: 36px; }
+      .connector-wrap { margin-bottom: 36px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+  <div class="bg-glow bg-glow-3"></div>
+
+  <div class="page">
+
+    <div class="wordmark">LEVEL</div>
+
+    <!-- Connector illustration -->
+    <div class="connector-wrap">
+      <svg class="connector-svg" viewBox="0 0 320 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g-left" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#B8A8D4"/>
+            <stop offset="100%" stop-color="#E8C7A0"/>
+          </linearGradient>
+          <linearGradient id="g-right" x1="1" y1="0" x2="0" y2="0">
+            <stop offset="0%" stop-color="#9BCBB4"/>
+            <stop offset="100%" stop-color="#E8C7A0"/>
+          </linearGradient>
+          <filter id="glow-filter" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="5" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="spark-glow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="8" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- Left plug body -->
+        <g class="plug-left">
+          <!-- Cable -->
+          <rect x="0" y="52" width="64" height="16" rx="8" fill="url(#g-left)" opacity="0.55"/>
+          <!-- Connector body -->
+          <rect x="58" y="38" width="54" height="44" rx="10" fill="url(#g-left)" opacity="0.80"/>
+          <!-- Prongs -->
+          <rect x="108" y="50" width="20" height="7" rx="3.5" fill="#E8C7A0" opacity="0.95" filter="url(#glow-filter)"/>
+          <rect x="108" y="63" width="20" height="7" rx="3.5" fill="#E8C7A0" opacity="0.95" filter="url(#glow-filter)"/>
+          <!-- Pin detail -->
+          <rect x="70" y="46" width="34" height="4" rx="2" fill="rgba(251,247,238,0.20)"/>
+          <rect x="70" y="54" width="34" height="4" rx="2" fill="rgba(251,247,238,0.20)"/>
+          <rect x="70" y="62" width="34" height="4" rx="2" fill="rgba(251,247,238,0.20)"/>
+          <rect x="70" y="70" width="34" height="4" rx="2" fill="rgba(251,247,238,0.20)"/>
+        </g>
+
+        <!-- Right plug body -->
+        <g class="plug-right">
+          <!-- Cable -->
+          <rect x="256" y="52" width="64" height="16" rx="8" fill="url(#g-right)" opacity="0.55"/>
+          <!-- Connector body -->
+          <rect x="208" y="38" width="54" height="44" rx="10" fill="url(#g-right)" opacity="0.80"/>
+          <!-- Sockets -->
+          <rect x="192" y="50" width="20" height="7" rx="3.5" fill="#9BCBB4" opacity="0.50" filter="url(#glow-filter)"/>
+          <rect x="192" y="63" width="20" height="7" rx="3.5" fill="#9BCBB4" opacity="0.50" filter="url(#glow-filter)"/>
+          <!-- Hole details -->
+          <rect x="216" y="46" width="34" height="4" rx="2" fill="rgba(251,247,238,0.20)"/>
+          <rect x="216" y="54" width="34" height="4" rx="2" fill="rgba(251,247,238,0.20)"/>
+          <rect x="216" y="62" width="34" height="4" rx="2" fill="rgba(251,247,238,0.20)"/>
+          <rect x="216" y="70" width="34" height="4" rx="2" fill="rgba(251,247,238,0.20)"/>
+        </g>
+
+        <!-- Gap spark / glow -->
+        <g class="spark" filter="url(#spark-glow)">
+          <circle cx="160" cy="60" r="10" fill="rgba(232,199,160,0.18)"/>
+          <circle cx="160" cy="60" r="5"  fill="rgba(232,199,160,0.55)"/>
+          <circle cx="160" cy="60" r="2"  fill="#E8C7A0"/>
+        </g>
+
+        <!-- Floating dots between gap -->
+        <circle class="dot-1" cx="160" cy="45" r="2.5" fill="rgba(212,165,116,0.80)"/>
+        <circle class="dot-2" cx="155" cy="45" r="1.8" fill="rgba(184,168,212,0.80)"/>
+        <circle class="dot-3" cx="165" cy="45" r="1.5" fill="rgba(155,203,180,0.80)"/>
+      </svg>
+    </div>
+
+    <div class="eyebrow">Under Maintenance</div>
+
+    <h1>
+      Almost<br>
+      <em>connected.</em>
+    </h1>
+
+    <p class="body-text">
+      This feature is being carefully built and will be available very soon.
+      We're making sure it meets LEVEL's standard before we open it up.
+    </p>
+
+    <div class="progress-wrap">
+      <div class="progress-fill"></div>
+    </div>
+
+    <a href="settings.html" class="back-btn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 5l-7 7 7 7"/></svg>
+      Back to Settings
+    </a>
+
+  </div>
+
+  <div class="footer-note">
+    Questions? <a href="mailto:inquire@level-match.com">inquire@level-match.com</a>
+  </div>
+</body>
+</html>

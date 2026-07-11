@@ -1048,71 +1048,13 @@
         <div class="ob-question-category">Verification · 01</div>
         <h2 class="ob-question-title">A private<br><em>screening process.</em></h2>
         <p class="ob-question-subtitle">
-          Every LEVEL applicant completes a two-step trust check before
+          Every LEVEL applicant completes a trust check before
           introductions begin. Held in confidence. Reviewed by a real person.
           Used solely for matching.
         </p>
 
         <div class="ob-verify-stack">
-          <!-- ────── 1. Government ID ─────── -->
-          <article class="ob-verify-card" id="vcID">
-            <div class="ob-verify-head">
-              <div class="ob-verify-icon" data-tone="id">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="5" width="18" height="14" rx="2"/>
-                  <circle cx="9" cy="12" r="2.2"/>
-                  <path d="M14 10h4M14 13h3M6 17h12"/>
-                </svg>
-              </div>
-              <div class="ob-verify-meta">
-                <div class="ob-verify-step">Step 1 of 2</div>
-                <div class="ob-verify-title">Government ID</div>
-                <div class="ob-verify-sub">Passport, driver's licence or national ID.</div>
-              </div>
-              <span class="ob-verify-status" data-state="idle">Not started</span>
-            </div>
-            <div class="ob-verify-body">
-              <!-- Step A: choose ID type -->
-              <div id="idTypeSelector">
-                <p style="font-family:Inter,sans-serif;font-size:0.8rem;font-weight:400;color:rgba(245,237,224,0.55);margin-bottom:12px;">Select the type of government-issued ID you will upload:</p>
-                <div style="display:flex;flex-wrap:wrap;gap:10px;">
-                  <button type="button" class="ob-id-type-btn" onclick="selectIdType(this,'Passport')">
-                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><circle cx="12" cy="10" r="3"/><path d="M7 20h10"/></svg>
-                    Passport
-                  </button>
-                  <button type="button" class="ob-id-type-btn" onclick="selectIdType(this,'Driver\'s Licence')">
-                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2"/><path d="M14 10h4M14 13h3"/></svg>
-                    Driver's Licence
-                  </button>
-                  <button type="button" class="ob-id-type-btn" onclick="selectIdType(this,'National ID Card')">
-                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h4M7 12h6M7 15h4"/></svg>
-                    National ID Card
-                  </button>
-                </div>
-              </div>
-
-              <!-- Step B: upload zone — shown only after type is chosen -->
-              <div id="idUploadZone" style="display:none;margin-top:14px;">
-                <p id="idTypeLabel" style="font-family:Inter,sans-serif;font-size:0.75rem;font-weight:500;color:#E8C7A0;letter-spacing:0.08em;margin-bottom:10px;"></p>
-                <label for="verifyIdFile" class="ob-verify-drop" id="verifyIdDrop">
-                  <div class="ob-verify-drop-orb">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M12 19V5"/>
-                      <path d="M5 12l7-7 7 7"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <div class="ob-verify-drop-title" id="verifyIdDropTitle">Drag your document here, or browse</div>
-                    <div class="ob-verify-drop-sub">PNG · JPG · PDF · Max 8 MB · Encrypted at rest</div>
-                  </div>
-                  <input type="file" id="verifyIdFile" accept="image/png,image/jpeg,application/pdf" hidden onchange="onVerifyIdFile(event)" />
-                </label>
-                <button type="button" onclick="resetIdType()" style="margin-top:10px;background:none;border:none;font-family:Inter,sans-serif;font-size:0.74rem;color:rgba(245,237,224,0.40);cursor:pointer;padding:0;transition:color 0.2s;" onmouseover="this.style.color='rgba(245,237,224,0.70)'" onmouseout="this.style.color='rgba(245,237,224,0.40)'">← Change ID type</button>
-              </div>
-            </div>
-          </article>
-
-          <!-- ────── 2. Selfie ─────── -->
+          <!-- ────── Selfie ─────── -->
           <article class="ob-verify-card" id="vcSelfie">
             <div class="ob-verify-head">
               <div class="ob-verify-icon" data-tone="selfie">
@@ -1122,9 +1064,9 @@
                 </svg>
               </div>
               <div class="ob-verify-meta">
-                <div class="ob-verify-step">Step 2 of 2</div>
+                <div class="ob-verify-step">Selfie verification</div>
                 <div class="ob-verify-title">Selfie match</div>
-                <div class="ob-verify-sub">Confirms the ID is yours.</div>
+                <div class="ob-verify-sub">A live photo to confirm your identity.</div>
               </div>
               <span class="ob-verify-status" data-state="idle">Not started</span>
             </div>
