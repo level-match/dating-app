@@ -5,8 +5,8 @@
   "description": "LEVEL payment + admin backend",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --watch index.js",
+    "start": "cross-env NODE_ENV=production node index.js",
+    "dev": "cross-env NODE_ENV=development node --watch index.js",
     "migrate:001": "node db/migrations/20260629_001_initial_schema.js",
     "migrate:002": "node db/migrations/20260629_002_admin_schema.js",
     "migrate:003": "node db/migrations/20260629_003_profiles_table.js",
@@ -23,12 +23,17 @@
     "migrate:014": "node db/migrations/20260710_014_chat_messages.js",
     "migrate:015": "node db/migrations/20260710_015_notification_reads.js",
     "migrate:017": "node db/migrations/20260710_017_privacy_enforcement.js",
+    "migrate:all": "npm run migrate:001 && npm run migrate:002 && npm run migrate:003 && npm run migrate:004 && npm run migrate:005 && npm run migrate:006 && npm run migrate:007 && npm run migrate:008 && npm run migrate:009 && npm run migrate:010 && npm run migrate:011 && npm run migrate:012 && npm run migrate:013 && npm run migrate:014 && npm run migrate:015 && npm run migrate:017",
+    "db:status": "node scripts/check-db-state.js",
     "storage:setup": "node scripts/ensure-profile-images-bucket.js",
     "seed:001": "node db/seeds/20260629_001_admin_user.js",
     "seed:002": "node db/seeds/20260629_002_lookup_values.js",
     "seed:003": "node db/seeds/20260629_003_preferred_genders.js",
     "db:reset": "node db/reset.js",
     "db:fresh": "npm run db:reset && npm run migrate:001 && npm run migrate:002 && npm run migrate:003 && npm run migrate:004 && npm run migrate:005 && npm run migrate:006 && npm run migrate:007 && npm run migrate:008 && npm run migrate:009 && npm run seed:001 && npm run seed:002 && npm run seed:003"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",

@@ -31,6 +31,8 @@ Thumbs.db
 .env.*.local
 client/.env.local
 server/.env.local
+server/.env.development
+server/.env.production
 
 # Misc
 *.log
