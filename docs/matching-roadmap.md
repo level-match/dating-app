@@ -67,10 +67,7 @@ match.service.js
 
 **Database**
 ```sql
-connection_requests (
-  id, from_user_id, to_user_id, status, created_at, updated_at
-)
--- status: pending | accepted | declined | withdrawn
+connection_requests (migration 013) — done
 ```
 
 **Files to touch**
@@ -116,11 +113,13 @@ connection_requests (
 ### Phase 4 — Profile and connection flow
 
 **Tasks**
-- [ ] `GET /api/matches/:profileId` — public profile for match cards
-- [ ] Wire `profile.html?id=<uuid>` to API (replace `members.js` for real users)
-- [ ] `POST /api/matches/:profileId/request` — send connection request
-- [ ] Mutual match detection → unlock messaging thread
-- [ ] Update match status pills: `new` / `viewed` / `request` / `mutual`
+- [x] `GET /api/matches/:profileId` — public profile for match cards
+- [x] Wire `profile.html?id=<uuid>` to API (mock fallback for non-UUID ids)
+- [x] `POST /api/matches/:profileId/request` — send connection request
+- [x] `POST /api/matches/:profileId/accept` — accept incoming request (mutual)
+- [x] Match status on feed: `new` / `pending` / `request` / `mutual`
+- [ ] Chat threads fully backed by API (still uses localStorage pending list)
+- [ ] Decline / withdraw connection request endpoint
 
 **Files to touch**
 - `server/routes/matches.js`
