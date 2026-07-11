@@ -1,9 +1,11 @@
 import { store } from './store.js'
 import { requireAuth, initBodyFade, initNav, hydrateFromServer } from './app.js'
+import { wireMaintenanceLinks } from './maintenance.js'
 
 requireAuth()
 initBodyFade()
 initNav()
+wireMaintenanceLinks()
 
 const toastEl = document.getElementById('setToast')
 let toastTimer = null

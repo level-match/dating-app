@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import wordmarkUrl from '../../assets/level-wordmark.png'
+import { maintenanceUrl } from '../../js/maintenance.js'
 
 const NAV_LINKS = [
   { label: 'Philosophy',  href: '#philosophy' },
@@ -195,8 +196,8 @@ export default function Navbar() {
             Sign in
           </a>
           <a
-            href="auth.html?mode=register"
-            onClick={e => handleEntrance(e, 'auth.html?mode=register', 'Getting you in…')}
+            href={maintenanceUrl('signup')}
+            onClick={e => handleEntrance(e, maintenanceUrl('signup'), 'Getting you in…')}
             className="font-sans font-medium px-5 py-2.5 rounded-full transition-all duration-400"
             style={{
               fontSize: '0.76rem',
@@ -284,8 +285,8 @@ export default function Navbar() {
                   Sign in
                 </a>
                 <a
-                  href="auth.html?mode=register"
-                  onClick={e => handleEntrance(e, 'auth.html?mode=register', 'Getting you in…')}
+                  href={maintenanceUrl('signup')}
+                  onClick={e => handleEntrance(e, maintenanceUrl('signup'), 'Getting you in…')}
                   className="btn-primary text-center text-sm"
                 >
                   Sign Up

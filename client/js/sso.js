@@ -14,6 +14,7 @@
 
 import { supabase } from './supabase.js'
 import { store } from './store.js'
+import { maintenanceUrl } from './maintenance.js'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'
 
@@ -335,5 +336,11 @@ function showOAuthConsentModal({ firstName, lastName, email, avatar, provider })
 // Window handlers matching the names auth.html's buttons already call.
 export function installRealHandlers() {
   window.handleSocialAuth = (provider) => startOAuth(provider, 'signin')
-  window.handleApplyAuth = (provider) => startOAuth(provider, 'apply')
+  window.handleApplyAuth = (provider) => {
+    if (provider !== 'google') {
+      window.location.href = maintenanceUrl('signup')
+      return
+    }
+    startOAuth(provider, 'apply')
+  }
 }

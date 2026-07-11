@@ -409,7 +409,7 @@
             </div>
             <div class="set-row-side">
               <span class="set-row-value" id="setEmailStatus" hidden>Verified</span>
-              <button class="set-btn" id="setEmailChangeBtn" onclick="alert('To change your email, contact us at inquire@level-match.com.')">Change</button>
+              <button class="set-btn" id="setEmailChangeBtn" data-maintenance="email-change">Change</button>
             </div>
           </div>
           <div class="set-row">
@@ -417,7 +417,7 @@
               <div class="set-row-title">Password</div>
               <div class="set-row-sub">Last updated when you joined LEVEL.</div>
             </div>
-            <button class="set-btn" onclick="alert('Password reset link sent to your email.')">Reset</button>
+            <button class="set-btn" data-maintenance="password-reset">Reset</button>
           </div>
           <div class="set-row">
             <div class="set-row-text">
@@ -443,7 +443,7 @@
               <div class="set-row-title">Phone Number</div>
               <div class="set-row-sub">Confirm your mobile number for an added layer of account security.</div>
             </div>
-            <a href="maintenance.html" class="set-btn set-verify-btn">
+            <a href="maintenance.html?context=phone-verify" data-maintenance="phone-verify" class="set-btn set-verify-btn">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:6px;"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
               Verify
             </a>
@@ -453,7 +453,7 @@
               <div class="set-row-title">ID Picture</div>
               <div class="set-row-sub">Upload a clear photo of yourself alongside a valid photo ID to confirm your identity.</div>
             </div>
-            <a href="maintenance.html" class="set-btn set-verify-btn">
+            <a href="maintenance.html?context=id-verify" data-maintenance="id-verify" class="set-btn set-verify-btn">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:6px;"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0112 0v2"/></svg>
               Verify
             </a>
@@ -587,9 +587,12 @@
           <div class="set-row">
             <div class="set-row-text">
               <div class="set-row-title">Theme</div>
-              <div class="set-row-sub">LEVEL is designed for dark surroundings — light mode is coming soon.</div>
+              <div class="set-row-sub">LEVEL is designed for dark surroundings — <a href="maintenance.html?context=light-mode" data-maintenance="light-mode" style="color:var(--ocean-700);text-decoration:underline;text-underline-offset:2px;">light mode is coming soon</a>.</div>
             </div>
-            <span class="set-row-value">Dark</span>
+            <div class="set-row-side">
+              <span class="set-row-value">Dark</span>
+              <a href="maintenance.html?context=light-mode" data-maintenance="light-mode" class="set-btn set-verify-btn">Light mode</a>
+            </div>
           </div>
           <div class="set-row">
             <div class="set-row-text">

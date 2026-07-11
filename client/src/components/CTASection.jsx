@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { maintenanceUrl } from '../../js/maintenance.js'
 
 export default function CTASection() {
   return (
@@ -73,7 +74,7 @@ export default function CTASection() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a href="auth.html?mode=register" className="btn-primary">
+            <a href={maintenanceUrl('signup')} className="btn-primary">
               Get Early Access
             </a>
             <a href="auth.html" className="btn-ghost">

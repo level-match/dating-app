@@ -1,7 +1,26 @@
 import { motion } from 'framer-motion'
 import wordmarkUrl from '../../assets/level-wordmark.png'
+import { maintenanceUrl } from '../../js/maintenance.js'
 
 const CONTACT_EMAIL = 'inquire@level-match.com'
+
+const FOOTER_LINK_CONTEXTS = {
+  'Sign Up': 'signup',
+  'How it works': 'how-it-works',
+  Pricing: 'pricing',
+  Concierge: 'concierge',
+  Philosophy: 'philosophy',
+  'Matching system': 'matching',
+  Inclusivity: 'inclusivity',
+  Stories: 'stories',
+  FAQ: 'faq',
+  Safety: 'safety',
+  Press: 'press',
+  Terms: 'terms',
+  Privacy: 'privacy',
+  Cookies: 'cookies',
+  Accessibility: 'accessibility',
+}
 
 const COLUMNS = [
   {
@@ -22,6 +41,11 @@ const COLUMNS = [
     links: ['Terms', 'Privacy', 'Cookies', 'Accessibility'],
   },
 ]
+
+function footerLinkHref(link) {
+  const context = FOOTER_LINK_CONTEXTS[link]
+  return context ? maintenanceUrl(context) : '#'
+}
 
 export default function Footer() {
   return (
@@ -74,7 +98,7 @@ export default function Footer() {
                 of equal depth and direction.
               </p>
 
-              <a href="auth.html?mode=register" className="btn-prism">
+              <a href={maintenanceUrl('signup')} className="btn-prism">
                 Get Early Access
               </a>
             </div>
@@ -93,7 +117,7 @@ export default function Footer() {
                     {col.links.map(link => (
                       <li key={link}>
                         <a
-                          href={col.hrefs?.[link] ?? '#'}
+                          href={col.hrefs?.[link] ?? footerLinkHref(link)}
                           className="font-sans text-cream-100/50 hover:text-cream-100 transition-colors"
                           style={{ fontSize: '0.86rem' }}
                         >

@@ -27,6 +27,7 @@ export default defineConfig({
         notifications: resolve(__dirname, 'notifications.html'),
         browse:        resolve(__dirname, 'browse.html'),
         membership:    resolve(__dirname, 'membership.html'),
+        maintenance:   resolve(__dirname, 'maintenance.html'),
         adminLogin:    resolve(__dirname, 'admin-login.html'),
         admin:         resolve(__dirname, 'admin.html'),
       }

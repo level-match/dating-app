@@ -777,7 +777,7 @@
       <!-- Tab nav -->
       <div class="auth-tab-nav" id="authTabs">
         <button class="auth-tab active" onclick="switchTab('login')">Sign In</button>
-        <button class="auth-tab" onclick="switchTab('register')">Sign Up</button>
+        <button class="auth-tab" onclick="goToSignupMaintenance()">Sign Up</button>
       </div>
 
       <!-- ─── LOGIN PANEL ─── -->
@@ -816,7 +816,7 @@
 
         <div style="margin-top:var(--s-8);text-align:center;">
           <span style="font-family:var(--font-sans);font-size:var(--text-sm);font-weight:300;color:var(--text-muted);">New to LEVEL? </span>
-          <button onclick="switchTab('register')" style="font-family:var(--font-sans);font-size:var(--text-sm);font-weight:500;color:var(--ocean-700);cursor:pointer;text-decoration:underline;text-underline-offset:2px;">Sign Up</button>
+          <button onclick="goToSignupMaintenance()" style="font-family:var(--font-sans);font-size:var(--text-sm);font-weight:500;color:var(--ocean-700);cursor:pointer;text-decoration:underline;text-underline-offset:2px;">Sign Up</button>
         </div>
 
         <div style="margin-top:var(--s-6);text-align:center;">
@@ -843,13 +843,13 @@
             </div>
             Sign up with Google
           </button>
-          <button class="btn-social" onclick="handleApplyAuth('apple')">
+          <button class="btn-social" onclick="goToSignupMaintenance()">
             <div class="social-auth-icon" style="background:transparent;">
               <img src="assets/apple.png" alt="Apple" width="20" height="20" style="display:block;object-fit:contain;" />
             </div>
             Sign up with Apple
           </button>
-          <button class="btn-social" onclick="handleApplyAuth('linkedin')">
+          <button class="btn-social" onclick="goToSignupMaintenance()">
             <div class="social-auth-icon" style="background:#0077B5;border-radius:4px;">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
             </div>

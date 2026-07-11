@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { LevelIcon } from './icons/LevelIcon.jsx'
 import { Check } from 'lucide-react'
+import { maintenanceUrl } from '../../js/maintenance.js'
 
 const TIERS = [
   {
@@ -237,7 +238,7 @@ export default function MembershipSection() {
 
                 {/* CTA */}
                 <a
-                  href="auth.html?mode=register"
+                  href={maintenanceUrl('signup')}
                   className="block text-center py-3.5 rounded-sm font-sans font-medium text-sm uppercase tracking-wider transition-all duration-300"
                   style={{
                     letterSpacing: '0.12em',

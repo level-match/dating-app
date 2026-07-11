@@ -1,6 +1,7 @@
 import { initBodyFade } from './app.js'
 import { installRealHandlers, handleOAuthReturn } from './sso.js'
 import { installDemoHandlers } from './demo-mode.js'
+import { maintenanceUrl } from './maintenance.js'
 
 const isOAuthReturn = new URLSearchParams(window.location.search).get('sso') === 'return'
 
@@ -9,6 +10,10 @@ function clearOAuthLoader() {
 }
 
 if (!isOAuthReturn) initBodyFade()
+
+window.goToSignupMaintenance = () => {
+  window.location.href = maintenanceUrl('signup')
+}
 
 /* ─── Login / Apply tab switch ─── */
 window.switchTab = function (tab) {
@@ -30,18 +35,24 @@ window.switchTab = function (tab) {
    Real Supabase OAuth hands off to mfa.html for email OTP.
    ════════════════════════════════════════════════════════════════ */
 
+const params = new URLSearchParams(window.location.search)
+
+if (params.get('mode') === 'register' && !isOAuthReturn) {
+  window.location.replace(maintenanceUrl('signup'))
+}
+
 handleOAuthReturn().then(handled => {
   if (!handled) {
     clearOAuthLoader()
     initBodyFade()
     installRealHandlers()
     installDemoHandlers()
+
+    if (params.get('signup') === 'google') {
+      window.handleApplyAuth('google')
+    }
   }
 })
-
-/* Deep-link: ?mode=register opens the Apply panel. */
-const params = new URLSearchParams(window.location.search)
-if (params.get('mode') === 'register') window.switchTab('register')
 
 function showAuthNotice() {
   const notice = params.get('notice')

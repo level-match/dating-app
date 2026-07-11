@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { maintenanceUrl } from '../../js/maintenance.js'
 import adrianReyesImg from '/assets/adrian.jpg'
 import miaSantosImg   from '/assets/mia.jpg'
 import danielCruzImg  from '/assets/daniel.jpg'
@@ -233,7 +234,7 @@ export default function TestimonialsSection() {
           transition={{ duration: 0.8, delay: 0.3 }}
         >
           <a
-            href="auth.html?mode=register"
+            href={maintenanceUrl('stories')}
             className="inline-flex items-center gap-3 font-sans text-cream-100/55 hover:text-cream-100 transition-colors duration-300"
             style={{ fontSize: '0.78rem', letterSpacing: '0.18em', textTransform: 'uppercase' }}
           >

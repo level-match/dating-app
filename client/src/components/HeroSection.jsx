@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import jamesPhoto from '../../assets/james.jpg'
+import { maintenanceUrl } from '../../js/maintenance.js'
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 32 },
@@ -102,7 +103,7 @@ export default function HeroSection() {
 
           <motion.div className="mt-10" {...fadeUp(0.75)}>
             <a
-              href="auth.html?mode=register"
+              href={maintenanceUrl('signup')}
               className="inline-flex items-center font-sans font-medium text-white px-10 py-4 rounded-full transition-all duration-400"
               style={{
                 fontSize: '0.82rem', letterSpacing: '0.14em', textTransform: 'uppercase',

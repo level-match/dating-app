@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion'
+import { maintenanceUrl } from '../../js/maintenance.js'
 
 function StoreBadge({ kind = 'apple' }) {
   return (
     <motion.a
-      href="#"
+      href={maintenanceUrl('app-download')}
       className="inline-flex items-center gap-3 px-5 py-3 rounded-2xl transition-all duration-300"
       style={{
         background: 'rgba(245,237,224,0.05)',

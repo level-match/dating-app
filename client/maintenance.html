@@ -236,6 +236,49 @@
       transform: translateX(-3px);
     }
 
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      text-decoration: none;
+      padding: 12px 24px;
+      border-radius: 999px;
+      transition: background 0.25s, box-shadow 0.25s, color 0.25s, border-color 0.25s;
+    }
+    .action-btn--google {
+      color: #3c4043;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      margin-bottom: 16px;
+    }
+    .action-btn--google:hover {
+      background: #f5f5f5;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.12);
+    }
+    .action-btn--secondary {
+      color: var(--cream-40);
+      border: 1px solid rgba(251,247,238,0.10);
+      background: transparent;
+    }
+    .action-btn--secondary:hover {
+      color: var(--cream);
+      border-color: rgba(212,165,116,0.40);
+      background: rgba(212,165,116,0.06);
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 16px;
+    }
+    .actions[hidden] { display: none; }
+
     /* Footer note */
     .footer-note {
       position: fixed;
@@ -341,14 +384,14 @@
       </svg>
     </div>
 
-    <div class="eyebrow">Under Maintenance</div>
+    <div class="eyebrow" id="maintEyebrow">Under Maintenance</div>
 
-    <h1>
+    <h1 id="maintHeadline">
       Almost<br>
       <em>connected.</em>
     </h1>
 
-    <p class="body-text">
+    <p class="body-text" id="maintBody">
       This feature is being carefully built and will be available very soon.
       We're making sure it meets LEVEL's standard before we open it up.
     </p>
@@ -357,9 +400,11 @@
       <div class="progress-fill"></div>
     </div>
 
-    <a href="settings.html" class="back-btn">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 5l-7 7 7 7"/></svg>
-      Back to Settings
+    <div class="actions" id="maintActions" hidden></div>
+
+    <a href="index.html" class="back-btn" id="maintBackBtn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="M12 5l-7 7 7 7"/></svg>
+      <span class="back-label">Back to home</span>
     </a>
 
   </div>
@@ -367,5 +412,6 @@
   <div class="footer-note">
     Questions? <a href="mailto:inquire@level-match.com">inquire@level-match.com</a>
   </div>
+  <script type="module" src="/js/maintenance-page.js"></script>
 </body>
 </html>
