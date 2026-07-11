@@ -677,9 +677,42 @@
       .legal-modal-header { padding: var(--s-5) var(--s-6); }
       .legal-modal-body { padding: var(--s-6) var(--s-6) var(--s-8); }
     }
+
+    /* OAuth return — hide sign-in UI until session is bridged (prevents flicker). */
+    html.auth-oauth-pending .auth-wrapper,
+    html.auth-oauth-pending .bg-glows {
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    #authOAuthLoader {
+      display: none;
+    }
+
+    html.auth-oauth-pending #authOAuthLoader {
+      display: flex;
+    }
   </style>
+  <script>
+    (function () {
+      var isOAuthReturn = new URLSearchParams(window.location.search).get('sso') === 'return'
+      if (!isOAuthReturn) return
+      document.documentElement.classList.add('auth-oauth-pending', 'level-is-loading')
+      window.__clearAuthOAuthLoader = function () {
+        document.documentElement.classList.remove('auth-oauth-pending', 'level-is-loading')
+        var el = document.getElementById('authOAuthLoader')
+        if (el) el.remove()
+      }
+    })()
+  </script>
 </head>
 <body>
+  <div id="authOAuthLoader" class="level-page-loader" role="status" aria-live="polite" aria-busy="true">
+    <div class="level-page-loader-card">
+      <div class="level-spinner" style="width:48px;height:48px;"></div>
+      <div class="level-page-loader-label">Signing you in</div>
+    </div>
+  </div>
   <div class="bg-glows">
     <div class="bg-glow bg-glow-1"></div>
     <div class="bg-glow bg-glow-2"></div>

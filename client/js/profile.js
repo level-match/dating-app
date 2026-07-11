@@ -7,6 +7,7 @@ import {
   acceptConnectionRequest,
   isProfileUuid,
 } from './matches-api.js'
+import { bootPageLoader, finishPageLoader } from './loading.js'
 
 requireAuth()
 initBodyFade()
@@ -650,55 +651,63 @@ function renderProfileNotFound(message) {
 }
 
 async function bootProfile() {
-  if (isSelfView) {
-    await hydrateFromProfile().catch(() => {})
-    await syncPhotosToStore().catch(() => {})
-    renderSelfProfile()
-    return
-  }
-
+  bootPageLoader('Loading profile')
   try {
-    member = await loadMemberProfile()
-  } catch (err) {
-    renderProfileNotFound(err.message)
-    return
-  }
-
-  if (!member) {
-    renderProfileNotFound('Profile not found.')
-    return
-  }
-
-  document.title = `LEVEL — ${member.name}`
-  connectionStatus = member.connectionStatus || 'none'
-  requestSent = connectionStatus === 'pending_sent' || store.hasSentRequest(member.id)
-
-  const from = params.get('from')
-  if (from === 'dashboard') {
-    const back = document.getElementById('navBack')
-    const label = document.getElementById('navBackLabel')
-    if (back) back.setAttribute('href', 'dashboard.html')
-    if (label) label.textContent = 'Dashboard'
-  } else if (from === 'matches') {
-    const back = document.getElementById('navBack')
-    const label = document.getElementById('navBackLabel')
-    if (back) back.setAttribute('href', 'matches.html')
-    if (label) label.textContent = 'Matches'
-  }
-
-  renderPortrait(member)
-  renderDetail(member)
-  applyConnectionUi()
-
-  document.addEventListener('click', e => {
-    const btn = e.target.closest('#connectBtn, #connectBtnFooter')
-    if (!btn) return
-    if (connectionStatus === 'mutual') {
-      window.location.href = chatHref()
+    if (isSelfView) {
+      await hydrateFromProfile().catch(() => {})
+      await syncPhotosToStore().catch(() => {})
+      renderSelfProfile()
       return
     }
-    sendConnection()
-  })
+
+    try {
+      member = await loadMemberProfile()
+    } catch (err) {
+      renderProfileNotFound(err.message)
+      return
+    }
+
+    if (!member) {
+      renderProfileNotFound('Profile not found.')
+      return
+    }
+
+    document.title = `LEVEL — ${member.name}`
+    connectionStatus = member.connectionStatus || 'none'
+    requestSent = connectionStatus === 'pending_sent' || store.hasSentRequest(member.id)
+
+    const from = params.get('from')
+    if (from === 'dashboard') {
+      const back = document.getElementById('navBack')
+      const label = document.getElementById('navBackLabel')
+      if (back) back.setAttribute('href', 'dashboard.html')
+      if (label) label.textContent = 'Dashboard'
+    } else if (from === 'matches') {
+      const back = document.getElementById('navBack')
+      const label = document.getElementById('navBackLabel')
+      if (back) back.setAttribute('href', 'matches.html')
+      if (label) label.textContent = 'Matches'
+    }
+
+    renderPortrait(member)
+    renderDetail(member)
+    applyConnectionUi()
+
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('#connectBtn, #connectBtnFooter')
+      if (!btn) return
+      if (connectionStatus === 'mutual') {
+        window.location.href = chatHref()
+        return
+      }
+      sendConnection()
+    })
+  } finally {
+    finishPageLoader()
+  }
 }
 
-bootProfile().catch(err => console.error('[profile] init failed:', err))
+bootProfile().catch(err => {
+  console.error('[profile] init failed:', err)
+  finishPageLoader()
+})

@@ -1,33 +1,39 @@
-import { store } from './store.js'
 import { requireAuth, initBodyFade, initNav, showToast } from './app.js'
+import {
+  fetchNotificationFeed,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from './notifications-api.js'
+import { bootPageLoader, finishPageLoader } from './loading.js'
 
 requireAuth()
 initBodyFade()
 initNav()
 
 const TYPE_ICONS = {
-  match:     '◆',
-  message:   '✉',
-  request:   '↗',
-  view:      '◉',
+  match: '◆',
+  message: '✉',
+  request: '↗',
+  view: '◉',
   concierge: '✦',
-  system:    '✺',
+  system: '✺',
 }
 
 const TYPE_LABELS = {
-  match:     'Match',
-  message:   'Message',
-  request:   'Request',
-  view:      'Profile view',
+  match: 'Match',
+  message: 'Message',
+  request: 'Request',
+  view: 'Profile view',
   concierge: 'Concierge',
-  system:    'System',
+  system: 'System',
 }
 
 let currentTab = 'all'
+let notifications = []
 
 function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, ch => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[ch]))
 }
 
@@ -48,12 +54,13 @@ function relativeTime(iso) {
 
 function renderEmpty() {
   const messages = {
-    all:       { title: "You're all caught up.",     body: "When new matches, messages, or concierge updates arrive, they'll appear here." },
-    unread:    { title: "No unread notifications.",  body: "You've seen everything — beautifully done." },
-    match:     { title: "No new match alerts.",      body: "We surface a notification each time a highly compatible match is curated for you." },
-    message:   { title: "No new message alerts.",    body: "When a member replies, you'll see a notification here in addition to your inbox." },
-    concierge: { title: "Nothing from your concierge.", body: "Reservation confirmations, host requests, and date arrangements appear here." },
-    system:    { title: "No platform updates.",      body: "Approval notes, membership tier changes, and account messages live here." },
+    all: { title: "You're all caught up.", body: "Connection requests, messages, and match updates will appear here." },
+    unread: { title: 'No unread notifications.', body: "You've seen everything — beautifully done." },
+    match: { title: 'No match alerts.', body: 'When a connection is mutual, it will show up here.' },
+    message: { title: 'No message alerts.', body: 'New replies from your connections appear here.' },
+    request: { title: 'No connection requests.', body: 'Incoming requests from members will appear here.' },
+    concierge: { title: 'Nothing from your concierge.', body: 'Reservation and date confirmations will appear here when available.' },
+    system: { title: 'No platform updates.', body: 'Membership and account notices appear here.' },
   }
   const m = messages[currentTab] || messages.all
   return `
@@ -61,8 +68,7 @@ function renderEmpty() {
       <div class="notif-empty-orb">⌖</div>
       <h3>${m.title}</h3>
       <p>${m.body}</p>
-    </div>
-  `
+    </div>`
 }
 
 function renderCard(n) {
@@ -70,9 +76,9 @@ function renderCard(n) {
   const typeLabel = TYPE_LABELS[n.type] || 'Update'
   return `
     <a class="notif-card ${n.read ? 'read' : 'unread'}"
-       data-id="${n.id}"
-       href="${n.href || '#'}"
-       onclick="onNotifClick(event, '${n.id}')">
+       data-id="${escapeHtml(n.id)}"
+       href="${escapeHtml(n.href || '#')}"
+       onclick="onNotifClick(event, '${escapeHtml(n.id)}')">
       <div class="notif-icon ${n.type || 'system'}">${icon}</div>
       <div class="notif-body">
         <div class="notif-card-title">${escapeHtml(n.title)}</div>
@@ -82,14 +88,13 @@ function renderCard(n) {
         <div class="notif-time">${relativeTime(n.timeISO)}</div>
         <div class="notif-type-pill">${escapeHtml(typeLabel)}</div>
       </div>
-    </a>
-  `
+    </a>`
 }
 
-function refreshCounts(all) {
-  const unread = all.filter(n => !n.read).length
-  document.getElementById('cntAll').textContent    = all.length
-  document.getElementById('cntUnread').textContent = unread
+function refreshCounts() {
+  const unread = notifications.filter(n => !n.read).length
+  document.getElementById('cntAll')?.textContent = notifications.length
+  document.getElementById('cntUnread')?.textContent = unread
   const btn = document.getElementById('markAllBtn')
   if (btn) btn.disabled = unread === 0
 }
@@ -98,13 +103,11 @@ function render() {
   const list = document.getElementById('notifList')
   if (!list) return
 
-  const all = store.getNotifications()
+  let filtered = notifications
+  if (currentTab === 'unread') filtered = notifications.filter(n => !n.read)
+  else if (currentTab !== 'all') filtered = notifications.filter(n => n.type === currentTab)
 
-  let filtered = all
-  if (currentTab === 'unread')         filtered = all.filter(n => !n.read)
-  else if (currentTab !== 'all')       filtered = all.filter(n => n.type === currentTab)
-
-  refreshCounts(all)
+  refreshCounts()
 
   if (!filtered.length) {
     list.innerHTML = renderEmpty()
@@ -121,15 +124,52 @@ window.setNotifTab = function (el, key) {
   render()
 }
 
-window.onNotifClick = function (ev, id) {
-  // Allow default href navigation, but mark read first.
-  store.markNotificationRead(id)
+window.onNotifClick = async function (ev, id) {
+  const item = notifications.find(n => n.id === id)
+  if (item) item.read = true
+  try {
+    await markNotificationRead(id)
+  } catch {}
+  window.__levelTopbar?.refresh?.()
 }
 
-window.markAllRead = function () {
-  store.markAllNotificationsRead()
-  showToast('All notifications marked as read.', '✓', 2200)
-  render()
+window.markAllRead = async function () {
+  try {
+    await markAllNotificationsRead()
+    notifications = notifications.map(n => ({ ...n, read: true }))
+    showToast('All notifications marked as read.', '✓', 2200)
+    render()
+    window.__levelTopbar?.refresh?.()
+  } catch (err) {
+    showToast(err.message || 'Could not mark notifications read.', '⚠', 3000)
+  }
 }
 
-render()
+async function bootNotificationsPage() {
+  bootPageLoader('Loading notifications')
+  try {
+    const payload = await fetchNotificationFeed()
+    notifications = payload.notifications || []
+    render()
+  } catch (err) {
+    const list = document.getElementById('notifList')
+    if (list) {
+      list.innerHTML = `
+        <div class="notif-empty">
+          <h3>Could not load notifications</h3>
+          <p>${escapeHtml(err.message || 'Check that you are signed in and the server is running.')}</p>
+        </div>`
+    }
+  } finally {
+    finishPageLoader()
+  }
+}
+
+window.addEventListener('level:notifications-updated', (e) => {
+  if (e.detail?.notifications) {
+    notifications = e.detail.notifications
+    render()
+  }
+})
+
+bootNotificationsPage()

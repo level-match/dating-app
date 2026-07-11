@@ -1,10 +1,14 @@
-import { store } from './store.js'
 import { initBodyFade } from './app.js'
 import { installRealHandlers, handleOAuthReturn } from './sso.js'
 import { installDemoHandlers } from './demo-mode.js'
 
-initBodyFade()
-store.getAccounts()
+const isOAuthReturn = new URLSearchParams(window.location.search).get('sso') === 'return'
+
+function clearOAuthLoader() {
+  window.__clearAuthOAuthLoader?.()
+}
+
+if (!isOAuthReturn) initBodyFade()
 
 /* ─── Login / Apply tab switch ─── */
 window.switchTab = function (tab) {
@@ -28,6 +32,8 @@ window.switchTab = function (tab) {
 
 handleOAuthReturn().then(handled => {
   if (!handled) {
+    clearOAuthLoader()
+    initBodyFade()
     installRealHandlers()
     installDemoHandlers()
   }

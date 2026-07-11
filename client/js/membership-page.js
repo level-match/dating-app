@@ -10,6 +10,7 @@ import {
   pollUntilActive,
   fetchSubscription,
 } from './subscription.js'
+import { bootPageLoader, finishPageLoader } from './loading.js'
 
 const TIER_ORDER = ['base', 'plus', 'prime']
 
@@ -45,12 +46,17 @@ function renderCta(cardTier, currentTier) {
 }
 
 async function bootMembershipPage() {
-  requireAuth()
-  initBodyFade()
-  hydrateUser()
-  await hydrateSubscription()
-  renderMembershipPage(store.getTier())
-  checkPastDueState()
+  bootPageLoader('Loading membership')
+  try {
+    requireAuth()
+    initBodyFade()
+    hydrateUser()
+    await hydrateSubscription()
+    renderMembershipPage(store.getTier())
+    checkPastDueState()
+  } finally {
+    finishPageLoader()
+  }
 }
 
 bootMembershipPage()

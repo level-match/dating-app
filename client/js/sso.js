@@ -185,6 +185,7 @@ export async function handleOAuthReturn() {
   }
 
   // ── New user — show consent modal BEFORE touching the DB ──────────────────
+  window.__clearAuthOAuthLoader?.()
   showOAuthConsentModal({ firstName, lastName, email: user.email || '', avatar, provider })
   return true
 }

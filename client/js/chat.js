@@ -12,6 +12,8 @@ import {
   acceptConnectionRequest,
   declineConnectionRequest,
 } from './chat-api.js'
+import { showSectionLoader, hideSectionLoader } from './loading.js'
+import { markNotificationRead } from './notifications-api.js'
 
 requireAuth()
 initBodyFade()
@@ -360,6 +362,9 @@ async function openConnection(connectionId) {
 
   activeConnectionId = connectionId
   activeConversation = conv
+  markNotificationRead(`message:${connectionId}`).catch(() => {})
+  markNotificationRead(`request:${connectionId}`).catch(() => {})
+  window.__levelTopbar?.refresh?.()
   document.querySelectorAll('.conv-item').forEach(i => i.classList.remove('active'))
   document.querySelector(`.conv-item[data-connection-id="${connectionId}"]`)?.classList.add('active')
 
@@ -374,6 +379,7 @@ async function openConnection(connectionId) {
   }
 
   try {
+    showSectionLoader(document.getElementById('chatMain'))
     const payload = await fetchConnectionMessages(connectionId)
     activeConversation = payload.connection || conv
 
@@ -391,6 +397,8 @@ async function openConnection(connectionId) {
     renderActiveChat(activeConversation, payload.messages || [], true)
   } catch (err) {
     showToast(err.message || 'Could not load messages.', '⚠', 3500)
+  } finally {
+    hideSectionLoader(document.getElementById('chatMain'))
   }
 }
 
@@ -515,17 +523,23 @@ function bindFilters() {
 
 window.addEventListener('load', async () => {
   bindFilters()
+  const convList = document.getElementById('convList')
+  const chatMain = document.getElementById('chatMain')
+  showSectionLoader(convList)
+  showSectionLoader(chatMain)
   try {
     await loadInbox()
     await resolveDeepLink()
   } catch (err) {
     showToast(err.message || 'Could not load messages.', '⚠', 4000)
-    const list = document.getElementById('convList')
-    if (list) {
-      list.innerHTML = `
+    if (convList) {
+      convList.innerHTML = `
         <div style="padding:var(--s-8) var(--s-6);text-align:center;color:rgba(255,255,255,0.55);">
           ${escapeHtml(err.message || 'Could not load your inbox.')}
         </div>`
     }
+  } finally {
+    hideSectionLoader(convList)
+    hideSectionLoader(chatMain)
   }
 })

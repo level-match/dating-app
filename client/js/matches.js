@@ -6,6 +6,7 @@ import {
   sendConnectionRequest,
   acceptConnectionRequest,
 } from './matches-api.js'
+import { bootPageLoader, finishPageLoader } from './loading.js'
 import { lockedMatchCard, currentTier } from './membership-guard.js'
 import { requiredTierForGeo } from './membership.js'
 
@@ -351,28 +352,33 @@ function renderFromApi(payload) {
 }
 
 async function bootMatchesPage() {
-  await hydrateFromProfile().catch(() => {})
-
+  bootPageLoader('Loading matches')
   try {
-    const payload = await fetchMatches()
-    renderFromApi(payload)
-  } catch (err) {
-    if (err.code === 'LOCATION_REQUIRED') {
-      grid.innerHTML = locationGate(err.message)
-      document.getElementById('matchFilters')?.style.setProperty('display', 'none')
-      document.querySelector('.quick-stats')?.style.setProperty('display', 'none')
-      return
-    }
+    await hydrateFromProfile().catch(() => {})
 
-    grid.innerHTML = `
-      <div class="intent-gate" style="grid-column:1/-1;">
-        <h2 class="intent-gate-title">Could not load matches</h2>
-        <p class="intent-gate-body">${escapeHtml(err.message || 'Check that you are signed in and the server is running.')}</p>
-        <div class="intent-gate-actions">
-          <button type="button" class="btn btn-gold" onclick="location.reload()">Retry</button>
-        </div>
-      </div>`
-    console.error('[matches] load failed:', err)
+    try {
+      const payload = await fetchMatches()
+      renderFromApi(payload)
+    } catch (err) {
+      if (err.code === 'LOCATION_REQUIRED') {
+        grid.innerHTML = locationGate(err.message)
+        document.getElementById('matchFilters')?.style.setProperty('display', 'none')
+        document.querySelector('.quick-stats')?.style.setProperty('display', 'none')
+        return
+      }
+
+      grid.innerHTML = `
+        <div class="intent-gate" style="grid-column:1/-1;">
+          <h2 class="intent-gate-title">Could not load matches</h2>
+          <p class="intent-gate-body">${escapeHtml(err.message || 'Check that you are signed in and the server is running.')}</p>
+          <div class="intent-gate-actions">
+            <button type="button" class="btn btn-gold" onclick="location.reload()">Retry</button>
+          </div>
+        </div>`
+      console.error('[matches] load failed:', err)
+    }
+  } finally {
+    finishPageLoader()
   }
 }
 

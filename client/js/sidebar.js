@@ -6,12 +6,11 @@
   function unreadCount() {
     try {
       const raw = localStorage.getItem('level_notifications');
-      if (!raw) return 5; // seed value before first load
+      if (!raw) return 0;
       const arr = JSON.parse(raw);
       return arr.filter(n => !n.read).length;
     } catch { return 0; }
   }
-  const unread = unreadCount();
 
   const nav = [
     {
@@ -24,7 +23,7 @@
         },
         {
           label: 'Match Dashboard', href: 'matches.html', key: 'matches.html',
-          badge: '7',
+          badge: null,
           icon: `<path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" stroke-linecap="round" stroke-linejoin="round"/>`,
         },
         {
@@ -39,7 +38,8 @@
       items: [
         {
           label: 'Messages', href: 'chat.html', key: 'chat.html',
-          badge: '3',
+          badge: null,
+          liveBadge: true,
           icon: `<path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round"/>`,
         },
         {
@@ -49,7 +49,8 @@
         },
         {
           label: 'Notifications', href: 'notifications.html', key: 'notifications.html',
-          badge: unread > 0 ? String(unread) : null,
+          badge: null,
+          liveBadge: true,
           icon: `<path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round"/>`,
         },
       ],
@@ -169,13 +170,13 @@
 
   nav.forEach(({ section, items }) => {
     html += `<div class="sidebar-section-label">${section}</div>`;
-    items.forEach(({ label, href, key, badge, icon }) => {
+    items.forEach(({ label, href, key, badge, liveBadge, icon }) => {
       const isActive = key && page === key;
       html += `
         <a href="${href}" class="sidebar-item${isActive ? ' active' : ''}" title="${label}">
           ${svgIcon(icon)}
           ${label}
-          ${badge ? `<span class="sidebar-badge">${badge}</span>` : ''}
+          ${badge ? `<span class="sidebar-badge">${badge}</span>` : liveBadge ? '<span class="sidebar-badge" style="display:none"></span>' : ''}
         </a>
       `;
     });
@@ -290,322 +291,14 @@
   })();
 })();
 
-/* ──────────────────────────────────────────────────────────────
-   Topbar — make every icon clickable on every page.
-   - 🔍 Search → opens a centered search modal
-   - 💬 Messages, 🔔 Bell, Avatar → wraps as <a> if not already
-   ────────────────────────────────────────────────────────────── */
+/* ── Live topbar feed (messages + notifications polling) ── */
 (function () {
-  // Search pool — name + role + tags from the same data the rest of the app uses
-  const SEARCH_POOL = [
-    { name: 'James T.',     role: 'Founder & CEO',           location: 'New York City', score: 96, href: 'chat.html',     bg: 'linear-gradient(135deg,#1A2F4A,#0D1E35)' },
-    { name: 'Mia Santos',   role: 'Pediatric surgeon',       location: 'Madrid',        score: 94, href: 'matches.html',  bg: 'linear-gradient(135deg,#1A1330,#0F0820)' },
-    { name: 'Sarah M.',     role: 'IP Partner · Law firm',   location: 'London',        score: 91, href: 'matches.html',  bg: 'linear-gradient(135deg,#101A2A,#1A1018)' },
-    { name: 'Adrian Reyes', role: 'Cardiothoracic surgeon',  location: 'Toronto',       score: 92, href: 'matches.html',  bg: 'linear-gradient(135deg,#161024,#0A0814)' },
-    { name: 'Daniel Cruz',  role: 'Creative director',       location: 'Mexico City',   score: 89, href: 'matches.html',  bg: 'linear-gradient(135deg,#1A1230,#0A0816)' },
-    { name: 'Oliver H.',    role: 'Investment director',     location: 'London',        score: 86, href: 'matches.html',  bg: 'linear-gradient(135deg,#1A2030,#070E18)' },
-    { name: 'Marcus L.',    role: 'Senior Partner · Attorney', location: 'New York City', score: 91, href: 'chat.html',   bg: 'linear-gradient(135deg,#12180A,#1A1208)' },
-    { name: 'Ryan M.',      role: 'Cardiologist',            location: 'Boston',        score: 88, href: 'chat.html',     bg: 'linear-gradient(135deg,#1A2030,#101520)' },
-    { name: 'David K.',     role: 'CTO',                     location: 'San Francisco', score: 91, href: 'chat.html',     bg: 'linear-gradient(135deg,#0F1D38,#06080F)' },
-    { name: 'Thomas K.',    role: 'Managing Director',       location: 'New York City', score: 79, href: 'matches.html',  bg: 'linear-gradient(135deg,#0F1D38,#1A2F4A)' },
-    { name: 'Daniel P.',    role: 'Neurosurgeon',            location: 'Boston',        score: 91, href: 'matches.html',  bg: 'linear-gradient(135deg,#0E1523,#1A0F08)' },
-  ];
-
-  // Inject the modal + styles once
-  if (!document.getElementById('topbar-search-modal')) {
-    const style = document.createElement('style');
-    style.id = 'topbar-search-styles';
-    style.textContent = `
-      #topbar-search-modal {
-        display: none;
-        position: fixed;
-        inset: 0;
-        z-index: 1500;
-        background: rgba(1,15,36,0.78);
-        backdrop-filter: blur(14px);
-        -webkit-backdrop-filter: blur(14px);
-        align-items: flex-start;
-        justify-content: center;
-        padding: 14vh 24px 24px;
-      }
-      #topbar-search-modal.active { display: flex; animation: fadeUp 0.25s cubic-bezier(0.16,1,0.3,1) both; }
-
-      .tbs-card {
-        width: 100%;
-        max-width: 580px;
-        background: linear-gradient(155deg,#040810 0%,#08132B 50%,#0A1830 100%);
-        border: 1px solid rgba(212,168,67,0.22);
-        border-radius: 22px;
-        box-shadow: 0 32px 80px rgba(0,0,0,0.55), 0 0 60px rgba(4,150,199,0.10);
-        overflow: hidden;
-      }
-      .tbs-input-row {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 18px 22px;
-        border-bottom: 1px solid rgba(255,255,255,0.06);
-      }
-      .tbs-input-row svg { flex-shrink: 0; color: rgba(255,255,255,0.50); }
-      .tbs-input {
-        flex: 1;
-        background: transparent;
-        border: none;
-        outline: none;
-        color: #FDFCF8;
-        font-family: 'Fraunces',Georgia,serif;
-        font-size: 1.45rem;
-        font-weight: 300;
-        letter-spacing: -0.01em;
-      }
-      .tbs-input::placeholder { color: rgba(255,255,255,0.32); }
-      .tbs-hint {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 3px 8px;
-        border-radius: 6px;
-        font-family: 'Inter',sans-serif;
-        font-size: 0.66rem;
-        letter-spacing: 0.12em;
-        color: rgba(255,255,255,0.42);
-        background: rgba(255,255,255,0.05);
-        border: 1px solid rgba(255,255,255,0.08);
-      }
-
-      .tbs-results {
-        max-height: 56vh;
-        overflow-y: auto;
-        padding: 8px 6px 14px;
-      }
-      .tbs-empty {
-        padding: 38px 28px;
-        text-align: center;
-        font-family: 'Inter',sans-serif;
-        font-size: 0.88rem;
-        color: rgba(255,255,255,0.45);
-      }
-      .tbs-section-label {
-        padding: 14px 22px 6px;
-        font-family: 'Inter',sans-serif;
-        font-size: 0.62rem;
-        font-weight: 600;
-        letter-spacing: 0.22em;
-        text-transform: uppercase;
-        color: rgba(212,168,67,0.85);
-      }
-      .tbs-result {
-        display: grid;
-        grid-template-columns: 44px 1fr auto;
-        gap: 14px;
-        align-items: center;
-        padding: 12px 18px;
-        margin: 0 8px;
-        border-radius: 14px;
-        cursor: pointer;
-        text-decoration: none;
-        transition: background 0.2s;
-      }
-      .tbs-result:hover,
-      .tbs-result.is-active {
-        background: rgba(212,168,67,0.08);
-      }
-      .tbs-result-avatar {
-        width: 44px; height: 44px;
-        border-radius: 50%;
-        border: 1.5px solid rgba(212,168,67,0.30);
-        background-size: cover;
-        background-position: center;
-        flex-shrink: 0;
-      }
-      .tbs-result-name {
-        font-family: 'Fraunces',Georgia,serif;
-        font-size: 1.02rem;
-        color: #FDFCF8;
-        font-weight: 400;
-        letter-spacing: -0.005em;
-      }
-      .tbs-result-sub {
-        font-family: 'Inter',sans-serif;
-        font-size: 0.74rem;
-        color: rgba(255,255,255,0.50);
-        margin-top: 2px;
-      }
-      .tbs-result-score {
-        font-family: 'Inter',sans-serif;
-        font-size: 0.72rem;
-        font-weight: 500;
-        letter-spacing: 0.04em;
-        color: var(--gold-300, #E0BE6A);
-        padding: 4px 9px;
-        border-radius: 999px;
-        background: rgba(212,168,67,0.08);
-        border: 1px solid rgba(212,168,67,0.30);
-      }
-      .tbs-footer {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 10px 18px;
-        border-top: 1px solid rgba(255,255,255,0.06);
-        font-family: 'Inter',sans-serif;
-        font-size: 0.7rem;
-        color: rgba(255,255,255,0.40);
-        letter-spacing: 0.04em;
-      }
-      .tbs-footer kbd {
-        font-family: 'Inter',sans-serif;
-        font-size: 0.65rem;
-        padding: 2px 7px;
-        border-radius: 5px;
-        background: rgba(255,255,255,0.05);
-        border: 1px solid rgba(255,255,255,0.10);
-        color: rgba(255,255,255,0.70);
-      }
-    `;
-    document.head.appendChild(style);
-
-    const modal = document.createElement('div');
-    modal.id = 'topbar-search-modal';
-    modal.innerHTML = `
-      <div class="tbs-card">
-        <div class="tbs-input-row">
-          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <input class="tbs-input" id="tbsInput" type="text" placeholder="Search members, matches, conversations…" autocomplete="off" />
-          <span class="tbs-hint">esc</span>
-        </div>
-        <div class="tbs-results" id="tbsResults"></div>
-        <div class="tbs-footer">
-          <span>Navigate with <kbd>↑</kbd> <kbd>↓</kbd></span>
-          <span><kbd>Enter</kbd> to open</span>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-
-    // Render results
-    const resultsEl = document.getElementById('tbsResults');
-    const inputEl   = document.getElementById('tbsInput');
-    let activeIdx = 0;
-    let filtered  = SEARCH_POOL.slice();
-
-    function render(q) {
-      const query = (q || '').toLowerCase().trim();
-      filtered = !query
-        ? SEARCH_POOL.slice(0, 8)
-        : SEARCH_POOL.filter(p =>
-            p.name.toLowerCase().includes(query) ||
-            p.role.toLowerCase().includes(query) ||
-            p.location.toLowerCase().includes(query)
-          );
-      activeIdx = 0;
-
-      if (!filtered.length) {
-        resultsEl.innerHTML = `<div class="tbs-empty">No members or conversations match “${query}”.</div>`;
-        return;
-      }
-
-      const heading = query
-        ? `<div class="tbs-section-label">Top matches</div>`
-        : `<div class="tbs-section-label">Suggested</div>`;
-
-      resultsEl.innerHTML = heading + filtered.map((p, i) => `
-        <a class="tbs-result ${i === 0 ? 'is-active' : ''}" data-idx="${i}" href="${p.href}">
-          <div class="tbs-result-avatar" style="background:${p.bg};"></div>
-          <div>
-            <div class="tbs-result-name">${p.name}</div>
-            <div class="tbs-result-sub">${p.role} · ${p.location}</div>
-          </div>
-          <div class="tbs-result-score">${p.score}%</div>
-        </a>
-      `).join('');
-
-      // Hover sets active
-      resultsEl.querySelectorAll('.tbs-result').forEach(el => {
-        el.addEventListener('mousemove', () => setActive(+el.dataset.idx));
-      });
-    }
-
-    function setActive(i) {
-      activeIdx = i;
-      resultsEl.querySelectorAll('.tbs-result').forEach((el, idx) => {
-        el.classList.toggle('is-active', idx === i);
-      });
-    }
-
-    function open() {
-      modal.classList.add('active');
-      render('');
-      inputEl.value = '';
-      setTimeout(() => inputEl.focus(), 50);
-    }
-    function close() {
-      modal.classList.remove('active');
-    }
-
-    inputEl.addEventListener('input', e => render(e.target.value));
-    inputEl.addEventListener('keydown', e => {
-      const items = resultsEl.querySelectorAll('.tbs-result');
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setActive(Math.min(items.length - 1, activeIdx + 1));
-        items[activeIdx]?.scrollIntoView({ block: 'nearest' });
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setActive(Math.max(0, activeIdx - 1));
-        items[activeIdx]?.scrollIntoView({ block: 'nearest' });
-      } else if (e.key === 'Enter') {
-        const target = items[activeIdx];
-        if (target?.href) window.location.href = target.href;
-      } else if (e.key === 'Escape') {
-        close();
-      }
-    });
-
-    modal.addEventListener('click', e => {
-      if (e.target === modal) close();
-    });
-
-    // Expose globally + bind Cmd/Ctrl+K
-    window.openTopbarSearch = open;
-    window.closeTopbarSearch = close;
-    document.addEventListener('keydown', e => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        modal.classList.contains('active') ? close() : open();
-      }
-    });
-  }
-
-  /* Wire every topbar icon-button that *looks* like a search button.
-     We detect the magnifying-glass SVG path. */
-  function wireTopbarIcons() {
-    document.querySelectorAll('.topbar-icon-btn').forEach(btn => {
-      // Skip if it's already inside a link or already wired
-      if (btn.dataset.tbsWired) return;
-      const path = btn.querySelector('svg path')?.getAttribute('d') || '';
-      const isSearch = path.includes('M21 21l-6-6');
-      const inAnchor = btn.closest('a');
-
-      if (isSearch && !inAnchor) {
-        btn.style.cursor = 'pointer';
-        btn.setAttribute('title', 'Search (⌘K)');
-        btn.addEventListener('click', () => window.openTopbarSearch?.());
-        btn.dataset.tbsWired = '1';
-      }
-    });
-  }
-  wireTopbarIcons();
-  // Also wire after DOM mutations (e.g. chat.html dynamically rebuilds its topbar)
-  let moTimer = null;
-  const mo = new MutationObserver(() => {
-    if (moTimer) return;
-    moTimer = requestAnimationFrame(() => {
-      moTimer = null;
-      wireTopbarIcons();
-    });
-  });
-  mo.observe(document.body, { childList: true, subtree: true });
+  if (document.querySelector('script[data-topbar-live]')) return;
+  const s = document.createElement('script');
+  s.type = 'module';
+  s.src = '/js/topbar-live.js';
+  s.dataset.topbarLive = '1';
+  document.head.appendChild(s);
 })();
 
 /* ──────────────────────────────────────────────────────────────
@@ -622,39 +315,45 @@
     } catch { return fallback; }
   }
 
-  const MESSAGE_PREVIEWS = [
-    { id: 1, name: 'James T.',  preview: 'That sounds wonderful — I know a great place in Tribeca…', time: '2:21 PM', bg: 'linear-gradient(135deg,#1A2F4A,#0D1E35)', unread: true },
-    { id: 2, name: 'David K.',  preview: 'Happy to share more! The deals are fascinating but…',     time: '9:15 AM', bg: 'linear-gradient(135deg,#0F1D38,#06080F)', unread: true },
-    { id: 3, name: 'Oliver H.', preview: 'Your profile is exceptional. Would you be open to…',      time: 'Yesterday', bg: 'linear-gradient(135deg,#1A2030,#070E18)', unread: false },
-  ];
-
-  function getNotificationsPreview() {
-    const notifs = readLS('level_notifications', null);
-    if (!notifs || !notifs.length) {
-      return [
-        { type: 'match',     title: 'New high-compatibility match',          body: 'James T. — 96% alignment.', time: '35m', read: false },
-        { type: 'message',   title: 'New message from James T.',             body: '"Friday works for me."',    time: '2h',  read: false },
-        { type: 'concierge', title: 'Your concierge confirmed Friday',       body: 'Tribeca · 7:30 PM.',        time: '1d',  read: true  },
-      ];
-    }
-    return notifs.slice(0, 4).map(n => ({
-      type: n.type,
-      title: n.title,
-      body: n.body,
-      time: relTime(n.timeISO),
-      read: n.read,
-    }));
+  function removeTopbarSearchButtons() {
+    document.querySelectorAll('.topbar-icon-btn').forEach(btn => {
+      const path = btn.querySelector('svg path')?.getAttribute('d') || '';
+      if (!path.includes('M21 21l-6-6')) return;
+      const wrap = btn.closest('a') || btn;
+      wrap.remove();
+    });
   }
 
-  function relTime(iso) {
-    if (!iso) return ''
-    const diff = Date.now() - new Date(iso).getTime();
-    const m = Math.round(diff / 60000);
-    if (m < 1) return 'now';
-    if (m < 60) return m + 'm';
-    const h = Math.round(m / 60);
-    if (h < 24) return h + 'h';
-    return Math.round(h / 24) + 'd';
+  function popoverFallbackHtml(kind) {
+    const title = kind === 'messages' ? 'Messages' : 'Notifications';
+    const footer = kind === 'messages'
+      ? '<div class="tbp-footer"><a href="chat.html">View all messages →</a></div>'
+      : '<div class="tbp-footer"><a href="notifications.html">See all activity →</a></div>';
+    return `
+      <div class="tbp-header">
+        <span class="tbp-title">${title}</span>
+        <span class="tbp-meta">Loading</span>
+      </div>
+      <div class="tbp-body tbp-body--loading">
+        <div class="tbp-loading">
+          <div class="level-spinner" style="width:34px;height:34px" role="status" aria-label="Loading"></div>
+        </div>
+      </div>
+      ${footer}`;
+  }
+
+  function messagesHTML() {
+    if (window.__levelTopbar?.buildMessagesPopoverHtml) {
+      return window.__levelTopbar.buildMessagesPopoverHtml();
+    }
+    return popoverFallbackHtml('messages');
+  }
+
+  function notificationsHTML() {
+    if (window.__levelTopbar?.buildNotificationsPopoverHtml) {
+      return window.__levelTopbar.buildNotificationsPopoverHtml();
+    }
+    return popoverFallbackHtml('notifications');
   }
 
   function getUser() {
@@ -713,6 +412,8 @@
         font-weight: 500;
       }
       .tbp-body { padding: 6px 8px 10px; max-height: 60vh; overflow-y: auto; }
+      .tbp-body--loading { min-height: 120px; display: flex; align-items: center; justify-content: center; }
+      .tbp-loading { display: flex; align-items: center; justify-content: center; padding: 24px; }
 
       .tbp-item {
         display: grid;
@@ -952,8 +653,57 @@
     closeAll();
     pop.innerHTML = contentFn();
     positionPop(pop, anchor);
+    pop._anchor = anchor;
     requestAnimationFrame(() => pop.classList.add('active'));
     currentlyOpen = pop;
+  }
+
+  function waitForTopbar(maxMs = 4000) {
+    if (window.__levelTopbar?.refresh) {
+      return Promise.resolve(window.__levelTopbar);
+    }
+    return new Promise(resolve => {
+      const started = Date.now();
+      const tick = () => {
+        if (window.__levelTopbar?.refresh) {
+          resolve(window.__levelTopbar);
+          return;
+        }
+        if (Date.now() - started >= maxMs) {
+          resolve(null);
+          return;
+        }
+        window.setTimeout(tick, 40);
+      };
+      tick();
+    });
+  }
+
+  async function openLivePop(id, anchor, builder, kind) {
+    const liveNow = window.__levelTopbar;
+    const initial = (liveNow?.getState?.()?.loaded && builder())
+      || (liveNow?.buildPopoverLoadingHtml ? liveNow.buildPopoverLoadingHtml(kind) : popoverFallbackHtml(kind));
+
+    togglePop(id, anchor, () => initial);
+
+    const live = liveNow?.refresh ? liveNow : await waitForTopbar();
+    if (!live?.refresh) return;
+
+    const pop = document.getElementById(id);
+    if (!live.getState?.()?.loaded && live.buildPopoverLoadingHtml && currentlyOpen === pop) {
+      pop.innerHTML = live.buildPopoverLoadingHtml(kind);
+    }
+
+    try {
+      await live.refresh();
+      if (currentlyOpen === pop) {
+        pop.innerHTML = builder();
+      }
+    } catch {
+      if (currentlyOpen === pop && live.buildPopoverErrorHtml) {
+        pop.innerHTML = live.buildPopoverErrorHtml(kind);
+      }
+    }
   }
 
   // Re-position on resize/scroll if open
@@ -973,56 +723,7 @@
     if (e.key === 'Escape') closeAll();
   });
 
-  /* ── Content builders ────────────────────────────────────── */
-  function messagesHTML() {
-    const unreadCt = MESSAGE_PREVIEWS.filter(m => m.unread).length;
-    return `
-      <div class="tbp-header">
-        <span class="tbp-title">Messages</span>
-        <span class="tbp-meta">${unreadCt} unread</span>
-      </div>
-      <div class="tbp-body">
-        ${MESSAGE_PREVIEWS.map(m => `
-          <a class="tbp-item" href="chat.html">
-            <div class="tbp-avatar" style="background:${m.bg};">
-              ${m.unread ? '<div class="dot"></div>' : ''}
-            </div>
-            <div>
-              <div class="tbp-name">${m.name}</div>
-              <div class="tbp-sub">${m.preview}</div>
-            </div>
-            <div class="tbp-time">${m.time}</div>
-          </a>
-        `).join('')}
-      </div>
-      <div class="tbp-footer"><a href="chat.html">View all messages →</a></div>
-    `;
-  }
-
-  function notificationsHTML() {
-    const items = getNotificationsPreview();
-    const unreadCt = items.filter(i => !i.read).length;
-    const ICON = { match: '◆', message: '✉', request: '↗', view: '◉', concierge: '✦', system: '✺' };
-    return `
-      <div class="tbp-header">
-        <span class="tbp-title">Notifications</span>
-        <span class="tbp-meta">${unreadCt} new</span>
-      </div>
-      <div class="tbp-body">
-        ${items.length ? items.map(n => `
-          <a class="tbp-item ${n.read ? '' : 'unread'}" href="notifications.html">
-            <div class="tbp-nicon ${n.type || 'system'}">${ICON[n.type] || '✶'}</div>
-            <div>
-              <div class="tbp-name">${escapeText(n.title)}</div>
-              <div class="tbp-sub">${escapeText(n.body || '')}</div>
-            </div>
-            <div class="tbp-time">${n.time || ''}</div>
-          </a>
-        `).join('') : `<div class="tbp-empty">You're all caught up.</div>`}
-      </div>
-      <div class="tbp-footer"><a href="notifications.html">See all activity →</a></div>
-    `;
-  }
+  /* ── Content builders (live data via topbar-live.js) ─────── */
 
   function getUserPhoto() {
     const u = getUser();
@@ -1208,12 +909,10 @@
       const isMessage = path.includes('M8 12h.01');
       const isBell    = path.includes('M15 17h5');
 
-      const handler = (id, builder) => (ev) => {
+      const handler = (id, builder, kind) => (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
-        const pop = ensurePopover(id);
-        pop._anchor = btn;
-        togglePop(id, btn, builder);
+        openLivePop(id, btn, builder, kind);
       };
 
       // Intercept the surrounding <a> click and use the popover instead
@@ -1221,11 +920,11 @@
       const target = anchor || btn;
 
       if (isMessage) {
-        target.addEventListener('click', handler('tbpMessages', messagesHTML));
+        target.addEventListener('click', handler('tbpMessages', messagesHTML, 'messages'));
         btn.style.cursor = 'pointer';
         btn.dataset.tbpWired = '1';
       } else if (isBell) {
-        target.addEventListener('click', handler('tbpNotifications', notificationsHTML));
+        target.addEventListener('click', handler('tbpNotifications', notificationsHTML, 'notifications'));
         btn.style.cursor = 'pointer';
         btn.dataset.tbpWired = '1';
       }
@@ -1279,9 +978,11 @@
   }
 
   function syncTopbarUi() {
+    removeTopbarSearchButtons();
     ensureTopbarAvatar();
     wirePopovers();
     hydrateTopbarAvatars();
+    window.__levelTopbar?.refresh?.();
   }
 
   let mo2Timer = null;
