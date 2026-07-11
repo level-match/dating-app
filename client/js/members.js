@@ -407,6 +407,8 @@ export const STATUS_LABELS = {
   new:     'New',
   mutual:  'Mutual',
   pending: 'Pending',
+  request: 'Request',
+  viewed:  'Viewed',
 }
 
 export const PRESENCE_LABELS = {

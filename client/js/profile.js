@@ -2,6 +2,12 @@ import { requireAuth, initBodyFade, initNav, showToast, hydrateFromProfile } fro
 import { store } from './store.js'
 import { getMember, getMembersByScore } from './members.js'
 import { syncPhotosToStore } from './profile-photos.js'
+import {
+  fetchMatchProfile,
+  sendConnectionRequest,
+  acceptConnectionRequest,
+  isProfileUuid,
+} from './matches-api.js'
 
 requireAuth()
 initBodyFade()
@@ -15,7 +21,8 @@ const isSelfView =
   params.get('me') === 'true' ||
   params.get('me') === '1'
 const requestedId = params.get('id')
-const member = isSelfView ? null : (getMember(requestedId) || getMembersByScore()[0])
+let member = null
+let memberFromApi = false
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({
@@ -109,9 +116,16 @@ function renderPortrait(m) {
       ${badgeCluster(m.badges)}
     </div>
 
-    <div class="portrait-actions">
+    <div class="portrait-actions" id="portraitActions">
       <button type="button" class="btn btn-gold" id="connectBtn" style="flex:1;justify-content:center;">Send Connection Request</button>
       <a href="restaurants.html" class="btn btn-outline" title="Suggest a dinner" style="width:48px;height:48px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;">🍽</a>
+    </div>`
+}
+
+function connectActionsFooter() {
+  return `<div id="profileConnectFooter" style="display:flex;gap:var(--s-4);margin-top:var(--s-4);">
+      <button type="button" class="btn btn-primary btn-lg" id="connectBtnFooter" style="flex:1;justify-content:center;">Send Connection Request</button>
+      <a href="restaurants.html" class="btn btn-gold btn-lg" style="justify-content:center;">Suggest a Dinner</a>
     </div>`
 }
 
@@ -258,45 +272,129 @@ function renderDetail(m) {
     compatibilitySection(m),
     verificationSection(m),
     sharedSection(m),
-    `<div style="display:flex;gap:var(--s-4);margin-top:var(--s-4);">
-      <button type="button" class="btn btn-primary btn-lg" id="connectBtnFooter" style="flex:1;justify-content:center;">Send Connection Request</button>
-      <a href="restaurants.html" class="btn btn-gold btn-lg" style="justify-content:center;">Suggest a Dinner</a>
-    </div>`,
+    connectActionsFooter(),
   ].join('')
   document.getElementById('profileDetail').innerHTML = html
 }
 
 /* ─── Connection request ─── */
 let requestSent = false
+let connectionStatus = 'none'
 
-function markButtonsSent() {
+function applyConnectionUi() {
+  const sent = connectionStatus === 'pending_sent' || requestSent
+  const received = connectionStatus === 'pending_received'
+  const mutual = connectionStatus === 'mutual'
+
   document.querySelectorAll('#connectBtn, #connectBtnFooter').forEach(btn => {
     if (!btn) return
-    btn.textContent = 'Request Sent ✓'
-    btn.disabled = true
-    btn.style.opacity = '0.7'
-    btn.style.cursor = 'default'
+    if (mutual) {
+      btn.textContent = 'Message'
+      btn.disabled = false
+      btn.style.opacity = ''
+      btn.style.cursor = ''
+      btn.classList.remove('btn-gold')
+      btn.classList.add('btn-primary')
+      return
+    }
+    if (received) {
+      btn.textContent = 'Accept Connection'
+      btn.disabled = false
+      btn.style.opacity = ''
+      btn.style.cursor = ''
+      return
+    }
+    if (sent) {
+      btn.textContent = 'Request Sent ✓'
+      btn.disabled = true
+      btn.style.opacity = '0.7'
+      btn.style.cursor = 'default'
+    }
   })
 }
 
-function sendConnection() {
-  if (requestSent) return
+function markButtonsSent() {
   requestSent = true
+  connectionStatus = 'pending_sent'
+  applyConnectionUi()
+}
 
-  // Persist to store — this also mirrors the pending_other status on MOCK_MATCHES
-  store.addSentRequest(member)
+function markButtonsMutual() {
+  connectionStatus = 'mutual'
+  requestSent = false
+  applyConnectionUi()
+}
 
+function persistSentRequest() {
+  if (!member) return
+  store.addSentRequest({
+    id: member.id,
+    name: member.name,
+    role: member.profession || member.role || '',
+    location: member.location || '',
+    score: member.score || 0,
+    fallback: member.fallback || 'linear-gradient(135deg,#0A0F20,#060C18)',
+  })
+}
+
+async function sendConnection() {
+  if (!member || requestSent || connectionStatus === 'mutual') return
+
+  if (connectionStatus === 'pending_received') {
+    try {
+      const result = await acceptConnectionRequest(member.id)
+      member = result.profile || member
+      connectionStatus = 'mutual'
+      markButtonsMutual()
+      store.addNotification({
+        type: 'match',
+        title: `Connected with ${member.name}`,
+        body: 'Messaging is unlocked — say hello when you are ready.',
+        href: 'chat.html',
+      })
+      showToast(`You're connected with ${member.name.split(' ')[0]}.`, '✦', 2500)
+      setTimeout(() => { window.location.href = 'chat.html' }, 1400)
+    } catch (err) {
+      showToast(err.message || 'Could not accept the request.', '⚠', 3500)
+    }
+    return
+  }
+
+  if (memberFromApi) {
+    try {
+      const result = await sendConnectionRequest(member.id)
+      member = result.profile || member
+      connectionStatus = result.connection?.mutual ? 'mutual' : 'pending_sent'
+
+      if (result.connection?.mutual) {
+        markButtonsMutual()
+        showToast(`You're connected with ${member.name.split(' ')[0]}.`, '✦', 2500)
+        setTimeout(() => { window.location.href = 'chat.html' }, 1400)
+        return
+      }
+
+      persistSentRequest()
+      markButtonsSent()
+      showToast(`Your interest has been sent to ${member.name.split(' ')[0]}.`, '✦', 2000)
+      setTimeout(() => {
+        window.location.href = `chat.html?pending=${encodeURIComponent(member.id)}`
+      }, 1600)
+    } catch (err) {
+      showToast(err.message || 'Could not send the request.', '⚠', 3500)
+    }
+    return
+  }
+
+  requestSent = true
+  persistSentRequest()
   store.addNotification({
     type: 'request',
     title: `Request sent to ${member.name}`,
     body: `${member.profession} · ${member.location} · ${member.score}% match. Awaiting their reply.`,
     href: 'chat.html',
   })
-
   markButtonsSent()
   showToast(`Your interest has been sent to ${member.name.split(' ')[0]}. Taking you to messages…`, '✦', 2000)
-
-  // Redirect to chat with the pending conversation open
   setTimeout(() => {
     window.location.href = `chat.html?pending=${encodeURIComponent(member.id)}`
   }, 1600)
@@ -520,6 +618,33 @@ function renderSelfProfile() {
   document.getElementById('profileDetail').innerHTML = sections.join('')
 }
 
+async function loadMemberProfile() {
+  if (isSelfView) return null
+
+  if (requestedId && isProfileUuid(requestedId)) {
+    const data = await fetchMatchProfile(requestedId)
+    memberFromApi = true
+    return data.profile
+  }
+
+  return getMember(requestedId) || getMembersByScore()[0]
+}
+
+function renderProfileNotFound(message) {
+  document.title = 'LEVEL — Profile'
+  document.getElementById('portraitPhoto').style.background = 'linear-gradient(160deg,#1A2F4A,#0D1E35)'
+  document.getElementById('portraitScore').innerHTML = ''
+  document.getElementById('portraitInfo').innerHTML = `
+    <div class="portrait-name">Profile unavailable</div>
+    <p style="font-family:var(--font-sans);font-size:0.92rem;font-weight:300;color:rgba(255,255,255,0.55);line-height:1.65;margin-top:12px;">
+      ${esc(message || 'This profile could not be loaded.')}
+    </p>
+    <div class="portrait-actions" style="margin-top:var(--s-5);">
+      <a href="matches.html" class="btn btn-gold" style="flex:1;justify-content:center;">Back to matches</a>
+    </div>`
+  document.getElementById('profileDetail').innerHTML = ''
+}
+
 async function bootProfile() {
   if (isSelfView) {
     await hydrateFromProfile().catch(() => {})
@@ -528,7 +653,21 @@ async function bootProfile() {
     return
   }
 
+  try {
+    member = await loadMemberProfile()
+  } catch (err) {
+    renderProfileNotFound(err.message)
+    return
+  }
+
+  if (!member) {
+    renderProfileNotFound('Profile not found.')
+    return
+  }
+
   document.title = `LEVEL — ${member.name}`
+  connectionStatus = member.connectionStatus || 'none'
+  requestSent = connectionStatus === 'pending_sent' || store.hasSentRequest(member.id)
 
   const from = params.get('from')
   if (from === 'dashboard') {
@@ -536,18 +675,25 @@ async function bootProfile() {
     const label = document.getElementById('navBackLabel')
     if (back) back.setAttribute('href', 'dashboard.html')
     if (label) label.textContent = 'Dashboard'
+  } else if (from === 'matches') {
+    const back = document.getElementById('navBack')
+    const label = document.getElementById('navBackLabel')
+    if (back) back.setAttribute('href', 'matches.html')
+    if (label) label.textContent = 'Matches'
   }
 
   renderPortrait(member)
   renderDetail(member)
-
-  if (store.hasSentRequest(member.id)) {
-    requestSent = true
-    markButtonsSent()
-  }
+  applyConnectionUi()
 
   document.addEventListener('click', e => {
-    if (e.target.closest('#connectBtn') || e.target.closest('#connectBtnFooter')) sendConnection()
+    const btn = e.target.closest('#connectBtn, #connectBtnFooter')
+    if (!btn) return
+    if (connectionStatus === 'mutual') {
+      window.location.href = 'chat.html'
+      return
+    }
+    sendConnection()
   })
 }
 

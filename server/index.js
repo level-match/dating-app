@@ -108,6 +108,11 @@ app.use((err, req, res, _next) => {
     SERVER_MISCONFIGURED:    500,
     PROFILE_NOT_FOUND:       404,
     LOCATION_REQUIRED:       400,
+    INTENT_INELIGIBLE:       403,
+    GEO_LOCKED:              403,
+    ALREADY_CONNECTED:       409,
+    CONNECTION_EXISTS:       409,
+    INVALID_PROFILE_ID:      400,
   }
   if (statusMap[err.code]) {
     return res.status(statusMap[err.code]).json({ error: err.code, message: err.message })
