@@ -7,6 +7,8 @@ const {
   scoreLifestyleCompatibility,
   jaccardSimilarity,
   WEIGHTS,
+  MATCH_QUEUE_THRESHOLD,
+  qualifiesForMatchQueue,
   buildAlignmentSummaryFromBreakdown,
 } = require('../utils/alignment-scoring')
 const { passesHardFilters, passesAgeHardFilter } = require('../utils/match-filters')
@@ -112,6 +114,13 @@ describe('alignment-scoring', () => {
     })
     const summary = buildAlignmentSummaryFromBreakdown(breakdown, overall)
     assert.match(summary, /relationship intent/)
+  })
+
+  it('defines a 75% match queue threshold', () => {
+    assert.equal(MATCH_QUEUE_THRESHOLD, 75)
+    assert.equal(qualifiesForMatchQueue(75), true)
+    assert.equal(qualifiesForMatchQueue(74), false)
+    assert.equal(qualifiesForMatchQueue(90), true)
   })
 })
 

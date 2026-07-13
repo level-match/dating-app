@@ -8,6 +8,7 @@ const {
   scoreAlignment,
   buildAlignmentSummaryFromBreakdown,
   buildSharedIndicatorsFromScores,
+  qualifiesForMatchQueue,
 } = require('../utils/alignment-scoring')
 const {
   getEntitlements,
@@ -493,6 +494,7 @@ async function getMatchesForUser(userId) {
 
   const scored = []
   let filteredCount = 0
+  let belowThresholdCount = 0
   for (const row of candidateRes.rows) {
     const connection = connections.get(row.user_id) || null
     const isActiveConnection = connection
@@ -515,6 +517,10 @@ async function getMatchesForUser(userId) {
     const geoTier = classifyRelativeGeoTier(viewer, row)
     if (!geoTier) continue
     const result = scoreMatchPair(viewer, row, scoringContext)
+    if (!isActiveConnection && !qualifiesForMatchQueue(result.overall)) {
+      belowThresholdCount++
+      continue
+    }
     scored.push({
       row,
       geoTier,
@@ -595,6 +601,7 @@ async function getMatchesForUser(userId) {
       totalCandidates: candidateRes.rows.length,
       scoredCount: scored.length,
       filteredCount,
+      belowThresholdCount,
       accessibleCount: accessible.length,
       lockedCount: locked.length,
       connectionCount: connectionMatches.length,
@@ -731,6 +738,11 @@ async function getMatchProfile(viewerUserId, profileId) {
     viewerUserId, tier, viewer, candidate, connection,
   )
   const compatibilityResult = scoreMatchPair(viewer, candidate, scoringContext)
+  if (!isActiveConnection && !qualifiesForMatchQueue(compatibilityResult.overall)) {
+    const err = new Error('Profile not available.')
+    err.code = 'NOT_FOUND'
+    throw err
+  }
   await recordProfileView(viewerUserId, profileId, viewer)
   const profile = await mapPublicProfile(viewer, candidate, {
     connection,
@@ -782,6 +794,15 @@ async function sendConnectionRequest(viewerUserId, profileId) {
   await assertGeoAccess(viewerUserId, tier, viewer, candidate, existing)
 
   const scoringContext = await scoringContextForPair(viewer, candidate)
+  const compatibilityScore = scoreMatchPair(viewer, candidate, scoringContext).overall
+  const isActiveConnection = existing
+    && (existing.status === 'pending' || existing.status === 'accepted')
+  if (!isActiveConnection && !qualifiesForMatchQueue(compatibilityScore)) {
+    const err = new Error('This profile does not meet the compatibility threshold for curated matching.')
+    err.code = 'BELOW_MATCH_THRESHOLD'
+    throw err
+  }
+
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
@@ -801,7 +822,7 @@ async function sendConnectionRequest(viewerUserId, profileId) {
         mutual: true,
         profile: await mapPublicProfile(viewer, candidate, {
           connection: updated.rows[0],
-          score: scoreMatchPair(viewer, candidate, scoringContext).overall,
+          score: compatibilityScore,
           geoTier: classifyRelativeGeoTier(viewer, candidate),
           geoAccessible: true,
           scoringContext,
@@ -824,7 +845,7 @@ async function sendConnectionRequest(viewerUserId, profileId) {
       mutual: false,
       profile: await mapPublicProfile(viewer, candidate, {
         connection,
-        score: scoreMatchPair(viewer, candidate, scoringContext).overall,
+        score: compatibilityScore,
         geoTier: classifyRelativeGeoTier(viewer, candidate),
         geoAccessible: true,
         scoringContext,

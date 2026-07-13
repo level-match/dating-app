@@ -13,6 +13,9 @@
 const { INTENT_CATEGORY_TIER } = require('./matching-policy')
 const { scoreDemographicFit } = require('./demographic-fit')
 
+/** Minimum compatibility score to enter the curated match queue. */
+const MATCH_QUEUE_THRESHOLD = 75
+
 const WEIGHTS = {
   intention: 25,
   mindset: 20,
@@ -204,7 +207,13 @@ function buildSharedIndicatorsFromScores(viewer, candidate, scores, lifestyleVal
   return items
 }
 
+function qualifiesForMatchQueue(overallScore) {
+  return overallScore >= MATCH_QUEUE_THRESHOLD
+}
+
 module.exports = {
+  MATCH_QUEUE_THRESHOLD,
+  qualifiesForMatchQueue,
   WEIGHTS,
   DIMENSIONS,
   scoreAlignment,
