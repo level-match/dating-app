@@ -5,6 +5,8 @@ const { evaluateEligibility, isEligibleIntentCategory } = require('../utils/matc
 const { classifyRelativeGeoTier } = require('../utils/geo-matching')
 const { passesHardFilters } = require('../utils/match-filters')
 const { rankMatchItems } = require('../utils/match-ranking')
+const { loadViewerRecommendationSignals } = require('../utils/match-recommendations')
+const { isAlignmentComplete } = require('../utils/alignment-answers')
 const {
   scoreAlignment,
   buildAlignmentSummaryFromBreakdown,
@@ -297,6 +299,12 @@ async function mapCandidateRow(viewer, row, connection = null, scoringContext = 
     geoTier,
     score: result.overall,
     alignmentSummary: buildAlignmentSummaryFromBreakdown(result.breakdown, result.overall),
+    compatibilityBreakdown: result.breakdown.map(({ id, label, score, source }) => ({
+      id,
+      label,
+      score,
+      source: source || null,
+    })),
     status: conn.status,
     connectionStatus: conn.connectionStatus,
     connectionId: connection?.id || null,
@@ -484,6 +492,23 @@ async function getMatchesForUser(userId) {
 
   const tier = await getViewerTier(userId)
   const entitlements = getEntitlements(tier)
+
+  if (!isAlignmentComplete(viewer.alignment_answers)) {
+    return {
+      matchingEligible: true,
+      alignmentRequired: true,
+      eligibility,
+      tier,
+      geoReach: entitlements.geoReach,
+      algorithmPriority: entitlements.algorithmPriority,
+      quota: null,
+      matches: [],
+      locked: [],
+      stats: { total: 0, new: 0, mutual: 0, pending: 0 },
+      meta: { reason: 'alignment_incomplete' },
+    }
+  }
+
   const dailyLimit = getDailyMatchLimit(tier)
 
   const candidateRes = await pool.query(CANDIDATE_SQL, [userId])
@@ -497,6 +522,8 @@ async function getMatchesForUser(userId) {
     ...candidateRes.rows.map(r => r.id),
   ])
 
+  const recommendationSignals = await loadViewerRecommendationSignals(userId)
+
   const scored = []
   let filteredCount = 0
   let belowThresholdCount = 0
@@ -507,6 +534,10 @@ async function getMatchesForUser(userId) {
 
     if (!isActiveConnection) {
       if (shouldBlockColleaguePair(viewer, row)) continue
+      if (recommendationSignals.passedProfileIds.has(String(row.id))) {
+        filteredCount++
+        continue
+      }
       const gate = passesHardFilters(viewer, row, {
         preferredGendersMap: scoringContext.preferredGendersMap,
         connection,
@@ -535,7 +566,7 @@ async function getMatchesForUser(userId) {
     })
   }
 
-  const ranked = rankMatchItems(scored, viewer, entitlements.algorithmPriority)
+  const ranked = rankMatchItems(scored, viewer, entitlements.algorithmPriority, recommendationSignals)
 
   const accessible = []
   const locked = []
@@ -846,6 +877,7 @@ async function sendConnectionRequest(viewerUserId, profileId) {
     await client.query('COMMIT')
 
     const connection = inserted.rows[0]
+    await recordMatchFeedback(viewerUserId, profileId, 'connect')
     return {
       connection,
       mutual: false,
@@ -937,15 +969,99 @@ async function declineConnectionRequest(viewerUserId, profileId) {
     [existing.id],
   )
 
+  await recordMatchFeedback(viewerUserId, profileId, 'decline')
+
   return { connection: rows[0] }
+}
+
+async function recordMatchFeedback(userId, profileId, action) {
+  await pool.query(
+    `INSERT INTO match_feedback (user_id, candidate_profile_id, action)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (user_id, candidate_profile_id)
+     DO UPDATE SET action = EXCLUDED.action, created_at = NOW()`,
+    [userId, profileId, action],
+  )
+}
+
+/**
+ * Pass on a curated match — removes the profile from future discovery.
+ */
+async function passMatchProfile(viewerUserId, profileId) {
+  const viewer = await loadViewer(viewerUserId)
+  await assertViewerCanBrowse(viewer)
+
+  const candidate = await loadCandidateByProfileId(profileId)
+  if (!candidate || candidate.user_id === viewerUserId) {
+    const err = new Error('Profile not found.')
+    err.code = 'NOT_FOUND'
+    throw err
+  }
+
+  await recordMatchFeedback(viewerUserId, profileId, 'pass')
+  return { ok: true, profileId }
+}
+
+/**
+ * Withdraw a connection request you previously sent.
+ */
+async function withdrawConnectionRequest(viewerUserId, profileId) {
+  const candidate = await loadCandidateByProfileId(profileId)
+  if (!candidate) {
+    const err = new Error('Profile not found.')
+    err.code = 'NOT_FOUND'
+    throw err
+  }
+
+  const existing = await getConnectionBetween(viewerUserId, candidate.user_id)
+  if (!existing || existing.status !== 'pending' || existing.from_user_id !== viewerUserId) {
+    const err = new Error('No outgoing connection request found.')
+    err.code = 'NOT_FOUND'
+    throw err
+  }
+
+  const { rows } = await pool.query(
+    `UPDATE connection_requests
+     SET status = 'withdrawn', updated_at = NOW()
+     WHERE id = $1
+     RETURNING *`,
+    [existing.id],
+  )
+
+  await recordMatchFeedback(viewerUserId, profileId, 'pass')
+  return { connection: rows[0] }
+}
+
+/**
+ * Server-authoritative matching eligibility for the authenticated viewer.
+ */
+async function getMatchingEligibility(userId) {
+  const viewer = await loadViewer(userId)
+  const eligibility = evaluateEligibility(viewer.intent_category)
+  const tier = await getViewerTier(userId)
+  const entitlements = getEntitlements(tier)
+
+  return {
+    matchingEligible: eligibility.matchingEligibility,
+    alignmentRequired: eligibility.matchingEligibility && !isAlignmentComplete(viewer.alignment_answers),
+    alignmentComplete: isAlignmentComplete(viewer.alignment_answers),
+    eligibility,
+    tier,
+    geoReach: entitlements.geoReach,
+    algorithmPriority: entitlements.algorithmPriority,
+    locationRequired: !viewer.country_code,
+  }
 }
 
 module.exports = {
   getMatchesForUser,
   getMatchProfile,
+  getMatchingEligibility,
   sendConnectionRequest,
   acceptConnectionRequest,
   declineConnectionRequest,
+  withdrawConnectionRequest,
+  passMatchProfile,
   loadViewer,
   computeCompatibilityScore,
   scoreMatchPair,

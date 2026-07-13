@@ -21,6 +21,13 @@ router.get('/matches', async (req, res) => {
   res.json(payload)
 })
 
+/* ─── GET /api/matches/eligibility ──────────────────────────────
+   Server-authoritative intent + alignment eligibility. */
+router.get('/matches/eligibility', async (req, res) => {
+  const payload = await matchSvc.getMatchingEligibility(req.auth.userId)
+  res.json(payload)
+})
+
 /* ─── GET /api/matches/:profileId ───────────────────────────────
    Public profile for a curated match. */
 router.get('/matches/:profileId', async (req, res) => {
@@ -78,6 +85,34 @@ router.post('/matches/:profileId/decline', async (req, res) => {
       status: result.connection.status,
     },
     message: 'Connection request declined.',
+  })
+})
+
+/* ─── POST /api/matches/:profileId/withdraw ─────────────────────
+   Withdraw an outgoing connection request. */
+router.post('/matches/:profileId/withdraw', async (req, res) => {
+  if (!isUuid(req.params.profileId)) return invalidProfileId(res)
+
+  const result = await matchSvc.withdrawConnectionRequest(req.auth.userId, req.params.profileId)
+  res.json({
+    connection: {
+      id: result.connection.id,
+      status: result.connection.status,
+    },
+    message: 'Connection request withdrawn.',
+  })
+})
+
+/* ─── POST /api/matches/:profileId/pass ─────────────────────────
+   Pass on a curated match (excluded from future discovery). */
+router.post('/matches/:profileId/pass', async (req, res) => {
+  if (!isUuid(req.params.profileId)) return invalidProfileId(res)
+
+  const result = await matchSvc.passMatchProfile(req.auth.userId, req.params.profileId)
+  res.json({
+    ok: result.ok,
+    profileId: result.profileId,
+    message: 'Profile passed — it will not appear in your queue again.',
   })
 })
 

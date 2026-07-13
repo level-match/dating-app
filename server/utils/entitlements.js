@@ -4,7 +4,7 @@ const TIERS = { BASE: 'base', PLUS: 'plus', PRIME: 'prime' }
 
 const ENTITLEMENTS = {
   base: {
-    matchDelivery: { type: 'capped', dailyLimit: 10 },
+    matchDelivery: { type: 'capped', dailyLimit: 6 },
     geoReach: 'local',
     algorithmPriority: 'fifo',
   },

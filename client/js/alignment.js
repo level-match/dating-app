@@ -1,5 +1,5 @@
 import { store } from './store.js'
-import { initBodyFade, showToast } from './app.js'
+import { initBodyFade, requireAuth, showToast } from './app.js'
 import { saveAlignmentAnswers } from './alignment-api.js'
 import {
   CATEGORIES,
@@ -9,6 +9,7 @@ import {
 } from './alignment-engine.js'
 
 initBodyFade()
+requireAuth()
 
 const TOTAL_QUESTIONS = CATEGORIES.reduce((n, c) => n + c.questions.length, 0)
 const answers         = store.getAlignment() || {}
@@ -30,13 +31,12 @@ function renderCategories() {
           <div class="ae-cat-num">Section ${ci + 1}</div>
           <h2 class="ae-cat-name">${cat.label}</h2>
         </div>
-        <div class="ae-cat-weight">${cat.weight}% Weight</div>
       </header>
 
       ${cat.questions.map(q => `
         <div class="ae-question" data-q="${q.id}">
           <div class="ae-question-prompt">${q.prompt}</div>
-          ${q.zeroOut ? `<div class="ae-question-zero-note">Zero-Out Gate — extreme mismatch excludes the match entirely</div>` : ''}
+          ${q.zeroOut ? '' : ''}
           <div class="ae-options">
             ${q.options.map(opt => `
               <div class="ae-option" data-value="${opt.value}"
@@ -55,7 +55,6 @@ function renderCategories() {
     </section>
   `).join('')
 
-  // Restore prior selections
   CATEGORIES.forEach(cat => {
     cat.questions.forEach(q => {
       const v = answers?.[cat.id]?.[q.id]

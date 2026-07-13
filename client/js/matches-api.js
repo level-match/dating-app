@@ -48,6 +48,38 @@ export async function acceptConnectionRequest(profileId) {
   return parseJson(res)
 }
 
+export async function declineConnectionRequest(profileId) {
+  const res = await apiFetch(`/api/matches/${encodeURIComponent(profileId)}/decline`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  })
+  return parseJson(res)
+}
+
+export async function withdrawConnectionRequest(profileId) {
+  const res = await apiFetch(`/api/matches/${encodeURIComponent(profileId)}/withdraw`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  })
+  return parseJson(res)
+}
+
+export async function passMatchProfile(profileId) {
+  const res = await apiFetch(`/api/matches/${encodeURIComponent(profileId)}/pass`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  })
+  return parseJson(res)
+}
+
+export async function fetchMatchingEligibility() {
+  const res = await apiFetch('/api/matches/eligibility')
+  return parseJson(res)
+}
+
 export function isProfileUuid(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''))
 }

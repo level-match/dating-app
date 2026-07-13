@@ -5,10 +5,11 @@ import {
   fetchMatches,
   sendConnectionRequest,
   acceptConnectionRequest,
+  passMatchProfile,
 } from './matches-api.js'
 import { bootPageLoader, finishPageLoader } from './loading.js'
 import { lockedMatchCard, currentTier, setMatchQuotaFromServer } from './membership-guard.js'
-import { requiredTierForGeo } from './membership.js'
+import { requiredTierForGeo, getTierMeta } from './membership.js'
 
 requireAuth()
 initBodyFade()
@@ -64,7 +65,21 @@ function ctaForMatch(m) {
   }
   return `
     <button type="button" class="btn btn-gold btn-sm match-card-cta-btn" data-action="connect">Connect</button>
-    <button type="button" class="btn btn-outline-dark btn-sm match-card-cta-btn" data-action="view">View profile</button>`
+    <button type="button" class="btn btn-outline-dark btn-sm match-card-cta-btn" data-action="view">View profile</button>
+    <button type="button" class="btn btn-outline-dark btn-sm match-card-cta-btn match-action-btn pass" data-action="pass" title="Pass">Pass</button>`
+}
+
+function breakdownBars(breakdown) {
+  const dims = (breakdown || []).filter(d => d.id !== 'demographic').slice(0, 4)
+  if (!dims.length) return ''
+  return `<div class="match-breakdown" data-stop-nav="true">
+    ${dims.map(d => `
+      <div class="match-breakdown-row">
+        <span class="match-breakdown-label">${escapeHtml(d.label.split(' ')[0])}</span>
+        <div class="match-breakdown-track"><div class="match-breakdown-fill" style="width:${d.score}%"></div></div>
+        <span class="match-breakdown-num">${d.score}</span>
+      </div>`).join('')}
+  </div>`
 }
 
 function cardTemplate(m) {
@@ -87,6 +102,7 @@ function cardTemplate(m) {
           <span class="match-align-score">${m.score}%</span> Compatibility Alignment
         </div>
         <div class="match-summary">${escapeHtml(m.alignmentSummary)}</div>
+        ${breakdownBars(m.compatibilityBreakdown)}
 
         <div class="lvl-vbadge-cluster match-badges">${badgeCluster(m.badges)}</div>
 
@@ -98,6 +114,23 @@ function cardTemplate(m) {
 }
 
 const grid = document.getElementById('matchesGrid')
+
+function alignmentGate() {
+  return `
+    <div class="intent-gate" style="grid-column:1/-1;">
+      <div class="intent-gate-eyebrow">One step before matching</div>
+      <h2 class="intent-gate-title">Complete your alignment assessment</h2>
+      <p class="intent-gate-body">
+        LEVEL uses your alignment answers to curate introductions across intention, values,
+        lifestyle, and mobility. This takes about five minutes and is required before
+        your curated queue opens.
+      </p>
+      <div class="intent-gate-actions">
+        <a class="btn btn-gold" href="alignment.html">Start alignment assessment</a>
+        <a class="btn btn-outline" href="profile-setup.html">Review profile setup</a>
+      </div>
+    </div>`
+}
 
 function intentGate() {
   return `
@@ -250,6 +283,15 @@ async function handleCardAction(profileId, action) {
       applyMatchUpdate(result.profile)
       showToast(`Connected with ${match.name.split(' ')[0]}.`, '✦', 2800)
       updateStatsFromLive()
+      return
+    }
+
+    if (action === 'pass') {
+      await passMatchProfile(profileId)
+      liveMatches = liveMatches.filter(m => String(m.id) !== String(profileId))
+      renderMatchGrid()
+      updateStatsFromLive()
+      showToast('Passed — this profile will not reappear in your queue.', '✓', 2400)
     }
   } catch (err) {
     showToast(err.message || 'Something went wrong. Please try again.', '⚠', 3500)
@@ -331,6 +373,12 @@ function renderFromApi(payload) {
     return
   }
 
+  if (payload.alignmentRequired) {
+    grid.innerHTML = alignmentGate()
+    document.getElementById('matchFilters')?.style.setProperty('display', 'none')
+    return
+  }
+
   if (payload.tier) {
     const user = store.getUser()
     if (user) store.setUser({ ...user, tier: payload.tier })
@@ -350,8 +398,11 @@ function renderFromApi(payload) {
 
   const sub = document.querySelector('.section-card-sub')
   if (sub) {
+    const algo = payload.algorithmPriority || payload.meta?.rankingAlgorithm
+    const algoLabel = algo === 'realtime' ? 'Priority ranking' : algo === 'enhanced' ? 'Enhanced curation' : 'Curated queue'
+    const tierName = getTierMeta(liveTier)?.shortName || liveTier
     sub.textContent = liveMatches.length
-      ? 'Connect directly from a card, or open a full profile to review background and values.'
+      ? `${algoLabel} · ${tierName} tier · ${liveMatches.length} introduction${liveMatches.length === 1 ? '' : 's'} today`
       : 'Complete your profile — introductions appear as members join your matching network.'
   }
 }

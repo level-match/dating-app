@@ -229,13 +229,26 @@ function mobilitySection(m) {
 }
 
 function compatibilitySection(m) {
-  // Only the polished, final result is shown — never the internal scoring,
-  // weights, or per-dimension breakdown. Members experience the outcome.
+  const dims = (m.compatibilityBreakdown || []).filter(d => d.id !== 'demographic')
+  const bars = dims.length
+    ? `<div class="compat-dim-list" style="margin-top:var(--s-6);text-align:left;max-width:440px;margin-inline:auto;">
+        ${dims.map(d => `
+          <div style="display:grid;grid-template-columns:88px 1fr 36px;gap:10px;align-items:center;margin-bottom:10px;">
+            <span style="font-family:var(--font-sans);font-size:0.72rem;color:var(--text-secondary);">${esc(d.label)}</span>
+            <div style="height:4px;background:rgba(255,255,255,0.08);border-radius:99px;overflow:hidden;">
+              <div style="height:100%;width:${d.score}%;background:linear-gradient(90deg,#C9A227,#E8C7A0);"></div>
+            </div>
+            <span style="font-family:var(--font-sans);font-size:0.72rem;color:var(--text-gold);text-align:right;">${d.score}%</span>
+          </div>`).join('')}
+      </div>`
+    : ''
+
   return section('Compatibility Alignment', `
     <div class="compat-breakdown" style="text-align:center;">
       <div class="compat-big-num">${m.score}<span>%</span></div>
       <div style="font-family:var(--font-sans);font-size:var(--text-xs);font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-gold);margin-top:var(--s-2);">Compatibility Alignment</div>
       <p style="font-family:var(--font-sans);font-size:var(--text-md);font-weight:300;line-height:1.7;color:var(--text-secondary);max-width:440px;margin:var(--s-4) auto 0;">${esc(m.alignmentSummary)}</p>
+      ${bars}
     </div>`)
 }
 

@@ -17,7 +17,7 @@ export const TIER_META = {
    ─────────────────────────────────────────────────────────── */
 export const ENTITLEMENTS = {
   base: {
-    matchDelivery:     { type: 'capped', dailyLimit: 10 },
+    matchDelivery:     { type: 'capped', dailyLimit: 6 },
     geoReach:          'local',           // primary local region only
     algorithmPriority: 'fifo',            // standard FIFO batch queue
     messaging:         { maxThreads: 3, historyAccess: false, threadPinning: false },

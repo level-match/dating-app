@@ -7,6 +7,7 @@
  */
 
 const { INTENT_CATEGORY_TIER } = require('./matching-policy')
+const { applyRecommendationBoost } = require('./match-recommendations')
 
 const ALGORITHMS = ['fifo', 'enhanced', 'realtime']
 
@@ -86,10 +87,16 @@ function compareRankedItems(a, b, algorithm) {
   return String(a.row.id).localeCompare(String(b.row.id))
 }
 
-function rankMatchItems(items, viewer, algorithm = 'fifo') {
+function rankMatchItems(items, viewer, algorithm = 'fifo', recommendationSignals = null) {
   const mode = ALGORITHMS.includes(algorithm) ? algorithm : 'fifo'
   return items
-    .map(item => ({ ...item, rankScore: computeRankScore(item, viewer, mode) }))
+    .map(item => {
+      let rankScore = computeRankScore(item, viewer, mode)
+      if (recommendationSignals && mode !== 'fifo') {
+        rankScore = applyRecommendationBoost(rankScore, item, recommendationSignals)
+      }
+      return { ...item, rankScore }
+    })
     .sort((a, b) => compareRankedItems(a, b, mode))
 }
 

@@ -1,166 +1,76 @@
 # Matching Engine Roadmap
 
-> **Status:** v1 shipped (`GET /api/matches`) — subscription-tier geo gating, intent guardrail, placeholder scoring, Base daily delivery tracking.  
-> **Goal:** Replace mock/placeholder logic with a production matching system.
+> **Status:** v2 — weighted alignment scoring, 75% threshold, tier ranking, alignment persistence, pass/withdraw flow, and lightweight recommendation boosts.  
+> **Goal:** Production curated matching with explainable compatibility.
 
 ---
 
-## Current state (v1)
+## Current state (v2)
 
 | Layer | Status |
 |-------|--------|
-| Subscription tiers (base / plus / prime) | Done — `subscriptions` + `server/utils/entitlements.js` |
-| Geo reach (local / national / global) | Done — `country_code` + `region_code` comparison |
-| Intent guardrail | Done — `server/utils/matching-policy.js` |
-| Daily delivery cap (Base) | Done — `match_deliveries` table (migration 012) |
-| Compatibility score | **Placeholder** — shared FK overlap + deterministic seed |
-| Candidate pool | All onboarded profiles except self |
-| Profile view from match card | **Mock** — `client/js/members.js` |
-| Connection requests / mutual state | Not built |
-| Age / gender / block filters | Not built |
+| Subscription tiers (base / plus / prime) | Done |
+| Geo reach (local / national / global) | Done |
+| Intent guardrail | Done |
+| Hard filters (age, gender, completeness, discretion) | Done |
+| Weighted alignment scoring (6 dimensions) | Done |
+| Alignment questionnaire persisted server-side | Done |
+| 75% match queue threshold | Done |
+| Tier ranking (fifo / enhanced / realtime) | Done |
+| Base daily delivery cap | **6/day** (product target 4–6) |
+| Pass / decline / withdraw | Done |
+| Recommendation boosts from connect history | Done (v1) |
+| Viewer alignment required for feed | Done |
+| Compatibility breakdown on profile + cards | Done |
 
-### v1 API
-
-```
-GET /api/matches
-```
-
-Returns: `matchingEligible`, `tier`, `geoReach`, `quota`, `matches[]`, `locked[]`.
-
----
-
-## Target architecture
+### API
 
 ```
-Client (matches.html, browse.html, profile.html)
-    │
-    ▼
-GET  /api/matches                    — curated feed (tier + quota + geo)
-GET  /api/matches/:profileId         — single candidate (public fields)
-POST /api/matches/:profileId/request — connection request
-GET  /api/matches/eligibility        — server-authoritative intent check
-    │
-    ▼
-match.service.js
-  ├── eligibility (intent, profile completeness, location)
-  ├── candidate query (SQL + indexes)
-  ├── hard filters (age, gender prefs, blocks)
-  ├── geo classifier (viewer-relative local / national / global)
-  ├── tier gate (subscription entitlements)
-  ├── scoring engine (alignment weights)
-  ├── queue / ranking (FIFO / enhanced / realtime by tier)
-  └── delivery ledger (Base quota)
+GET  /api/matches
+GET  /api/matches/eligibility
+GET  /api/matches/:profileId
+POST /api/matches/:profileId/request
+POST /api/matches/:profileId/accept
+POST /api/matches/:profileId/decline
+POST /api/matches/:profileId/withdraw
+POST /api/matches/:profileId/pass
+PUT  /api/auth/profile/alignment
 ```
 
 ---
 
 ## Phased build plan
 
-### Phase 1 — Candidate filtering (hard gates)
+### Phase 1 — Candidate filtering ✅
 
-**Tasks**
-- [ ] Filter by viewer `age_range_min` / `age_range_max` vs candidate `age`
-- [ ] Filter by `profile_preferred_genders` vs candidate `gender_identity_id`
-- [ ] Exclude blocked / declined pairs (new `connection_requests` table)
-- [ ] Respect `block_colleagues` and `discretion_mode` (define overlap rules)
-- [ ] Require minimum profile completeness (photos, intent, location)
+- Age / gender hard gates, declined pairs, discretion mode, profile completeness
 
-**Database**
-```sql
-connection_requests (migration 013) — done
-```
+### Phase 2 — Alignment scoring ✅
 
-**Files to touch**
-- `server/services/match.service.js` — extend `CANDIDATE_SQL` / post-filter
-- `server/db/migrations/20260710_013_connection_requests.js`
+- Six-dimension weighted engine, demographic fit, questionnaire persistence, zero-out gate
 
----
-
-### Phase 2 — Alignment scoring engine
-
-**Tasks**
-- [ ] Define weight matrix for profile signal overlaps:
-  - Intent category (preferred vs aligned bonus)
-  - Career chapter, life integration, emotional style
-  - Lifestyle values (junction table overlap count)
-  - Long-term vision, mobility profile
-- [ ] Replace `computeCompatibilityScore()` placeholder in `match.service.js`
-- [ ] Return `compatibilityBreakdown` per match for profile view
-- [ ] Add unit tests for scoring determinism
-
-**Files to touch**
-- `server/services/match.service.js`
-- `server/utils/alignment-scoring.js` (new)
-- `server/tests/alignment-scoring.test.js` (new)
-
----
-
-### Phase 3 — Queue and ranking by tier
+### Phase 3 — Queue and ranking by tier ✅
 
 | Tier | Algorithm | Behavior |
 |------|-----------|----------|
-| Base | FIFO | Score order; deliver undelivered batch; 10/day cap |
-| Plus | Enhanced | Boost preferred-intent pairs; recency factor |
-| Prime | Realtime | Priority queue; rerank on profile updates |
+| Base | FIFO | Score order; 6/day cap |
+| Plus | Enhanced | Preferred-intent boost + recency |
+| Prime | Realtime | Strong recency + alignment priority |
 
-**Tasks**
-- [ ] Implement tier-specific sort in `match.service.js`
-- [ ] Remove client-side `level_match_cycle` localStorage (server is source of truth)
-- [ ] Optional: nightly job to refresh Base curated sets
+### Phase 4 — Profile and connection flow (in progress)
 
----
-
-### Phase 4 — Profile and connection flow
-
-**Tasks**
-- [x] `GET /api/matches/:profileId` — public profile for match cards
-- [x] Wire `profile.html?id=<uuid>` to API (mock fallback for non-UUID ids)
-- [x] `POST /api/matches/:profileId/request` — send connection request
-- [x] `POST /api/matches/:profileId/accept` — accept incoming request (mutual)
-- [x] Match status on feed: `new` / `pending` / `request` / `mutual`
-- [ ] Chat threads fully backed by API (still uses localStorage pending list)
-- [ ] Decline / withdraw connection request endpoint
-
-**Files to touch**
-- `server/routes/matches.js`
-- `client/js/profile.js`
-- `client/js/matches-api.js`
-- `client/js/chat.js` (thread unlock on mutual)
-
----
+- [x] Match profile API + connect / accept
+- [x] Decline / withdraw / pass endpoints
+- [x] Compatibility breakdown in UI
+- [x] Alignment assessment page restored
+- [ ] Chat threads fully backed by API (no localStorage pending list)
 
 ### Phase 5 — Admin and quality
 
-**Tasks**
 - [ ] Admin dashboard: match queue health, delivery stats by tier
 - [ ] Report / hide profiles from candidate pool
-- [ ] Backfill structured location for legacy `location`-only profiles
 - [ ] Metrics: delivery rate, request rate, mutual rate by tier
-
----
-
-## Key files (keep in sync)
-
-| Concern | Server | Client |
-|---------|--------|--------|
-| Entitlements | `server/utils/entitlements.js` | `client/js/membership.js` |
-| Intent policy | `server/utils/matching-policy.js` | `client/js/matching-policy.js` |
-| Geo | `server/utils/geo-matching.js` | — |
-| Match feed | `server/services/match.service.js` | `client/js/matches.js` |
-| API client | `server/routes/matches.js` | `client/js/matches-api.js` |
-| Tier guards | — | `client/js/membership-guard.js` |
-
----
-
-## Acceptance criteria (v2 complete)
-
-1. Matches page shows **only real DB profiles** (no mock fallback in production)
-2. Geo-locked cards enforced server-side per subscription tier
-3. Base users cannot exceed 10 deliveries/day via API abuse
-4. Casual-intent users cannot receive matches (server enforced)
-5. Clicking a match opens a real profile from the API
-6. Connection requests persist and update match status
-7. Compatibility score is explainable (breakdown on profile)
+- [ ] Deeper ML recommendation layer (embeddings / collaborative filtering)
 
 ---
 
@@ -168,7 +78,21 @@ connection_requests (migration 013) — done
 
 ```bash
 cd server
-npm run migrate:012   # match_deliveries (required for Base quota)
+npm run migrate:019   # alignment_answers on profiles
+npm run migrate:020   # match_feedback (pass / decline / connect)
 ```
 
-Users need `country_code` + `region_code` in profile setup before geo matching works.
+Users must complete the alignment assessment (`alignment.html`) before receiving curated matches.
+
+---
+
+## Key files
+
+| Concern | Server | Client |
+|---------|--------|--------|
+| Scoring | `server/utils/alignment-scoring.js` | `client/js/alignment-engine.js` |
+| Answers | `server/utils/alignment-answers.js` | `client/js/alignment-api.js` |
+| Ranking | `server/utils/match-ranking.js` | — |
+| Recommendations | `server/utils/match-recommendations.js` | — |
+| Match feed | `server/services/match.service.js` | `client/js/matches.js` |
+| Entitlements | `server/utils/entitlements.js` | `client/js/membership.js` |
