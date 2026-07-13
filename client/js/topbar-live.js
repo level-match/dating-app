@@ -1,10 +1,12 @@
 /* ============================================================
-   LEVEL — Live topbar (messages + notifications badges & polling)
+   LEVEL — Live topbar (messages + notifications badges & realtime)
    ============================================================ */
 
 import { fetchNotificationFeed } from './notifications-api.js'
+import { initRealtime, onRealtimeEvent, isRealtimeConnected } from './realtime.js'
 
-const POLL_MS = 20_000
+const POLL_MS = 120_000
+const FALLBACK_POLL_MS = 20_000
 
 let state = {
   notifications: [],
@@ -211,7 +213,8 @@ async function refreshFeed() {
 function startPolling() {
   if (pollTimer) return
   refreshFeed()
-  pollTimer = window.setInterval(refreshFeed, POLL_MS)
+  const interval = isRealtimeConnected() ? POLL_MS : FALLBACK_POLL_MS
+  pollTimer = window.setInterval(refreshFeed, interval)
 }
 
 function stopPolling() {
@@ -236,6 +239,9 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') refreshFeed()
 })
 
+initRealtime().then(() => {
+  onRealtimeEvent('any', () => refreshFeed())
+})
 startPolling()
 
 export { refreshFeed, state }

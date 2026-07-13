@@ -14,6 +14,13 @@ import {
 } from './chat-api.js'
 import { showSectionLoader, hideSectionLoader } from './loading.js'
 import { markNotificationRead } from './notifications-api.js'
+import {
+  initRealtime,
+  onRealtimeEvent,
+  subscribeToThread,
+  mapRealtimeMessage,
+  getAppUserId,
+} from './realtime.js'
 
 requireAuth()
 initBodyFade()
@@ -24,6 +31,8 @@ let activeConnectionId = null
 let activeConversation = null
 let currentFilter = 'all'
 let sending = false
+const renderedMessageIds = new Set()
+let threadUnsubscribe = null
 
 function escapeHtml(str) {
   return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -327,6 +336,7 @@ function renderMessages(messages, conv) {
   if (!area) return
 
   area.innerHTML = ''
+  renderedMessageIds.clear()
 
   if (!messages.length) {
     area.innerHTML = `
@@ -342,18 +352,56 @@ function renderMessages(messages, conv) {
     return
   }
 
-  messages.forEach(msg => {
-    const row = document.createElement('div')
-    row.className = `msg-row ${msg.from === 'me' ? 'sent' : 'received'}`
-    row.innerHTML = `
-      <div class="msg-content">
-        <div class="msg-bubble-text">${escapeHtml(msg.text)}</div>
-        <div class="msg-time">${escapeHtml(msg.time)}${formatReadReceipt(msg)}</div>
-      </div>`
-    area.appendChild(row)
-  })
+  messages.forEach(msg => appendMessageRow(msg, { animate: false }))
 
   area.scrollTop = area.scrollHeight
+}
+
+function appendMessageRow(msg, { animate = true } = {}) {
+  if (!msg?.id || renderedMessageIds.has(msg.id)) return false
+
+  const area = document.getElementById('messagesArea')
+  if (!area) return false
+
+  renderedMessageIds.add(msg.id)
+
+  const emptyState = area.querySelector('[style*="Start the conversation"]')
+  if (emptyState) area.innerHTML = ''
+
+  const row = document.createElement('div')
+  row.className = `msg-row ${msg.from === 'me' ? 'sent' : 'received'}${animate ? ' animate-fadeUp' : ''}`
+  row.dataset.messageId = msg.id
+  row.innerHTML = `
+    <div class="msg-content">
+      <div class="msg-bubble-text">${escapeHtml(msg.text)}</div>
+      <div class="msg-time">${escapeHtml(msg.time)}${formatReadReceipt(msg)}</div>
+    </div>`
+  area.appendChild(row)
+  area.scrollTop = area.scrollHeight
+  return true
+}
+
+function markMessageReadInUi(messageId) {
+  const row = document.querySelector(`[data-message-id="${messageId}"]`)
+  if (!row || !row.classList.contains('sent')) return
+  const timeEl = row.querySelector('.msg-time')
+  if (!timeEl || timeEl.textContent.includes('✓✓')) return
+  if (timeEl.textContent.includes('✓')) {
+    timeEl.textContent = timeEl.textContent.replace(/ ✓$/, ' ✓✓')
+  }
+}
+
+async function bindThreadRealtime(connectionId) {
+  if (threadUnsubscribe) threadUnsubscribe()
+  threadUnsubscribe = await subscribeToThread(connectionId, row => {
+    if (activeConnectionId !== connectionId) return
+    const msg = mapRealtimeMessage(row, getAppUserId())
+    if (!appendMessageRow(msg)) return
+    if (msg.from === 'them') {
+      markNotificationRead(`message:${connectionId}`).catch(() => {})
+      window.__levelTopbar?.refresh?.()
+    }
+  })
 }
 
 function formatReadReceipt(msg) {
@@ -374,11 +422,13 @@ async function openConnection(connectionId) {
   document.querySelector(`.conv-item[data-connection-id="${connectionId}"]`)?.classList.add('active')
 
   if (conv.connectionStatus === 'pending_sent') {
+    if (threadUnsubscribe) { threadUnsubscribe(); threadUnsubscribe = null }
     renderPendingSentView(conv)
     return
   }
 
   if (conv.connectionStatus === 'pending_received') {
+    if (threadUnsubscribe) { threadUnsubscribe(); threadUnsubscribe = null }
     renderRequestView(conv)
     return
   }
@@ -400,6 +450,7 @@ async function openConnection(connectionId) {
     }
 
     renderActiveChat(activeConversation, payload.messages || [], true)
+    await bindThreadRealtime(connectionId)
   } catch (err) {
     showToast(err.message || 'Could not load messages.', '⚠', 3500)
   } finally {
@@ -459,20 +510,7 @@ async function sendMessage() {
     input.value = ''
     autoResize(input)
 
-    const area = document.getElementById('messagesArea')
-    const emptyHint = area?.querySelector('[style*="Start the conversation"]')
-    if (emptyHint) area.innerHTML = ''
-
-    const msg = result.message
-    const row = document.createElement('div')
-    row.className = 'msg-row sent animate-fadeUp'
-    row.innerHTML = `
-      <div class="msg-content">
-        <div class="msg-bubble-text">${escapeHtml(msg.text)}</div>
-        <div class="msg-time">${escapeHtml(msg.time)}${formatReadReceipt(msg)}</div>
-      </div>`
-    area?.appendChild(row)
-    area.scrollTop = area.scrollHeight
+    appendMessageRow(result.message)
 
     await loadInbox()
   } catch (err) {
@@ -525,6 +563,22 @@ function bindFilters() {
     })
   })
 }
+
+initRealtime()
+onRealtimeEvent('message', row => {
+  if (row.connection_id !== activeConnectionId) {
+    loadInbox().catch(() => {})
+    window.__levelTopbar?.refresh?.()
+  }
+})
+onRealtimeEvent('connection', () => {
+  loadInbox().catch(() => {})
+  window.__levelTopbar?.refresh?.()
+  if (activeConnectionId) openConnection(activeConnectionId).catch(() => {})
+})
+onRealtimeEvent('read', row => {
+  markMessageReadInUi(row.message_id)
+})
 
 window.addEventListener('load', async () => {
   bindFilters()
