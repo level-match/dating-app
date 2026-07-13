@@ -28,6 +28,12 @@ export async function fetchConnectionMessages(connectionId) {
   return parseJson(res)
 }
 
+/** Resolve connection thread from a match profile UUID. */
+export async function lookupConnectionByProfileId(profileId) {
+  const res = await apiFetch(`/api/chat/lookup?profileId=${encodeURIComponent(profileId)}`)
+  return parseJson(res)
+}
+
 /** Send a message on an accepted connection. */
 export async function sendChatMessage(connectionId, body) {
   const res = await apiFetch(`/api/chat/connections/${encodeURIComponent(connectionId)}/messages`, {
@@ -48,4 +54,4 @@ export async function declineConnectionRequest(profileId) {
   return parseJson(res)
 }
 
-export { acceptConnectionRequest } from './matches-api.js'
+export { acceptConnectionRequest, withdrawConnectionRequest } from './matches-api.js'

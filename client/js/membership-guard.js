@@ -90,10 +90,7 @@ export function setActiveThreadCount(count) {
 
 export function getActiveThreadCount() {
   if (_activeThreadCount !== null) return _activeThreadCount
-  try {
-    const all = JSON.parse(localStorage.getItem('level_messages') || 'null') || {}
-    return Object.values(all).filter(t => Array.isArray(t) && t.length > 0).length
-  } catch { return 0 }
+  return 0
 }
 
 export function canOpenNewThread() {

@@ -11,6 +11,8 @@ import {
   sendChatMessage,
   acceptConnectionRequest,
   declineConnectionRequest,
+  withdrawConnectionRequest,
+  lookupConnectionByProfileId,
 } from './chat-api.js'
 import { showSectionLoader, hideSectionLoader } from './loading.js'
 import { markNotificationRead } from './notifications-api.js'
@@ -229,12 +231,27 @@ function renderPendingSentView(conv) {
         </div>
       </div>
       <div class="chat-locked">
-        <div style="font-family:var(--font-sans);font-size:var(--text-sm);font-weight:300;color:var(--text-muted);">
+        <div style="font-family:var(--font-sans);font-size:var(--text-sm);font-weight:300;color:var(--text-muted);margin-bottom:var(--s-4);">
           🔒 Messaging unlocks once ${escapeHtml(firstName)} accepts your request
         </div>
+        <button type="button" id="withdrawRequestBtn" class="btn btn-outline-dark btn-sm">Withdraw request</button>
       </div>
     </div>`
+  document.getElementById('withdrawRequestBtn')?.addEventListener('click', () => withdrawOutgoing(conv))
   renderProfilePanel(conv)
+}
+
+async function withdrawOutgoing(conv) {
+  try {
+    await withdrawConnectionRequest(conv.profileId)
+    showToast(`Request to ${conv.name.split(' ')[0]} withdrawn.`, '✓', 2500)
+    activeConnectionId = null
+    activeConversation = null
+    await loadInbox()
+    renderEmptyMain()
+  } catch (err) {
+    showToast(err.message || 'Could not withdraw the request.', '⚠', 3500)
+  }
 }
 
 function renderRequestView(conv) {
@@ -535,19 +552,31 @@ async function loadInbox() {
   renderConvList()
 }
 
-function resolveDeepLink() {
+async function resolveDeepLink() {
   const params = new URLSearchParams(window.location.search)
   const connectionId = params.get('connection')
-  const pendingProfileId = params.get('pending')
+  const profileId = params.get('profile') || params.get('pending')
 
   if (connectionId) {
     const conv = conversations.find(c => c.connectionId === connectionId)
     if (conv) return openConnection(connectionId)
   }
 
-  if (pendingProfileId) {
-    const conv = conversations.find(c => c.profileId === pendingProfileId)
-    if (conv) return openConnection(conv.connectionId)
+  if (profileId) {
+    let conv = conversations.find(c => c.profileId === profileId)
+    if (!conv) {
+      try {
+        const { connection } = await lookupConnectionByProfileId(profileId)
+        if (connection) {
+          conv = connection
+          const existing = conversations.find(c => c.connectionId === connection.connectionId)
+          if (!existing) conversations.unshift(connection)
+        }
+      } catch {
+        // No active connection yet — fall through to empty state
+      }
+    }
+    if (conv?.connectionId) return openConnection(conv.connectionId)
   }
 
   const first = filteredConversations()[0]

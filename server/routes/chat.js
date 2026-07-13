@@ -21,6 +21,28 @@ router.get('/chat/inbox', async (req, res) => {
   res.json(payload)
 })
 
+/* ─── GET /api/chat/lookup?profileId= ─────────────────────────────
+   Resolve a connection thread from a match profile UUID. */
+router.get('/chat/lookup', async (req, res) => {
+  const profileId = req.query.profileId
+  if (!isUuid(profileId)) {
+    return res.status(400).json({
+      error: 'INVALID_PROFILE_ID',
+      message: 'profileId must be a valid UUID.',
+    })
+  }
+
+  const connection = await chatSvc.lookupConnectionByProfileId(profileId, req.auth.userId)
+  if (!connection) {
+    return res.status(404).json({
+      error: 'NOT_FOUND',
+      message: 'No active connection found for this profile.',
+    })
+  }
+
+  res.json({ connection })
+})
+
 /* ─── GET /api/chat/connections/:connectionId/messages ──────────
    Message history for an accepted connection. */
 router.get('/chat/connections/:connectionId/messages', async (req, res) => {

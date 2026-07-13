@@ -178,11 +178,15 @@ async function onConnect(person) {
     const result = await apiSendRequest(person.id)
     const mutual = result.connection?.mutual
 
+    const connectionId = result.connection?.id || result.profile?.connectionId
+    const chatLink = connectionId
+      ? `chat.html?connection=${encodeURIComponent(connectionId)}`
+      : 'chat.html'
     store.addNotification({
       type: 'request',
       title: `Request sent to ${person.name}`,
       body: `${person.profession || ''} · ${person.location || ''} · ${person.score}% match. Waiting for them to accept.`,
-      href: 'chat.html',
+      href: chatLink,
     })
 
     if (mutual) {

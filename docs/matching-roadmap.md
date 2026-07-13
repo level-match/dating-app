@@ -63,7 +63,7 @@ PUT  /api/auth/profile/alignment
 - [x] Decline / withdraw / pass endpoints
 - [x] Compatibility breakdown in UI
 - [x] Alignment assessment page restored
-- [ ] Chat threads fully backed by API (no localStorage pending list)
+- [x] Chat threads fully backed by API (no localStorage pending list)
 
 ### Phase 5 — Admin and quality
 

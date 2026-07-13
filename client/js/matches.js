@@ -177,15 +177,9 @@ function applyMatchUpdate(profile) {
   renderMatchGrid()
 }
 
-function persistSentRequest(match) {
-  store.addSentRequest({
-    id: match.id,
-    name: match.name,
-    role: match.profession || '',
-    location: match.location || '',
-    score: match.score || 0,
-    fallback: match.fallback || FALLBACK_GRADIENT,
-  })
+function chatHrefForMatch(match, connectionId) {
+  const id = connectionId || match?.connectionId
+  return id ? `chat.html?connection=${encodeURIComponent(id)}` : 'chat.html'
 }
 
 async function handleCardAction(profileId, action) {
@@ -215,11 +209,17 @@ async function handleCardAction(profileId, action) {
     if (action === 'connect') {
       const result = await sendConnectionRequest(profileId)
       applyMatchUpdate(result.profile)
+      const connectionId = result.connection?.id || result.profile?.connectionId
       if (result.connection?.mutual) {
         showToast(`Connected with ${match.name.split(' ')[0]} — messaging unlocked.`, '✦', 2800)
+        window.location.href = chatHrefForMatch(result.profile || match, connectionId)
       } else {
-        persistSentRequest(result.profile || match)
         showToast(`Request sent to ${match.name.split(' ')[0]}.`, '✦', 2600)
+        if (connectionId) {
+          setTimeout(() => {
+            window.location.href = chatHrefForMatch(result.profile || match, connectionId)
+          }, 1200)
+        }
       }
       updateStatsFromLive()
       return

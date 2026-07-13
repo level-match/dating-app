@@ -5,16 +5,24 @@
 const KEYS = {
   USER:          'level_user',
   MATCHES:       'level_matches',
-  MESSAGES:      'level_messages',
   BOOKINGS:      'level_bookings',
   ONBOARD:       'level_onboarding',
   ACCOUNTS:      'level_accounts',
   ALIGNMENT:     'level_alignment',
   NOTIFICATIONS: 'level_notifications',
   SETTINGS:      'level_settings',
-  SENT_REQUESTS: 'level_sent_requests',
   PAST_DUE:      'level_past_due',
 }
+
+/** Remove retired client-side chat / request caches (server is source of truth). */
+function clearLegacyChatStorage() {
+  try {
+    localStorage.removeItem('level_messages')
+    localStorage.removeItem('level_sent_requests')
+  } catch {}
+}
+
+clearLegacyChatStorage()
 
 const DEFAULT_SETTINGS = {
   privacy: {
@@ -266,23 +274,6 @@ export const store = {
     return matches
   },
 
-  getMessages(matchId) {
-    const all = JSON.parse(localStorage.getItem(KEYS.MESSAGES) || '{}')
-    return all[matchId] || []
-  },
-
-  addMessage(matchId, text) {
-    const all = JSON.parse(localStorage.getItem(KEYS.MESSAGES) || '{}')
-    if (!all[matchId]) all[matchId] = []
-    all[matchId].push({
-      from: 'me',
-      text,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    })
-    localStorage.setItem(KEYS.MESSAGES, JSON.stringify(all))
-    return all[matchId]
-  },
-
   getBookings() {
     return JSON.parse(localStorage.getItem(KEYS.BOOKINGS) || '[]')
   },
@@ -321,48 +312,6 @@ export const store = {
 
   clearAlignment() {
     localStorage.removeItem(KEYS.ALIGNMENT)
-  },
-
-  /* ─── Sent connection requests ──────────────────────────────────
-     Stores rich display info so any page can render pending items
-     without needing to import the full member dataset.
-     Each entry: { id, name, role, location, score, fallback, sentAt }
-     ─────────────────────────────────────────────────────────── */
-
-  getSentRequests() {
-    try {
-      return JSON.parse(localStorage.getItem(KEYS.SENT_REQUESTS) || '[]')
-    } catch { return [] }
-  },
-
-  addSentRequest(member) {
-    const list = this.getSentRequests()
-    if (list.some(r => r.id === member.id)) return
-    list.push({
-      id:       member.id,
-      name:     member.name,
-      role:     member.profession || member.role || '',
-      location: member.location   || '',
-      score:    member.score      || 0,
-      fallback: member.fallback   || 'linear-gradient(135deg,#0A0F20,#060C18)',
-      sentAt:   new Date().toISOString(),
-    })
-    localStorage.setItem(KEYS.SENT_REQUESTS, JSON.stringify(list))
-    // Mirror as pending_other in the match list where a record exists
-    try {
-      const candidate = this.getMatches().find(m =>
-        m.name.toLowerCase().startsWith(member.name.toLowerCase().split(' ')[0])
-      )
-      if (candidate) this.updateMatchStatus(candidate.id, 'pending_other')
-    } catch {}
-  },
-
-  hasSentRequest(memberId) {
-    return this.getSentRequests().some(r => r.id === memberId)
-  },
-
-  getSentRequestIds() {
-    return this.getSentRequests().map(r => r.id)
   },
 
   isLoggedIn() {

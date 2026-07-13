@@ -343,18 +343,6 @@ function markButtonsMutual() {
   applyConnectionUi()
 }
 
-function persistSentRequest() {
-  if (!member) return
-  store.addSentRequest({
-    id: member.id,
-    name: member.name,
-    role: member.profession || member.role || '',
-    location: member.location || '',
-    score: member.score || 0,
-    fallback: member.fallback || 'linear-gradient(135deg,#0A0F20,#060C18)',
-  })
-}
-
 async function sendConnection() {
   if (!member || requestSent || connectionStatus === 'mutual') return
 
@@ -363,6 +351,7 @@ async function sendConnection() {
       const result = await acceptConnectionRequest(member.id)
       member = result.profile || member
       connectionStatus = 'mutual'
+      member.connectionId = result.connection?.id || member.connectionId
       markButtonsMutual()
       store.addNotification({
         type: 'match',
@@ -378,44 +367,34 @@ async function sendConnection() {
     return
   }
 
-  if (memberFromApi) {
-    try {
-      const result = await sendConnectionRequest(member.id)
-      member = result.profile || member
-      connectionStatus = result.connection?.mutual ? 'mutual' : 'pending_sent'
-
-      if (result.connection?.mutual) {
-        markButtonsMutual()
-        showToast(`You're connected with ${member.name.split(' ')[0]}.`, '✦', 2500)
-        setTimeout(() => { window.location.href = chatHref(result.connection?.id) }, 1400)
-        return
-      }
-
-      persistSentRequest()
-      markButtonsSent()
-      showToast(`Your interest has been sent to ${member.name.split(' ')[0]}.`, '✦', 2000)
-      setTimeout(() => {
-        window.location.href = `chat.html?pending=${encodeURIComponent(member.id)}`
-      }, 1600)
-    } catch (err) {
-      showToast(err.message || 'Could not send the request.', '⚠', 3500)
-    }
+  if (!memberFromApi) {
+    showToast('This profile must be loaded from your matches before connecting.', '⚠', 3500)
     return
   }
 
-  requestSent = true
-  persistSentRequest()
-  store.addNotification({
-    type: 'request',
-    title: `Request sent to ${member.name}`,
-    body: `${member.profession} · ${member.location} · ${member.score}% match. Awaiting their reply.`,
-    href: 'chat.html',
-  })
-  markButtonsSent()
-  showToast(`Your interest has been sent to ${member.name.split(' ')[0]}. Taking you to messages…`, '✦', 2000)
-  setTimeout(() => {
-    window.location.href = `chat.html?pending=${encodeURIComponent(member.id)}`
-  }, 1600)
+  try {
+    const result = await sendConnectionRequest(member.id)
+    member = result.profile || member
+    connectionStatus = result.connection?.mutual ? 'mutual' : 'pending_sent'
+    member.connectionId = result.connection?.id || member.connectionId
+
+    if (result.connection?.mutual) {
+      markButtonsMutual()
+      showToast(`You're connected with ${member.name.split(' ')[0]}.`, '✦', 2500)
+      setTimeout(() => { window.location.href = chatHref(result.connection?.id) }, 1400)
+      return
+    }
+
+    markButtonsSent()
+    showToast(`Your interest has been sent to ${member.name.split(' ')[0]}.`, '✦', 2000)
+    if (result.connection?.id) {
+      setTimeout(() => {
+        window.location.href = chatHref(result.connection.id)
+      }, 1200)
+    }
+  } catch (err) {
+    showToast(err.message || 'Could not send the request.', '⚠', 3500)
+  }
 }
 
 /* ─── Self-view photo helpers ─── */
@@ -687,7 +666,7 @@ async function bootProfile() {
 
     document.title = `LEVEL — ${member.name}`
     connectionStatus = member.connectionStatus || 'none'
-    requestSent = connectionStatus === 'pending_sent' || store.hasSentRequest(member.id)
+    requestSent = connectionStatus === 'pending_sent'
 
     const from = params.get('from')
     if (from === 'dashboard') {
