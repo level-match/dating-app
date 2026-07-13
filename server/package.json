@@ -31,7 +31,8 @@
     "seed:002": "node db/seeds/20260629_002_lookup_values.js",
     "seed:003": "node db/seeds/20260629_003_preferred_genders.js",
     "db:reset": "node db/reset.js",
-    "db:fresh": "npm run db:reset && npm run migrate:001 && npm run migrate:002 && npm run migrate:003 && npm run migrate:004 && npm run migrate:005 && npm run migrate:006 && npm run migrate:007 && npm run migrate:008 && npm run migrate:009 && npm run seed:001 && npm run seed:002 && npm run seed:003"
+    "db:fresh": "npm run db:reset && npm run migrate:001 && npm run migrate:002 && npm run migrate:003 && npm run migrate:004 && npm run migrate:005 && npm run migrate:006 && npm run migrate:007 && npm run migrate:008 && npm run migrate:009 && npm run seed:001 && npm run seed:002 && npm run seed:003",
+    "test": "node --test tests/**/*.test.js"
   },
   "devDependencies": {
     "cross-env": "^7.0.3"

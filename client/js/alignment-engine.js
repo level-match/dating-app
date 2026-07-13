@@ -1,17 +1,32 @@
 /* ============================================================
    LEVEL — Alignment Engine
    Weighted Euclidean-distance compatibility scoring across
-   5 categories. Total category weight = 90; output normalised
-   to a 0–100 score. A Q1-Intention extreme mismatch (Legacy
+   5 questionnaire categories plus profile-based demographic
+   fit. Total category weight = 100; output normalised to a
+   0–100 score. A Q1-Intention extreme mismatch (Legacy
    Builder vs Exploring) zeroes the entire score.
 
    Weights:
-     · Intention   25  (with hard-gate)
-     · Mindset     20
-     · Life Stage  20
-     · Lifestyle   15
-     · Mobility    10  (geographic compatibility)
+     · Intention    25  (with hard-gate)
+     · Mindset      20
+     · Life Stage   20
+     · Lifestyle    15
+     · Demographic  10  (age range, gender prefs, location)
+     · Mobility     10  (geographic compatibility)
    ============================================================ */
+
+export const DEMOGRAPHIC_WEIGHT = 10
+
+/** ref_preferred_genders.id → ref_genders.id values that satisfy the preference */
+const PREFERRED_TO_IDENTITY = {
+  1: [1],       // Men → Male
+  2: [2],       // Women → Female
+  3: [3],       // Non-binary people → Non-binary
+  4: [4],       // Trans women → Transgender
+  5: [1, 4],    // Trans men → Male, Transgender
+  6: [3, 99],   // Genderqueer → Non-binary, Custom
+  7: null,      // Everyone → no filter
+}
 
 export const CATEGORIES = [
   {
@@ -136,6 +151,124 @@ export const CATEGORIES = [
   },
 ]
 
+/* ─── Demographic fit (profile-based, not questionnaire) ─── */
+
+/**
+ * Normalise profile / API shapes into a demographic scoring object.
+ *   { age, ageRangeMin, ageRangeMax, genderIdentityId, preferredGenderIds,
+ *     countryCode, regionCode, city }
+ */
+export function normalizeDemographicProfile(raw) {
+  if (!raw) return null
+  const prefIds = raw.preferredGenderIds
+    ?? raw.preferred_gender_ids
+    ?? (Array.isArray(raw.preferredGenders)
+      ? raw.preferredGenders.map(g => (typeof g === 'object' ? g.id : g))
+      : null)
+  return {
+    age: raw.age ?? null,
+    ageRangeMin: raw.ageRangeMin ?? raw.age_range_min ?? null,
+    ageRangeMax: raw.ageRangeMax ?? raw.age_range_max ?? null,
+    genderIdentityId: raw.genderIdentityId ?? raw.gender_identity_id ?? null,
+    preferredGenderIds: prefIds ?? [],
+    countryCode: raw.countryCode ?? raw.country_code ?? null,
+    regionCode: raw.regionCode ?? raw.region_code ?? null,
+    city: raw.city ?? null,
+  }
+}
+
+function normalizeCode(value) {
+  if (!value) return null
+  return String(value).trim().toUpperCase()
+}
+
+/** Score how well candidateAge fits viewer's stated age range, in [0,1]. */
+function ageInRangeScore(age, min, max) {
+  if (age == null) return 0.5
+  if (min == null && max == null) return 0.5
+  const lo = min ?? 18
+  const hi = max ?? 99
+  if (age >= lo && age <= hi) return 1
+  const dist = age < lo ? lo - age : age - hi
+  if (dist >= 8) return 0
+  return 1 - dist / 8
+}
+
+/** Mutual age-range fit: each person's age vs the other's preferred range. */
+export function scoreAgeRangeOverlap(profileA, profileB) {
+  const a = normalizeDemographicProfile(profileA)
+  const b = normalizeDemographicProfile(profileB)
+  if (!a || !b) return 0
+  return (
+    ageInRangeScore(b.age, a.ageRangeMin, a.ageRangeMax) +
+    ageInRangeScore(a.age, b.ageRangeMin, b.ageRangeMax)
+  ) / 2
+}
+
+function genderMatchesPreference(viewerPrefs, candidateGenderId) {
+  const prefs = (viewerPrefs || []).map(Number)
+  if (!prefs.length) return 0.5
+  if (prefs.includes(7)) return 1
+  if (candidateGenderId == null) return 0.5
+  const genderId = Number(candidateGenderId)
+  return prefs.some(prefId => {
+    const allowed = PREFERRED_TO_IDENTITY[prefId]
+    if (allowed == null) return true
+    return allowed.includes(genderId)
+  }) ? 1 : 0
+}
+
+/** Mutual gender-preference fit: each person's prefs vs the other's identity. */
+export function scoreGenderPreferenceMatch(profileA, profileB) {
+  const a = normalizeDemographicProfile(profileA)
+  const b = normalizeDemographicProfile(profileB)
+  if (!a || !b) return 0
+  return (
+    genderMatchesPreference(a.preferredGenderIds, b.genderIdentityId) +
+    genderMatchesPreference(b.preferredGenderIds, a.genderIdentityId)
+  ) / 2
+}
+
+/** Location proximity in [0,1]: same city > region > country > abroad. */
+export function scoreLocationProximity(profileA, profileB) {
+  const a = normalizeDemographicProfile(profileA)
+  const b = normalizeDemographicProfile(profileB)
+  if (!a || !b) return 0
+  const aCountry = normalizeCode(a.countryCode)
+  const bCountry = normalizeCode(b.countryCode)
+  if (!aCountry || !bCountry) return 0.5
+  if (aCountry !== bCountry) return 0.15
+
+  const aRegion = normalizeCode(a.regionCode)
+  const bRegion = normalizeCode(b.regionCode)
+  if (aRegion && bRegion && aRegion === bRegion) {
+    const aCity = (a.city || '').trim().toLowerCase()
+    const bCity = (b.city || '').trim().toLowerCase()
+    if (aCity && bCity && aCity === bCity) return 1
+    return 0.75
+  }
+  return 0.45
+}
+
+/**
+ * Combined demographic fit (0–100) from age overlap, gender prefs, and location.
+ *   { overall, components: { ageRange, gender, location } }
+ */
+export function scoreDemographicFit(profileA, profileB) {
+  const ageScore = scoreAgeRangeOverlap(profileA, profileB)
+  const genderScore = scoreGenderPreferenceMatch(profileA, profileB)
+  const locationScore = scoreLocationProximity(profileA, profileB)
+  const combined = (ageScore + genderScore + locationScore) / 3
+  return {
+    overall: Math.round(combined * 100),
+    components: {
+      ageRange: Math.round(ageScore * 100),
+      gender: Math.round(genderScore * 100),
+      location: Math.round(locationScore * 100),
+    },
+  }
+}
+
 /* ─── Helpers ─── */
 
 function optionRange(question) {
@@ -177,13 +310,19 @@ export function isZeroOut(userA, userB) {
  *
  * Each user object is keyed by category id, then question id:
  *   { intention: { objective: 4, timeline: 2 }, mindset: { ... }, ... }
+ *
+ * Optional `demographicsA` / `demographicsB` add the 10% Demographic Fit
+ * dimension (age range overlap, gender preference match, location proximity).
  */
-export function scoreCompatibility(userA, userB) {
+export function scoreCompatibility(userA, userB, { demographicsA, demographicsB } = {}) {
   if (isZeroOut(userA, userB)) {
     return {
       overall: 0,
       zeroedOut: true,
-      breakdown: CATEGORIES.map(c => ({ id: c.id, label: c.label, score: 0, weight: c.weight })),
+      breakdown: [
+        ...CATEGORIES.map(c => ({ id: c.id, label: c.label, score: 0, weight: c.weight })),
+        { id: 'demographic', label: 'Demographic Fit', score: 0, weight: DEMOGRAPHIC_WEIGHT },
+      ],
     }
   }
 
@@ -206,6 +345,19 @@ export function scoreCompatibility(userA, userB) {
     })
     weightedTotal += catScore * cat.weight
     weightSum     += cat.weight
+  }
+
+  if (demographicsA && demographicsB) {
+    const demo = scoreDemographicFit(demographicsA, demographicsB)
+    breakdown.push({
+      id: 'demographic',
+      label: 'Demographic Fit',
+      score: demo.overall,
+      weight: DEMOGRAPHIC_WEIGHT,
+      components: demo.components,
+    })
+    weightedTotal += (demo.overall / 100) * DEMOGRAPHIC_WEIGHT
+    weightSum     += DEMOGRAPHIC_WEIGHT
   }
 
   return {
@@ -235,6 +387,11 @@ export const SAMPLE_PEERS = [
       lifestyle: { integration: 3, social: 3 },
       mobility:  { profile: 2 },
     },
+    demographics: {
+      age: 38, ageRangeMin: 30, ageRangeMax: 45,
+      genderIdentityId: 1, preferredGenderIds: [2],
+      countryCode: 'US', regionCode: 'NY', city: 'New York',
+    },
   },
   {
     name: 'Mia Santos',
@@ -245,6 +402,11 @@ export const SAMPLE_PEERS = [
       lifestage: { chapter: 2,   partner_drive: 2 },
       lifestyle: { integration: 2, social: 2 },
       mobility:  { profile: 2 },
+    },
+    demographics: {
+      age: 32, ageRangeMin: 28, ageRangeMax: 42,
+      genderIdentityId: 2, preferredGenderIds: [1],
+      countryCode: 'GB', regionCode: 'ENG', city: 'London',
     },
   },
   {
@@ -257,6 +419,11 @@ export const SAMPLE_PEERS = [
       lifestyle: { integration: 1, social: 1 },
       mobility:  { profile: 1 },
     },
+    demographics: {
+      age: 34, ageRangeMin: 26, ageRangeMax: 38,
+      genderIdentityId: 1, preferredGenderIds: [2, 3],
+      countryCode: 'US', regionCode: 'CA', city: 'Los Angeles',
+    },
   },
   {
     name: 'Sarah M.',
@@ -267,6 +434,11 @@ export const SAMPLE_PEERS = [
       lifestage: { chapter: 2,   partner_drive: 2 },
       lifestyle: { integration: 2, social: 1 },
       mobility:  { profile: 1 },
+    },
+    demographics: {
+      age: 32, ageRangeMin: 30, ageRangeMax: 42,
+      genderIdentityId: 2, preferredGenderIds: [1],
+      countryCode: 'US', regionCode: 'NY', city: 'New York',
     },
   },
 ]

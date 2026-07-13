@@ -3,6 +3,12 @@ const subscriptionSvc = require('./subscription.service')
 const { createSignedUrl, BUCKET } = require('./storage.service')
 const { evaluateEligibility, isEligibleIntentCategory } = require('../utils/matching-policy')
 const { classifyRelativeGeoTier } = require('../utils/geo-matching')
+const { passesHardFilters } = require('../utils/match-filters')
+const {
+  scoreAlignment,
+  buildAlignmentSummaryFromBreakdown,
+  buildSharedIndicatorsFromScores,
+} = require('../utils/alignment-scoring')
 const {
   getEntitlements,
   canAccessGeo,
@@ -31,6 +37,8 @@ const PROFILE_SELECT = `
     p.region_name,
     p.city,
     p.age,
+    p.age_range_min,
+    p.age_range_max,
     p.block_colleagues,
     p.discretion_mode,
     p.mutual_only_visibility,
@@ -40,6 +48,7 @@ const PROFILE_SELECT = `
     p.life_integration_id,
     p.emotional_style_id,
     p.long_term_vision_id,
+    p.mobility_profile_id,
     p.gender_identity_custom,
     p.orientation_custom,
     g.id    AS gender_identity_id,
@@ -103,63 +112,50 @@ function formatDisplayName(first, last) {
   return `${f} ${l.charAt(0).toUpperCase()}.`
 }
 
-function computeCompatibilityScore(viewer, candidate) {
-  let score = 62
-
-  if (viewer.intent_category && viewer.intent_category === candidate.intent_category) {
-    score += 12
+async function loadPreferredGenderIdsByProfile(profileIds) {
+  if (!profileIds.length) return new Map()
+  const { rows } = await pool.query(
+    `SELECT profile_id, preferred_gender_id
+     FROM profile_preferred_genders
+     WHERE profile_id = ANY($1::uuid[])`,
+    [profileIds],
+  )
+  const map = new Map()
+  for (const row of rows) {
+    const key = String(row.profile_id)
+    if (!map.has(key)) map.set(key, [])
+    map.get(key).push(row.preferred_gender_id)
   }
-  if (viewer.career_chapter_id && viewer.career_chapter_id === candidate.career_chapter_id) {
-    score += 8
-  }
-  if (viewer.life_integration_id && viewer.life_integration_id === candidate.life_integration_id) {
-    score += 8
-  }
-  if (viewer.emotional_style_id && viewer.emotional_style_id === candidate.emotional_style_id) {
-    score += 6
-  }
-  if (classifyRelativeGeoTier(viewer, candidate) === 'local') {
-    score += 6
-  }
-
-  const seed = String(candidate.id).split('').reduce((n, ch) => n + ch.charCodeAt(0), 0)
-  score += seed % 9
-
-  return Math.min(99, score)
+  return map
 }
 
-function buildAlignmentSummary(viewer, candidate, score) {
-  const parts = []
-  if (viewer.career_chapter_id && viewer.career_chapter_id === candidate.career_chapter_id) {
-    parts.push('career chapter')
+async function loadLifestyleValueIdsByProfile(profileIds) {
+  if (!profileIds.length) return new Map()
+  const { rows } = await pool.query(
+    `SELECT profile_id, lifestyle_id
+     FROM profile_lifestyle_values
+     WHERE profile_id = ANY($1::uuid[])`,
+    [profileIds],
+  )
+  const map = new Map()
+  for (const row of rows) {
+    const key = String(row.profile_id)
+    if (!map.has(key)) map.set(key, [])
+    map.get(key).push(row.lifestyle_id)
   }
-  if (viewer.intent_category && viewer.intent_category === candidate.intent_category) {
-    parts.push('relationship intent')
-  }
-  if (classifyRelativeGeoTier(viewer, candidate) === 'local') {
-    parts.push('shared region')
-  }
-  if (!parts.length) {
-    return `Curated introduction · ${score}% alignment based on your profile signals.`
-  }
-  return `Strong overlap in ${parts.join(', ')}.`
+  return map
 }
 
-function buildSharedIndicators(viewer, candidate) {
-  const items = []
-  if (viewer.intent_category && viewer.intent_category === candidate.intent_category) {
-    items.push({ label: 'Relationship intent', note: 'Aligned on what you are both seeking' })
-  }
-  if (viewer.career_chapter_id && viewer.career_chapter_id === candidate.career_chapter_id) {
-    items.push({ label: 'Career chapter', note: 'In a similar professional season' })
-  }
-  if (classifyRelativeGeoTier(viewer, candidate) === 'local') {
-    items.push({ label: 'Shared region', note: 'Based in the same part of the country' })
-  }
-  if (viewer.long_term_vision_id && viewer.long_term_vision_id === candidate.long_term_vision_id) {
-    items.push({ label: 'Long-term vision', note: 'Similar picture of the future' })
-  }
-  return items
+function buildScoringContext(preferredGendersMap, lifestyleValuesMap) {
+  return { preferredGendersMap, lifestyleValuesMap }
+}
+
+function scoreMatchPair(viewer, candidate, scoringContext = {}) {
+  return scoreAlignment(viewer, candidate, scoringContext)
+}
+
+function computeCompatibilityScore(viewer, candidate, scoringContext = {}) {
+  return scoreMatchPair(viewer, candidate, scoringContext).overall
 }
 
 function mapConnectionStatus(connection, viewerUserId) {
@@ -229,12 +225,15 @@ async function loadConnectionsForViewer(viewerUserId, candidateUserIds) {
   if (!candidateUserIds.length) return new Map()
 
   const { rows } = await pool.query(
-    `SELECT * FROM connection_requests
-     WHERE status IN ('pending', 'accepted')
-       AND (
-         (from_user_id = $1 AND to_user_id = ANY($2::uuid[]))
-         OR (to_user_id = $1 AND from_user_id = ANY($2::uuid[]))
-       )`,
+    `SELECT DISTINCT ON (other_id) *
+     FROM (
+       SELECT cr.*,
+         CASE WHEN cr.from_user_id = $1 THEN cr.to_user_id ELSE cr.from_user_id END AS other_id
+       FROM connection_requests cr
+       WHERE (cr.from_user_id = $1 AND cr.to_user_id = ANY($2::uuid[]))
+          OR (cr.to_user_id = $1 AND cr.from_user_id = ANY($2::uuid[]))
+     ) pairs
+     ORDER BY other_id, created_at DESC`,
     [viewerUserId, candidateUserIds],
   )
 
@@ -276,9 +275,9 @@ async function recordDeliveries(userId, profileIds, client = pool) {
   )
 }
 
-async function mapCandidateRow(viewer, row, connection = null) {
+async function mapCandidateRow(viewer, row, connection = null, scoringContext = {}) {
   const geoTier = classifyRelativeGeoTier(viewer, row)
-  const score = computeCompatibilityScore(viewer, row)
+  const result = scoreMatchPair(viewer, row, scoringContext)
   const conn = mapConnectionStatus(connection, viewer.user_id || viewer.id)
   const photo = await resolvePhotoUrl(row)
 
@@ -290,8 +289,8 @@ async function mapCandidateRow(viewer, row, connection = null) {
     profession: row.professional_title || 'Member',
     location: row.location || [row.city, row.region_name, row.country_name].filter(Boolean).join(', '),
     geoTier,
-    score,
-    alignmentSummary: buildAlignmentSummary(viewer, row, score),
+    score: result.overall,
+    alignmentSummary: buildAlignmentSummaryFromBreakdown(result.breakdown, result.overall),
     status: conn.status,
     connectionStatus: conn.connectionStatus,
     connectionId: connection?.id || null,
@@ -310,11 +309,15 @@ async function recordProfileView(viewerUserId, profileId, viewerRow) {
   )
 }
 
-async function mapPublicProfile(viewer, row, { connection, score, geoTier, geoAccessible }) {
+async function mapPublicProfile(viewer, row, {
+  connection, score, geoTier, geoAccessible, scoringContext = {}, compatibilityResult = null,
+}) {
   const extras = await loadProfileExtras(row.id)
   const conn = mapConnectionStatus(connection, viewer.user_id)
   const photo = await resolvePhotoUrl(row)
   const legacy = row.legacy_vision || ''
+  const result = compatibilityResult || scoreMatchPair(viewer, row, scoringContext)
+  const resolvedScore = score ?? result.overall
 
   const badges = []
   if (photo) badges.push('photo')
@@ -328,7 +331,8 @@ async function mapPublicProfile(viewer, row, { connection, score, geoTier, geoAc
     pronouns: extras.pronouns,
     photo,
     fallback: 'linear-gradient(160deg,#1A2F4A,#0D1E35,#1E1008)',
-    score,
+    score: resolvedScore,
+    compatibilityBreakdown: result.breakdown,
     profession: row.professional_title || 'Member',
     company: row.industry || '',
     location: row.location || [row.city, row.region_name, row.country_name].filter(Boolean).join(', '),
@@ -343,7 +347,7 @@ async function mapPublicProfile(viewer, row, { connection, score, geoTier, geoAc
     intentLong: row.primary_intent
       ? `Looking for ${String(row.primary_intent).toLowerCase()}.`
       : '',
-    alignmentSummary: buildAlignmentSummary(viewer, row, score),
+    alignmentSummary: buildAlignmentSummaryFromBreakdown(result.breakdown, resolvedScore),
     badges,
     overview: {
       quote: legacy ? legacy.split(/[.!?]/)[0]?.trim() : '',
@@ -362,10 +366,27 @@ async function mapPublicProfile(viewer, row, { connection, score, geoTier, geoAc
       { label: 'Primary intent', value: row.primary_intent || '—' },
       { label: 'Long-term vision', value: row.long_term_vision || '—' },
     ].filter(r => r.value && r.value !== '—'),
-    shared: buildSharedIndicators(viewer, row),
+    shared: buildSharedIndicatorsFromScores(
+      viewer,
+      row,
+      result.categoryScores,
+      scoringContext.lifestyleValuesMap,
+    ),
   }
 
   return applyMutualOnlyVisibility(fullProfile, row, connection)
+}
+
+async function loadScoringContextForProfiles(profileIds) {
+  const [preferredGendersMap, lifestyleValuesMap] = await Promise.all([
+    loadPreferredGenderIdsByProfile(profileIds),
+    loadLifestyleValueIdsByProfile(profileIds),
+  ])
+  return buildScoringContext(preferredGendersMap, lifestyleValuesMap)
+}
+
+async function scoringContextForPair(viewer, candidate) {
+  return loadScoringContextForProfiles([viewer.id, candidate.id])
 }
 
 async function loadViewer(userId) {
@@ -465,18 +486,41 @@ async function getMatchesForUser(userId) {
     candidateRes.rows.map(r => r.user_id),
   )
 
+  const scoringContext = await loadScoringContextForProfiles([
+    viewer.id,
+    ...candidateRes.rows.map(r => r.id),
+  ])
+
   const scored = []
+  let filteredCount = 0
   for (const row of candidateRes.rows) {
     const connection = connections.get(row.user_id) || null
-    if (!connection && shouldBlockColleaguePair(viewer, row)) continue
+    const isActiveConnection = connection
+      && (connection.status === 'pending' || connection.status === 'accepted')
+
+    if (!isActiveConnection) {
+      if (shouldBlockColleaguePair(viewer, row)) continue
+      const gate = passesHardFilters(viewer, row, {
+        preferredGendersMap: scoringContext.preferredGendersMap,
+        connection,
+      })
+      if (!gate.pass) {
+        filteredCount++
+        continue
+      }
+    } else if (connection.status === 'declined' || connection.status === 'withdrawn') {
+      continue
+    }
 
     const geoTier = classifyRelativeGeoTier(viewer, row)
     if (!geoTier) continue
+    const result = scoreMatchPair(viewer, row, scoringContext)
     scored.push({
       row,
       geoTier,
-      score: computeCompatibilityScore(viewer, row),
+      score: result.overall,
       connection,
+      result,
     })
   }
 
@@ -514,7 +558,7 @@ async function getMatchesForUser(userId) {
 
   const matches = []
   for (const item of selected) {
-    matches.push(await mapCandidateRow(viewer, item.row, item.connection))
+    matches.push(await mapCandidateRow(viewer, item.row, item.connection, scoringContext))
   }
 
   if (newlyDeliveredIds.length) {
@@ -526,7 +570,7 @@ async function getMatchesForUser(userId) {
     : Math.min(dailyLimit, deliveredIds.length + newlyDeliveredIds.length)
 
   const curatedMatches = matches
-  const connectionMatches = await loadConnectionFeedProfiles(userId, viewer)
+  const connectionMatches = await loadConnectionFeedProfiles(userId, viewer, scoringContext)
   const merged = mergeMatchLists(curatedMatches, connectionMatches)
   const stats = buildMatchStats(merged)
 
@@ -548,7 +592,9 @@ async function getMatchesForUser(userId) {
     locked,
     stats,
     meta: {
-      totalCandidates: scored.length,
+      totalCandidates: candidateRes.rows.length,
+      scoredCount: scored.length,
+      filteredCount,
       accessibleCount: accessible.length,
       lockedCount: locked.length,
       connectionCount: connectionMatches.length,
@@ -567,12 +613,17 @@ const CONNECTION_PROFILES_SQL = `
     AND u.onboarding_complete = TRUE
 `
 
-async function loadConnectionFeedProfiles(viewerUserId, viewer) {
+async function loadConnectionFeedProfiles(viewerUserId, viewer, scoringContext = null) {
   const { rows } = await pool.query(CONNECTION_PROFILES_SQL, [viewerUserId])
   const connections = await loadConnectionsForViewer(
     viewerUserId,
     rows.map(r => r.user_id),
   )
+
+  const context = scoringContext || await loadScoringContextForProfiles([
+    viewer.id,
+    ...rows.map(r => r.id),
+  ])
 
   const items = []
   for (const row of rows) {
@@ -580,6 +631,7 @@ async function loadConnectionFeedProfiles(viewerUserId, viewer) {
       viewer,
       row,
       connections.get(row.user_id) || null,
+      context,
     ))
   }
   return items
@@ -659,16 +711,34 @@ async function getMatchProfile(viewerUserId, profileId) {
     throw err
   }
 
+  const scoringContext = await scoringContextForPair(viewer, candidate)
+  const isActiveConnection = connection
+    && (connection.status === 'pending' || connection.status === 'accepted')
+
+  if (!isActiveConnection) {
+    const gate = passesHardFilters(viewer, candidate, {
+      preferredGendersMap: scoringContext.preferredGendersMap,
+      connection,
+    })
+    if (!gate.pass) {
+      const err = new Error('Profile not available.')
+      err.code = 'NOT_FOUND'
+      throw err
+    }
+  }
+
   const { geoTier, geoAccessible } = await assertGeoAccess(
     viewerUserId, tier, viewer, candidate, connection,
   )
-  const score = computeCompatibilityScore(viewer, candidate)
+  const compatibilityResult = scoreMatchPair(viewer, candidate, scoringContext)
   await recordProfileView(viewerUserId, profileId, viewer)
   const profile = await mapPublicProfile(viewer, candidate, {
     connection,
-    score,
+    score: compatibilityResult.overall,
     geoTier,
     geoAccessible,
+    scoringContext,
+    compatibilityResult,
   })
 
   return { profile, tier, geoReach: getEntitlements(tier).geoReach }
@@ -711,6 +781,7 @@ async function sendConnectionRequest(viewerUserId, profileId) {
 
   await assertGeoAccess(viewerUserId, tier, viewer, candidate, existing)
 
+  const scoringContext = await scoringContextForPair(viewer, candidate)
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
@@ -730,9 +801,10 @@ async function sendConnectionRequest(viewerUserId, profileId) {
         mutual: true,
         profile: await mapPublicProfile(viewer, candidate, {
           connection: updated.rows[0],
-          score: computeCompatibilityScore(viewer, candidate),
+          score: scoreMatchPair(viewer, candidate, scoringContext).overall,
           geoTier: classifyRelativeGeoTier(viewer, candidate),
           geoAccessible: true,
+          scoringContext,
         }),
       }
     }
@@ -752,9 +824,10 @@ async function sendConnectionRequest(viewerUserId, profileId) {
       mutual: false,
       profile: await mapPublicProfile(viewer, candidate, {
         connection,
-        score: computeCompatibilityScore(viewer, candidate),
+        score: scoreMatchPair(viewer, candidate, scoringContext).overall,
         geoTier: classifyRelativeGeoTier(viewer, candidate),
         geoAccessible: true,
+        scoringContext,
       }),
     }
   } catch (err) {
@@ -797,14 +870,16 @@ async function acceptConnectionRequest(viewerUserId, profileId) {
   )
 
   const viewer = await loadViewer(viewerUserId)
+  const scoringContext = await scoringContextForPair(viewer, candidate)
   return {
     connection: rows[0],
     mutual: true,
     profile: await mapPublicProfile(viewer, candidate, {
       connection: rows[0],
-      score: computeCompatibilityScore(viewer, candidate),
+      score: scoreMatchPair(viewer, candidate, scoringContext).overall,
       geoTier: classifyRelativeGeoTier(viewer, candidate),
       geoAccessible: true,
+      scoringContext,
     }),
   }
 }
@@ -846,4 +921,5 @@ module.exports = {
   declineConnectionRequest,
   loadViewer,
   computeCompatibilityScore,
+  scoreMatchPair,
 }

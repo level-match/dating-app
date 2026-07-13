@@ -116,7 +116,21 @@ submitBtn.addEventListener('click', () => {
   store.setAlignment(answers)
 
   peerGridEl.innerHTML = SAMPLE_PEERS.map(peer => {
-    const result = scoreCompatibility(answers, peer.answers)
+    const user = store.getUser() || {}
+    const viewerDemographics = {
+      age: user.age ?? null,
+      ageRangeMin: user.ageRangeMin ?? null,
+      ageRangeMax: user.ageRangeMax ?? null,
+      genderIdentityId: user.genderIdentityId ?? null,
+      preferredGenderIds: user.preferredGenderIds ?? [],
+      countryCode: user.countryCode ?? null,
+      regionCode: user.regionCode ?? null,
+      city: user.city ?? null,
+    }
+    const result = scoreCompatibility(answers, peer.answers, {
+      demographicsA: viewerDemographics,
+      demographicsB: peer.demographics,
+    })
     const isZero = result.zeroedOut
     const overall = isZero
       ? `<div class="ae-peer-score-num">EXCL.</div>
