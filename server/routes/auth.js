@@ -3,6 +3,11 @@ const pool    = require('../db/pool')
 const { verifySupabaseToken } = require('../middleware/supabase-auth')
 const subscriptionSvc = require('../services/subscription.service')
 const { formatLocationLabel } = require('../utils/location')
+const {
+  validateAlignmentPayload,
+  normalizeAlignmentAnswers,
+  isAlignmentComplete,
+} = require('../utils/alignment-answers')
 
 const router = express.Router()
 
@@ -396,6 +401,8 @@ router.get('/profile', async (req, res) => {
          p.age_range_min,
          p.age_range_max,
          p.legacy_vision,
+         p.alignment_answers,
+         p.alignment_completed_at,
          p.gender_identity_custom,
          p.orientation_custom,
          p.created_at,
@@ -483,8 +490,62 @@ router.get('/profile', async (req, res) => {
         pronouns:          pronounRows,
         preferred_genders: prefGenderRows,
         lifestyle_values:  lifestyleRows,
+        alignment_answers: normalizeAlignmentAnswers(profile.alignment_answers),
+        alignment_complete: isAlignmentComplete(profile.alignment_answers),
+        alignment_completed_at: profile.alignment_completed_at,
       }
     })
+  } finally {
+    client.release()
+  }
+})
+
+/* ─── PUT /api/auth/profile/alignment ───────────────────────────
+   Persist alignment questionnaire answers for matching.
+*/
+router.put('/profile/alignment', async (req, res) => {
+  const payload = await verifySupabaseToken(req.headers.authorization)
+
+  let answers
+  try {
+    answers = validateAlignmentPayload(req.body)
+  } catch (err) {
+    return res.status(400).json({
+      error: err.code || 'VALIDATION_ERROR',
+      message: err.message,
+    })
+  }
+
+  const complete = isAlignmentComplete(answers)
+  const client = await pool.connect()
+  try {
+    const { rows } = await client.query(
+      `UPDATE profiles p
+       SET alignment_answers = $2,
+           alignment_completed_at = CASE
+             WHEN $3 THEN COALESCE(p.alignment_completed_at, NOW())
+             ELSE NULL
+           END,
+           updated_at = NOW()
+       FROM users u
+       WHERE p.user_id = u.id AND u.external_id = $1
+       RETURNING p.id, p.alignment_answers, p.alignment_completed_at`,
+      [payload.sub, JSON.stringify(answers), complete],
+    )
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'NOT_FOUND', message: 'Profile not found.' })
+    }
+
+    res.json({
+      ok: true,
+      alignment_answers: normalizeAlignmentAnswers(rows[0].alignment_answers),
+      alignment_complete: complete,
+      alignment_completed_at: rows[0].alignment_completed_at,
+    })
+  } catch (err) {
+    console.error('[profile/alignment] save failed:', err.message)
+    res.status(500).json({ error: 'DB_ERROR', message: err.message })
   } finally {
     client.release()
   }

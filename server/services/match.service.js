@@ -50,6 +50,8 @@ const PROFILE_SELECT = `
     p.emotional_style_id,
     p.long_term_vision_id,
     p.mobility_profile_id,
+    p.alignment_answers,
+    p.alignment_completed_at,
     p.gender_identity_custom,
     p.orientation_custom,
     g.id    AS gender_identity_id,

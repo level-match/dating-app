@@ -1,5 +1,6 @@
 import { store } from './store.js'
-import { initBodyFade } from './app.js'
+import { initBodyFade, showToast } from './app.js'
+import { saveAlignmentAnswers } from './alignment-api.js'
 import {
   CATEGORIES,
   SAMPLE_PEERS,
@@ -76,6 +77,9 @@ window.aeSelect = function (catId, qId, value, el) {
 
   refreshProgress()
   store.setAlignment(answers)   // persist incrementally
+  saveAlignmentAnswers(answers).catch(err => {
+    console.warn('[alignment] server sync skipped:', err.message)
+  })
 }
 
 function markSelected(catId, qId, value) {
@@ -111,9 +115,17 @@ function refreshProgress() {
 }
 
 /* ─── Submit & render peer scores ─── */
-submitBtn.addEventListener('click', () => {
+submitBtn.addEventListener('click', async () => {
   if (!isComplete(answers)) return
   store.setAlignment(answers)
+
+  try {
+    await saveAlignmentAnswers(answers)
+    showToast('Alignment saved to your profile.', '✓')
+  } catch (err) {
+    console.warn('[alignment] save failed:', err.message)
+    showToast('Saved locally — sync to profile failed.', '!')
+  }
 
   peerGridEl.innerHTML = SAMPLE_PEERS.map(peer => {
     const user = store.getUser() || {}

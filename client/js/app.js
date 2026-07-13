@@ -137,6 +137,10 @@ function applyProfileToStore(p, user) {
     profileFetchedAt: Date.now(),
   })
 
+  if (p.alignment_answers) {
+    store.setAlignment(p.alignment_answers)
+  }
+
   if (p.block_colleagues != null) {
     store.updateSetting('privacy', 'blockColleagues', !!p.block_colleagues)
   }

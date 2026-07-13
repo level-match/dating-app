@@ -8,10 +8,18 @@
  *   Lifestyle Compatibility 15
  *   Demographic Fit         10
  *   Geographic Mobility     10
+ *
+ * Questionnaire categories use Euclidean similarity when both profiles have
+ * complete answers for that category; otherwise profile-field fallbacks apply.
  */
 
 const { INTENT_CATEGORY_TIER } = require('./matching-policy')
 const { scoreDemographicFit } = require('./demographic-fit')
+const { scoreCategoryFromAnswers, isZeroOutPair } = require('./alignment-questions')
+const {
+  resolveAlignmentAnswers,
+  usesQuestionnaireForCategory,
+} = require('./alignment-answers')
 
 /** Minimum compatibility score to enter the curated match queue. */
 const MATCH_QUEUE_THRESHOLD = 75
@@ -57,11 +65,7 @@ function jaccardSimilarity(setA, setB) {
   return union === 0 ? 0.5 : intersection / union
 }
 
-/**
- * Intent category overlap with preferred-tier bonus.
- * Same category = 100%; both preferred = 90%; cross-aligned = 70%.
- */
-function scoreIntentionAlignment(viewer, candidate) {
+function scoreIntentionFromProfile(viewer, candidate) {
   const vCat = viewer.intent_category
   const cCat = candidate.intent_category
   if (!vCat || !cCat) return 0.5
@@ -74,19 +78,17 @@ function scoreIntentionAlignment(viewer, candidate) {
   return 0.25
 }
 
-/** Emotional style + long-term vision (equal split). */
-function scoreMindsetValues(viewer, candidate) {
+function scoreMindsetFromProfile(viewer, candidate) {
   const emotional = exactOrNeutral(viewer.emotional_style_id, candidate.emotional_style_id, 0.45)
   const vision = ordinalSimilarity(viewer.long_term_vision_id, candidate.long_term_vision_id, 4)
   return (emotional + vision) / 2
 }
 
-function scoreLifeStageCareer(viewer, candidate) {
+function scoreLifeStageFromProfile(viewer, candidate) {
   return exactOrNeutral(viewer.career_chapter_id, candidate.career_chapter_id, 0.45)
 }
 
-/** Life integration style + shared lifestyle value tags. */
-function scoreLifestyleCompatibility(viewer, candidate, lifestyleValuesMap = new Map()) {
+function scoreLifestyleFromProfile(viewer, candidate, lifestyleValuesMap = new Map()) {
   const integration = exactOrNeutral(viewer.life_integration_id, candidate.life_integration_id, 0.45)
   const viewerTags = lifestyleValuesMap.get(String(viewer.id)) || []
   const candidateTags = lifestyleValuesMap.get(String(candidate.id)) || []
@@ -94,7 +96,7 @@ function scoreLifestyleCompatibility(viewer, candidate, lifestyleValuesMap = new
   return (integration + overlap) / 2
 }
 
-function scoreMobilityProfile(viewer, candidate) {
+function scoreMobilityFromProfile(viewer, candidate) {
   return ordinalSimilarity(viewer.mobility_profile_id, candidate.mobility_profile_id, 2)
 }
 
@@ -111,6 +113,9 @@ function scoreCategoryScores(viewer, candidate, extras = {}) {
     lifestyleValuesMap = new Map(),
   } = extras
 
+  const viewerAnswers = resolveAlignmentAnswers(viewer)
+  const candidateAnswers = resolveAlignmentAnswers(candidate)
+
   const viewerPrefs = preferredGendersMap.get(String(viewer.id)) || []
   const candidatePrefs = preferredGendersMap.get(String(candidate.id)) || []
 
@@ -119,22 +124,70 @@ function scoreCategoryScores(viewer, candidate, extras = {}) {
     toDemographicInput(candidate, candidatePrefs),
   )
 
+  const intention = usesQuestionnaireForCategory(viewerAnswers, candidateAnswers, 'intention')
+    ? scoreCategoryFromAnswers('intention', viewerAnswers, candidateAnswers)
+    : scoreIntentionFromProfile(viewer, candidate)
+
+  const mindset = usesQuestionnaireForCategory(viewerAnswers, candidateAnswers, 'mindset')
+    ? scoreCategoryFromAnswers('mindset', viewerAnswers, candidateAnswers)
+    : scoreMindsetFromProfile(viewer, candidate)
+
+  const lifestage = usesQuestionnaireForCategory(viewerAnswers, candidateAnswers, 'lifestage')
+    ? scoreCategoryFromAnswers('lifestage', viewerAnswers, candidateAnswers)
+    : scoreLifeStageFromProfile(viewer, candidate)
+
+  const lifestyle = usesQuestionnaireForCategory(viewerAnswers, candidateAnswers, 'lifestyle')
+    ? scoreCategoryFromAnswers('lifestyle', viewerAnswers, candidateAnswers)
+    : scoreLifestyleFromProfile(viewer, candidate, lifestyleValuesMap)
+
+  const mobility = usesQuestionnaireForCategory(viewerAnswers, candidateAnswers, 'mobility')
+    ? scoreCategoryFromAnswers('mobility', viewerAnswers, candidateAnswers)
+    : scoreMobilityFromProfile(viewer, candidate)
+
   return {
-    intention: scoreIntentionAlignment(viewer, candidate),
-    mindset: scoreMindsetValues(viewer, candidate),
-    lifestage: scoreLifeStageCareer(viewer, candidate),
-    lifestyle: scoreLifestyleCompatibility(viewer, candidate, lifestyleValuesMap),
+    intention,
+    mindset,
+    lifestage,
+    lifestyle,
     demographic: demographic.overall / 100,
-    mobility: scoreMobilityProfile(viewer, candidate),
+    mobility,
     demographicComponents: demographic.components,
+    alignmentSources: {
+      intention: usesQuestionnaireForCategory(viewerAnswers, candidateAnswers, 'intention') ? 'questionnaire' : 'profile',
+      mindset: usesQuestionnaireForCategory(viewerAnswers, candidateAnswers, 'mindset') ? 'questionnaire' : 'profile',
+      lifestage: usesQuestionnaireForCategory(viewerAnswers, candidateAnswers, 'lifestage') ? 'questionnaire' : 'profile',
+      lifestyle: usesQuestionnaireForCategory(viewerAnswers, candidateAnswers, 'lifestyle') ? 'questionnaire' : 'profile',
+      mobility: usesQuestionnaireForCategory(viewerAnswers, candidateAnswers, 'mobility') ? 'questionnaire' : 'profile',
+    },
+  }
+}
+
+function buildZeroedOutResult() {
+  return {
+    overall: 0,
+    zeroedOut: true,
+    breakdown: DIMENSIONS.map(dim => ({
+      id: dim.id,
+      label: dim.label,
+      score: 0,
+      weight: dim.weight,
+    })),
+    categoryScores: null,
   }
 }
 
 /**
  * Full weighted compatibility result.
- * @returns {{ overall: number, breakdown: Array, categoryScores: Object }}
+ * @returns {{ overall: number, breakdown: Array, categoryScores: Object, zeroedOut?: boolean }}
  */
 function scoreAlignment(viewer, candidate, extras = {}) {
+  const viewerAnswers = resolveAlignmentAnswers(viewer)
+  const candidateAnswers = resolveAlignmentAnswers(candidate)
+
+  if (isZeroOutPair(viewerAnswers, candidateAnswers)) {
+    return buildZeroedOutResult()
+  }
+
   const scores = scoreCategoryScores(viewer, candidate, extras)
   let weightedTotal = 0
   const breakdown = DIMENSIONS.map(dim => {
@@ -152,6 +205,9 @@ function scoreAlignment(viewer, candidate, extras = {}) {
     if (dim.id === 'demographic' && scores.demographicComponents) {
       entry.components = scores.demographicComponents
     }
+    if (scores.alignmentSources?.[dim.id]) {
+      entry.source = scores.alignmentSources[dim.id]
+    }
     return entry
   })
 
@@ -159,6 +215,7 @@ function scoreAlignment(viewer, candidate, extras = {}) {
     overall: Math.round(weightedTotal),
     breakdown,
     categoryScores: scores,
+    zeroedOut: false,
   }
 }
 
@@ -190,7 +247,7 @@ function buildSharedIndicatorsFromScores(viewer, candidate, scores, lifestyleVal
     items.push({ label: 'Career chapter', note: 'In a similar professional season' })
   }
   if (scores.mindset >= 0.85) {
-    items.push({ label: 'Values & vision', note: 'Compatible emotional style and long-term outlook' })
+    items.push({ label: 'Values & vision', note: 'Compatible values and outlook' })
   }
   const viewerTags = lifestyleValuesMap.get(String(viewer.id)) || []
   const candidateTags = lifestyleValuesMap.get(String(candidate.id)) || []
@@ -218,11 +275,11 @@ module.exports = {
   DIMENSIONS,
   scoreAlignment,
   scoreCategoryScores,
-  scoreIntentionAlignment,
-  scoreMindsetValues,
-  scoreLifeStageCareer,
-  scoreLifestyleCompatibility,
-  scoreMobilityProfile,
+  scoreIntentionAlignment: scoreIntentionFromProfile,
+  scoreMindsetValues: scoreMindsetFromProfile,
+  scoreLifeStageCareer: scoreLifeStageFromProfile,
+  scoreLifestyleCompatibility: scoreLifestyleFromProfile,
+  scoreMobilityProfile: scoreMobilityFromProfile,
   buildAlignmentSummaryFromBreakdown,
   buildSharedIndicatorsFromScores,
   jaccardSimilarity,
