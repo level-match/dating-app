@@ -357,10 +357,53 @@ async function countActiveThreads(viewerUserId) {
   return rows[0]?.count || 0
 }
 
+/**
+ * Resolve an active connection (pending or accepted) for a profile UUID.
+ */
+async function lookupConnectionByProfileId(profileId, viewerUserId) {
+  const { rows } = await pool.query(
+    `SELECT cr.*,
+            p.id AS profile_id,
+            p.user_id AS other_user_id,
+            p.first_name,
+            p.last_name,
+            p.professional_title,
+            p.location,
+            p.city,
+            p.region_name,
+            p.country_name,
+            p.age,
+            p.avatar_url,
+            ph.storage_path AS primary_photo_path
+     FROM profiles p
+     JOIN connection_requests cr ON (
+       (cr.from_user_id = $2 AND cr.to_user_id = p.user_id)
+       OR (cr.to_user_id = $2 AND cr.from_user_id = p.user_id)
+     )
+     LEFT JOIN user_profile_photos ph
+       ON ph.user_id = p.user_id AND ph.is_primary = TRUE
+     WHERE p.id = $1
+       AND cr.status IN ('pending', 'accepted')
+     ORDER BY cr.updated_at DESC
+     LIMIT 1`,
+    [profileId, viewerUserId],
+  )
+
+  if (!rows.length) return null
+
+  const viewer = await loadViewer(viewerUserId).catch(() => null)
+  return mapInboxRow(
+    { ...rows[0], last_message_body: null, last_message_at: null, last_sender_user_id: null },
+    viewerUserId,
+    viewer,
+  )
+}
+
 module.exports = {
   getInbox,
   getMessages,
   sendMessage,
   countActiveThreads,
+  lookupConnectionByProfileId,
   formatRelativeTime,
 }

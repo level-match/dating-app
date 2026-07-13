@@ -17,6 +17,19 @@ let state = {
 }
 
 let pollTimer = null
+let refreshTimer = null
+let lastFeedSignature = ''
+
+function feedSignature(payload) {
+  const notifs = payload.notifications || []
+  const msgs = payload.messagePreviews || []
+  const stats = payload.stats || {}
+  return JSON.stringify({
+    stats,
+    notifs: notifs.map(n => [n.id, n.read, n.title, n.body, n.timeISO, n.href]),
+    msgs: msgs.map(m => [m.href, m.preview, m.unread, m.time]),
+  })
+}
 
 function escapeText(s) {
   return String(s || '').replace(/[&<>"']/g, ch => ({
@@ -176,6 +189,14 @@ function buildNotificationsPopoverHtml() {
 async function refreshFeed() {
   try {
     const payload = await fetchNotificationFeed()
+    const signature = feedSignature(payload)
+
+    if (signature === lastFeedSignature && state.loaded) {
+      updateBadges()
+      return
+    }
+    lastFeedSignature = signature
+
     state = {
       notifications: payload.notifications || [],
       messagePreviews: payload.messagePreviews || [],
@@ -210,6 +231,14 @@ async function refreshFeed() {
   }
 }
 
+function scheduleRefresh() {
+  if (refreshTimer) return
+  refreshTimer = window.setTimeout(() => {
+    refreshTimer = null
+    refreshFeed()
+  }, 500)
+}
+
 function startPolling() {
   if (pollTimer) return
   refreshFeed()
@@ -236,11 +265,11 @@ window.__levelTopbar = {
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') refreshFeed()
+  if (document.visibilityState === 'visible') scheduleRefresh()
 })
 
 initRealtime().then(() => {
-  onRealtimeEvent('any', () => refreshFeed())
+  onRealtimeEvent('any', () => scheduleRefresh())
 })
 startPolling()
 

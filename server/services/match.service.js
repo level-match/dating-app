@@ -6,7 +6,7 @@ const { classifyRelativeGeoTier } = require('../utils/geo-matching')
 const { passesHardFilters } = require('../utils/match-filters')
 const { rankMatchItems } = require('../utils/match-ranking')
 const { loadViewerRecommendationSignals } = require('../utils/match-recommendations')
-const { isAlignmentComplete } = require('../utils/alignment-answers')
+const { isViewerAlignmentComplete } = require('../utils/alignment-answers')
 const {
   scoreAlignment,
   buildAlignmentSummaryFromBreakdown,
@@ -492,22 +492,6 @@ async function getMatchesForUser(userId) {
 
   const tier = await getViewerTier(userId)
   const entitlements = getEntitlements(tier)
-
-  if (!isAlignmentComplete(viewer.alignment_answers)) {
-    return {
-      matchingEligible: true,
-      alignmentRequired: true,
-      eligibility,
-      tier,
-      geoReach: entitlements.geoReach,
-      algorithmPriority: entitlements.algorithmPriority,
-      quota: null,
-      matches: [],
-      locked: [],
-      stats: { total: 0, new: 0, mutual: 0, pending: 0 },
-      meta: { reason: 'alignment_incomplete' },
-    }
-  }
 
   const dailyLimit = getDailyMatchLimit(tier)
 
@@ -1043,8 +1027,7 @@ async function getMatchingEligibility(userId) {
 
   return {
     matchingEligible: eligibility.matchingEligibility,
-    alignmentRequired: eligibility.matchingEligibility && !isAlignmentComplete(viewer.alignment_answers),
-    alignmentComplete: isAlignmentComplete(viewer.alignment_answers),
+    alignmentComplete: isViewerAlignmentComplete(viewer),
     eligibility,
     tier,
     geoReach: entitlements.geoReach,

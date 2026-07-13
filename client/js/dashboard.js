@@ -143,15 +143,16 @@ function matchCardHtml(m) {
     ? `<img class="match-card-bg" src="${esc(m.photo)}" alt="${esc(m.name)}" loading="lazy">`
     : `<div class="match-card-bg" style="background:${FALLBACK_GRADIENT};"></div>`
 
+  const subtitle = [m.profession, m.location].filter(Boolean).join(' · ')
+
   return `
     <div class="match-card" role="button" tabindex="0" data-id="${esc(m.id)}">
       ${bg}
       <div class="match-overlay"></div>
+      <div class="match-score-pill">${m.score}% match</div>
       <div class="match-card-content">
         <div class="match-name">${esc(m.name)}</div>
-        <div class="match-details">${esc(m.profession)} · ${esc(m.location)}</div>
-        <div class="match-align"><span class="match-align-score">${m.score}%</span> Compatibility Alignment</div>
-        <div class="match-summary">${esc(m.alignmentSummary || '')}</div>
+        ${subtitle ? `<div class="match-details">${esc(subtitle)}</div>` : ''}
       </div>
     </div>`
 }

@@ -30,6 +30,18 @@ const TYPE_LABELS = {
 
 let currentTab = 'all'
 let notifications = []
+let lastRenderedKey = ''
+
+function notificationFingerprint(list) {
+  return (list || []).map(n => `${n.id}:${n.read ? 1 : 0}:${n.timeISO || ''}:${n.title || ''}`).join('|')
+}
+
+function applyNotifications(next) {
+  const incoming = next || []
+  if (notificationFingerprint(incoming) === notificationFingerprint(notifications)) return false
+  notifications = incoming
+  return true
+}
 
 function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, ch => ({
@@ -93,13 +105,15 @@ function renderCard(n) {
 
 function refreshCounts() {
   const unread = notifications.filter(n => !n.read).length
-  document.getElementById('cntAll')?.textContent = notifications.length
-  document.getElementById('cntUnread')?.textContent = unread
+  const cntAll = document.getElementById('cntAll')
+  const cntUnread = document.getElementById('cntUnread')
+  if (cntAll) cntAll.textContent = notifications.length
+  if (cntUnread) cntUnread.textContent = unread
   const btn = document.getElementById('markAllBtn')
   if (btn) btn.disabled = unread === 0
 }
 
-function render() {
+function render(force = false) {
   const list = document.getElementById('notifList')
   if (!list) return
 
@@ -108,6 +122,10 @@ function render() {
   else if (currentTab !== 'all') filtered = notifications.filter(n => n.type === currentTab)
 
   refreshCounts()
+
+  const renderKey = `${currentTab}|${notificationFingerprint(filtered)}`
+  if (!force && renderKey === lastRenderedKey) return
+  lastRenderedKey = renderKey
 
   if (!filtered.length) {
     list.innerHTML = renderEmpty()
@@ -121,15 +139,17 @@ window.setNotifTab = function (el, key) {
   document.querySelectorAll('.notif-tab').forEach(t => t.classList.remove('active'))
   el.classList.add('active')
   currentTab = key
-  render()
+  render(true)
 }
 
 window.onNotifClick = async function (ev, id) {
   const item = notifications.find(n => n.id === id)
   if (item) item.read = true
+  lastRenderedKey = ''
   try {
     await markNotificationRead(id)
   } catch {}
+  render(true)
   window.__levelTopbar?.refresh?.()
 }
 
@@ -137,20 +157,57 @@ window.markAllRead = async function () {
   try {
     await markAllNotificationsRead()
     notifications = notifications.map(n => ({ ...n, read: true }))
+    lastRenderedKey = ''
     showToast('All notifications marked as read.', '✓', 2200)
-    render()
+    render(true)
     window.__levelTopbar?.refresh?.()
   } catch (err) {
     showToast(err.message || 'Could not mark notifications read.', '⚠', 3000)
   }
 }
 
+function waitForTopbarFeed(timeoutMs = 2500) {
+  const topbar = window.__levelTopbar
+  if (topbar?.getState?.()?.loaded) return Promise.resolve()
+
+  return new Promise(resolve => {
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      window.removeEventListener('level:notifications-updated', onUpdate)
+      resolve()
+    }
+    const onUpdate = () => {
+      if (topbar?.getState?.()?.loaded) finish()
+    }
+    window.addEventListener('level:notifications-updated', onUpdate)
+    window.setTimeout(finish, timeoutMs)
+  })
+}
+
 async function bootNotificationsPage() {
+  const cached = window.__levelTopbar?.getState?.()
+  if (cached?.loaded) {
+    notifications = cached.notifications || []
+    render(true)
+    finishPageLoader()
+    return
+  }
+
   bootPageLoader('Loading notifications')
   try {
+    await waitForTopbarFeed()
+    const loaded = window.__levelTopbar?.getState?.()
+    if (loaded?.loaded) {
+      notifications = loaded.notifications || []
+      render(true)
+      return
+    }
+
     const payload = await fetchNotificationFeed()
     notifications = payload.notifications || []
-    render()
+    render(true)
   } catch (err) {
     const list = document.getElementById('notifList')
     if (list) {
@@ -166,10 +223,10 @@ async function bootNotificationsPage() {
 }
 
 window.addEventListener('level:notifications-updated', (e) => {
-  if (e.detail?.notifications) {
-    notifications = e.detail.notifications
-    render()
-  }
+  const next = e.detail?.notifications
+  if (!next) return
+  if (applyNotifications(next)) render()
+  else refreshCounts()
 })
 
 bootNotificationsPage()

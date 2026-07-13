@@ -7,6 +7,8 @@ const {
   validateAlignmentPayload,
   normalizeAlignmentAnswers,
   isAlignmentComplete,
+  buildAlignmentAnswersFromProfile,
+  isViewerAlignmentComplete,
 } = require('../utils/alignment-answers')
 
 const router = express.Router()
@@ -341,6 +343,37 @@ router.post('/profile', async (req, res) => {
       )
     }
 
+    let intentCategory = null
+    if (intentRes) {
+      const { rows: intentRows } = await client.query(
+        'SELECT category_slug FROM ref_intents WHERE id = $1',
+        [intentRes],
+      )
+      intentCategory = intentRows[0]?.category_slug || null
+    }
+
+    const derivedAlignment = buildAlignmentAnswersFromProfile({
+      intent_id: intentRes,
+      intent_category: intentCategory,
+      long_term_vision_id: visionRes,
+      career_chapter_id: careerRes,
+      life_integration_id: integrationRes,
+      mobility_profile_id: mobilityRes,
+      emotional_style_id: emotionRes,
+      lifestyle_value_ids: lifestyleIds,
+    })
+
+    if (derivedAlignment) {
+      await client.query(
+        `UPDATE profiles
+         SET alignment_answers = $2,
+             alignment_completed_at = COALESCE(alignment_completed_at, NOW()),
+             updated_at = NOW()
+         WHERE id = $1`,
+        [profileId, JSON.stringify(derivedAlignment)],
+      )
+    }
+
     // 6. Mark onboarding complete + ensure starting Base subscription
     await client.query(
       'UPDATE users SET onboarding_complete = TRUE WHERE id = $1',
@@ -490,8 +523,18 @@ router.get('/profile', async (req, res) => {
         pronouns:          pronounRows,
         preferred_genders: prefGenderRows,
         lifestyle_values:  lifestyleRows,
-        alignment_answers: normalizeAlignmentAnswers(profile.alignment_answers),
-        alignment_complete: isAlignmentComplete(profile.alignment_answers),
+        lifestyle_value_ids: lifestyleRows.map(r => r.id),
+        alignment_answers: normalizeAlignmentAnswers(
+          profile.alignment_answers
+          || buildAlignmentAnswersFromProfile({
+            ...profile,
+            lifestyle_value_ids: lifestyleRows.map(r => r.id),
+          }),
+        ),
+        alignment_complete: isViewerAlignmentComplete({
+          ...profile,
+          lifestyle_value_ids: lifestyleRows.map(r => r.id),
+        }),
         alignment_completed_at: profile.alignment_completed_at,
       }
     })

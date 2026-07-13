@@ -16,14 +16,6 @@ initBodyFade()
 
 const FALLBACK_GRADIENT = 'linear-gradient(160deg,#1A2F4A,#0D1E35,#1E1008)'
 
-const BADGE_SVG = {
-  id: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2"/><path d="M14 11h4M14 14h3"/></svg>`,
-  career: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v12H3z"/><path d="M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2"/></svg>`,
-  photo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="3"/><path d="M5 7h3l2-3h4l2 3h3v12H5z"/></svg>`,
-  premium: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5 5.6.8-4 3.9 1 5.5L12 21l-5-2.8 1-5.5-4-3.9 5.6-.8z"/></svg>`,
-}
-const BADGE_LABEL = { id: 'ID', career: 'Career', photo: 'Photo', premium: 'Premium' }
-
 let liveMatches = []
 let liveLocked = []
 let liveTier = 'base'
@@ -35,18 +27,8 @@ function escapeHtml(s) {
   }[ch]))
 }
 
-function badgeCluster(badges) {
-  return (badges || []).map(b => `
-    <span class="lvl-vbadge lvl-vbadge--${b} lvl-vbadge--sm" title="${BADGE_LABEL[b] || ''} Verified">
-      ${BADGE_SVG[b] || ''}${BADGE_LABEL[b] || ''}
-    </span>`).join('')
-}
-
 function enrichApiMatch(m) {
-  const badges = []
-  if (m.photo) badges.push('photo')
-  if (m.memberTier === 'prime' || m.memberTier === 'plus') badges.push('premium')
-  return { ...m, badges, fallback: FALLBACK_GRADIENT }
+  return { ...m, fallback: FALLBACK_GRADIENT }
 }
 
 function ctaForMatch(m) {
@@ -69,23 +51,12 @@ function ctaForMatch(m) {
     <button type="button" class="btn btn-outline-dark btn-sm match-card-cta-btn match-action-btn pass" data-action="pass" title="Pass">Pass</button>`
 }
 
-function breakdownBars(breakdown) {
-  const dims = (breakdown || []).filter(d => d.id !== 'demographic').slice(0, 4)
-  if (!dims.length) return ''
-  return `<div class="match-breakdown" data-stop-nav="true">
-    ${dims.map(d => `
-      <div class="match-breakdown-row">
-        <span class="match-breakdown-label">${escapeHtml(d.label.split(' ')[0])}</span>
-        <div class="match-breakdown-track"><div class="match-breakdown-fill" style="width:${d.score}%"></div></div>
-        <span class="match-breakdown-num">${d.score}</span>
-      </div>`).join('')}
-  </div>`
-}
-
 function cardTemplate(m) {
   const bg = m.photo
     ? `<img class="match-card-bg" src="${m.photo}" alt="${escapeHtml(m.name)}" loading="lazy">`
     : `<div class="match-card-bg" style="background:${m.fallback || FALLBACK_GRADIENT};"></div>`
+
+  const subtitle = [m.profession, m.location].filter(Boolean).join(' · ')
 
   return `
     <article class="match-card" data-id="${m.id}" data-status="${m.status}" data-score="${m.score}"
@@ -93,18 +64,11 @@ function cardTemplate(m) {
       ${bg}
       <div class="match-overlay"></div>
       <div class="match-status-pill ${m.status}">${STATUS_LABELS[m.status] || m.status}</div>
+      <div class="match-score-pill">${m.score}% match</div>
 
       <div class="match-card-content">
         <div class="match-name">${escapeHtml(m.name)}</div>
-        <div class="match-details">${escapeHtml(m.profession)} · ${escapeHtml(m.location)}</div>
-
-        <div class="match-align">
-          <span class="match-align-score">${m.score}%</span> Compatibility Alignment
-        </div>
-        <div class="match-summary">${escapeHtml(m.alignmentSummary)}</div>
-        ${breakdownBars(m.compatibilityBreakdown)}
-
-        <div class="lvl-vbadge-cluster match-badges">${badgeCluster(m.badges)}</div>
+        ${subtitle ? `<div class="match-details">${escapeHtml(subtitle)}</div>` : ''}
 
         <div class="match-card-cta" data-stop-nav="true">
           ${ctaForMatch(m)}
@@ -114,23 +78,6 @@ function cardTemplate(m) {
 }
 
 const grid = document.getElementById('matchesGrid')
-
-function alignmentGate() {
-  return `
-    <div class="intent-gate" style="grid-column:1/-1;">
-      <div class="intent-gate-eyebrow">One step before matching</div>
-      <h2 class="intent-gate-title">Complete your alignment assessment</h2>
-      <p class="intent-gate-body">
-        LEVEL uses your alignment answers to curate introductions across intention, values,
-        lifestyle, and mobility. This takes about five minutes and is required before
-        your curated queue opens.
-      </p>
-      <div class="intent-gate-actions">
-        <a class="btn btn-gold" href="alignment.html">Start alignment assessment</a>
-        <a class="btn btn-outline" href="profile-setup.html">Review profile setup</a>
-      </div>
-    </div>`
-}
 
 function intentGate() {
   return `
@@ -370,12 +317,6 @@ function renderMatchGrid() {
 function renderFromApi(payload) {
   if (!payload.matchingEligible) {
     showIntentGate()
-    return
-  }
-
-  if (payload.alignmentRequired) {
-    grid.innerHTML = alignmentGate()
-    document.getElementById('matchFilters')?.style.setProperty('display', 'none')
     return
   }
 

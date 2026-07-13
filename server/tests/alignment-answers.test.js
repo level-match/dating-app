@@ -4,7 +4,9 @@ const {
   normalizeAlignmentAnswers,
   isAlignmentComplete,
   inferPartialAnswersFromProfile,
+  buildAlignmentAnswersFromProfile,
   resolveAlignmentAnswers,
+  isViewerAlignmentComplete,
   usesQuestionnaireForCategory,
 } = require('../utils/alignment-answers')
 const { isZeroOutPair, scoreCategoryFromAnswers } = require('../utils/alignment-questions')
@@ -47,11 +49,41 @@ describe('alignment-answers', () => {
       career_chapter_id: 1,
       life_integration_id: 1,
       mobility_profile_id: 2,
+      emotional_style_id: 1,
     })
     assert.equal(inferred.intention.objective, 4)
     assert.equal(inferred.lifestage.chapter, 3)
     assert.equal(inferred.lifestyle.integration, 3)
     assert.equal(inferred.mobility.profile, 2)
+    assert.equal(inferred.mindset.pillar, 3)
+    assert.equal(inferred.mindset.success, 1)
+    assert.equal(inferred.lifestage.partner_drive, 3)
+    assert.equal(inferred.lifestyle.social, 3)
+  })
+
+  it('builds complete alignment answers from onboarding profile fields', () => {
+    const built = buildAlignmentAnswersFromProfile({
+      intent_category: 'legacy_builder',
+      long_term_vision_id: 2,
+      career_chapter_id: 1,
+      life_integration_id: 1,
+      mobility_profile_id: 2,
+      emotional_style_id: 1,
+      lifestyle_value_ids: [1, 2, 3, 4, 5, 6],
+    })
+    assert.equal(isAlignmentComplete(built), true)
+  })
+
+  it('treats onboarding-complete profiles as alignment-complete for matching', () => {
+    const profile = {
+      intent_category: 'legacy_builder',
+      long_term_vision_id: 2,
+      career_chapter_id: 1,
+      life_integration_id: 1,
+      mobility_profile_id: 2,
+      emotional_style_id: 1,
+    }
+    assert.equal(isViewerAlignmentComplete(profile), true)
   })
 
   it('merges stored answers over inferred profile signals', () => {
@@ -71,9 +103,13 @@ describe('alignment-answers', () => {
     const partial = resolveAlignmentAnswers({
       intent_category: 'legacy_builder',
       long_term_vision_id: 2,
+      career_chapter_id: 1,
+      life_integration_id: 1,
+      mobility_profile_id: 2,
+      emotional_style_id: 1,
     })
     assert.equal(usesQuestionnaireForCategory(partial, partial, 'intention'), true)
-    assert.equal(usesQuestionnaireForCategory(partial, partial, 'mindset'), false)
+    assert.equal(usesQuestionnaireForCategory(partial, partial, 'mindset'), true)
   })
 })
 
@@ -107,17 +143,15 @@ describe('alignment questionnaire scoring', () => {
     assert.ok(result.overall >= 75)
   })
 
-  it('uses profile fallback for mindset when questionnaire incomplete', () => {
+  it('uses profile fallback for mindset when onboarding fields are incomplete', () => {
     const viewer = {
       id: 'v',
-      intent_category: 'legacy_builder',
       emotional_style_id: 1,
       long_term_vision_id: 2,
       alignment_answers: { intention: fullAnswers.intention },
     }
     const candidate = {
       id: 'c',
-      intent_category: 'legacy_builder',
       emotional_style_id: 1,
       long_term_vision_id: 2,
       alignment_answers: { intention: fullAnswers.intention },

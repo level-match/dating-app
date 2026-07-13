@@ -284,9 +284,9 @@
       inset: 0;
       background: linear-gradient(
         to bottom,
-        transparent 35%,
-        rgba(3,6,15,0.55) 65%,
-        rgba(3,6,15,0.95) 100%
+        transparent 52%,
+        rgba(3,6,15,0.45) 75%,
+        rgba(3,6,15,0.9) 100%
       );
     }
 
@@ -295,7 +295,7 @@
       bottom: 0;
       left: 0;
       right: 0;
-      padding: var(--s-5);
+      padding: var(--s-4);
     }
 
     .match-name {
@@ -635,17 +635,11 @@
       .match-card { min-height: 220px; }
       .match-card-content { padding: var(--s-3); }
       .match-name { font-size: var(--text-base); }
-      /* Hide verbose text on cards */
-      .match-summary { display: none; }
-      .match-details { display: none; }
-      .match-badges { display: none; }
-      /* Compact score label */
+      .match-details { font-size: 10px; }
       .match-card-cta { margin-top: var(--s-2); padding-top: var(--s-2); }
       .match-card-cta-btn { font-size: 0.65rem !important; padding: 6px 8px !important; }
-      .match-align-score { font-size: var(--text-base); }
-      /* Status/score pills smaller */
       .match-status-pill { font-size: 9px; padding: 3px 7px; }
-      .match-score-pill { font-size: 9px; padding: 3px 7px; display: none; }
+      .match-score-pill { font-size: 9px; padding: 3px 7px; }
       /* Intent gate */
       .intent-gate { padding: var(--s-6) var(--s-4); }
       .intent-gate-title { font-size: var(--text-xl); }
