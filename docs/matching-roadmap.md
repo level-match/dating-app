@@ -67,7 +67,7 @@ PUT  /api/auth/profile/alignment
 
 ### Phase 5 — Admin and quality
 
-- [ ] Admin dashboard: match queue health, delivery stats by tier
+- [x] Admin matching panel: queue health, delivery stats by tier, funnel metrics
 - [ ] Report / hide profiles from candidate pool
 - [ ] Metrics: delivery rate, request rate, mutual rate by tier
 - [ ] Deeper ML recommendation layer (embeddings / collaborative filtering)

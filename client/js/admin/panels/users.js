@@ -97,7 +97,7 @@ export async function render(el, api) {
       </tr>`).join('')
 
     body.querySelectorAll('[data-action]').forEach(btn => {
-      btn.addEventListener('click', () => handleAction(btn.dataset, api))
+      btn.addEventListener('click', () => handleAction(btn.dataset, api, load))
     })
   }
 
@@ -116,7 +116,7 @@ export async function render(el, api) {
   await load()
 }
 
-async function handleAction({ action, id, name, tier }, api) {
+async function handleAction({ action, id, name, tier }, api, reload) {
   if (action === 'view') {
     try {
       const u = await api.get(`/admin/api/users/${id}`)
@@ -176,6 +176,7 @@ async function handleAction({ action, id, name, tier }, api) {
         await api.patch(`/admin/api/users/${id}/tier`, { tier: t, reason: r })
         toast('Tier updated.', 'success')
         document.getElementById('admModals').innerHTML = ''
+        reload?.()
       } catch (e) { toast(e.message, 'error') }
     })
   }
@@ -195,6 +196,7 @@ async function handleAction({ action, id, name, tier }, api) {
         await api.patch(`/admin/api/users/${id}/status`, { status: 'suspended' })
         toast('User suspended.', 'success')
         document.getElementById('admModals').innerHTML = ''
+        reload?.()
       } catch (e) { toast(e.message, 'error') }
     })
   }

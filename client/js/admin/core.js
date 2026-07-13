@@ -14,6 +14,8 @@ const NAV = [
     items: [
       { key: 'overview',       label: 'Overview',      minRole: 'support',
         icon: '<path d="M3 3h7v7H3zm11 0h7v7h-7zM3 14h7v7H3zm11 3l3.5-3.5L21 17l-3.5 3.5z" stroke-linecap="round" stroke-linejoin="round"/>' },
+      { key: 'matching',       label: 'Matching',      minRole: 'support',
+        icon: '<path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" stroke-linecap="round" stroke-linejoin="round"/>' },
     ],
   },
   {
@@ -78,6 +80,7 @@ function buildNav(activeKey) {
 /* ── Panel router ─────────────────────────────────────────────── */
 const PANELS = {
   overview:      () => import('./panels/overview.js'),
+  matching:      () => import('./panels/matching.js'),
   users:         () => import('./panels/users.js'),
   subscriptions: () => import('./panels/subscriptions.js'),
   moderation:    () => import('./panels/moderation.js'),

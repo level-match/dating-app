@@ -1,8 +1,11 @@
 export async function render(el, api) {
-  const [ov, chart] = await Promise.all([
-    api.get('/admin/api/analytics/overview'),
-    api.get('/admin/api/analytics/chart'),
-  ])
+  el.innerHTML = `<div class="adm-loading"><div class="adm-spinner"></div></div>`
+
+  try {
+    const [ov, chart] = await Promise.all([
+      api.get('/admin/api/analytics/overview'),
+      api.get('/admin/api/analytics/chart'),
+    ])
 
   el.innerHTML = `
     <div class="adm-panel-header">
@@ -81,6 +84,13 @@ export async function render(el, api) {
     },
     options: opts({ stacked: true, grid: true }),
   })
+  } catch (e) {
+    el.innerHTML = `
+      <div class="adm-panel-header">
+        <div><div class="adm-panel-title">Overview</div></div>
+      </div>
+      <div style="padding:40px;color:var(--adm-text-dim)">Failed to load overview: ${String(e.message || e)}</div>`
+  }
 }
 
 function opts({ stacked = false, grid = false } = {}) {

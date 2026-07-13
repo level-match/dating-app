@@ -56,6 +56,55 @@ function devRespond(method, fullPath) {
       mrr: 892580, mrrGrowth: 12.4, openReports: 3,
       eventsThisMonth: 2, upcomingEvents: 2, pendingBookings: 4,
     }
+    if (path === '/admin/api/matching/dashboard') return {
+      overview: {
+        deliveriesToday: 42,
+        deliveriesByTier: { base: 18, plus: 14, prime: 10 },
+        alignmentReady: 156,
+        baseAtCap: 7,
+        feedback: { pass: 89, decline: 23, connect: 31 },
+        connections: { pending: 12, accepted: 28, declined: 15, withdrawn: 4 },
+        connectRate: 21.5,
+        acceptRate: 65.1,
+        passRate: 61.8,
+      },
+      chart: {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        base:  [12, 15, 10, 18, 14, 16, 18],
+        plus:  [8, 10, 7, 12, 9, 11, 14],
+        prime: [5, 6, 4, 8, 7, 9, 10],
+      },
+      deliveries: [
+        { id: '1', viewerName: 'Gabrielle Santos', viewerTier: 'prime', candidateName: 'Marco Reyes', deliveredOn: '2025-07-13', createdAt: '2025-07-13T10:30:00Z' },
+        { id: '2', viewerName: 'Isabella Cruz', viewerTier: 'base', candidateName: 'Rafael Bautista', deliveredOn: '2025-07-13', createdAt: '2025-07-13T09:15:00Z' },
+      ],
+    }
+    if (path === '/admin/api/matching/overview') return {
+      deliveriesToday: 42,
+      deliveriesByTier: { base: 18, plus: 14, prime: 10 },
+      alignmentReady: 156,
+      baseAtCap: 7,
+      feedback: { pass: 89, decline: 23, connect: 31 },
+      connections: { pending: 12, accepted: 28, declined: 15, withdrawn: 4 },
+      connectRate: 21.5,
+      acceptRate: 65.1,
+      passRate: 61.8,
+    }
+    if (path === '/admin/api/matching/deliveries-chart') {
+      const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+      return {
+        labels,
+        base:  [12, 15, 10, 18, 14, 16, 18],
+        plus:  [8, 10, 7, 12, 9, 11, 14],
+        prime: [5, 6, 4, 8, 7, 9, 10],
+      }
+    }
+    if (path === '/admin/api/matching/recent-deliveries') return {
+      deliveries: [
+        { id: '1', viewerName: 'Gabrielle Santos', viewerTier: 'prime', candidateName: 'Marco Reyes', deliveredOn: '2025-07-13', createdAt: '2025-07-13T10:30:00Z' },
+        { id: '2', viewerName: 'Isabella Cruz', viewerTier: 'base', candidateName: 'Rafael Bautista', deliveredOn: '2025-07-13', createdAt: '2025-07-13T09:15:00Z' },
+      ],
+    }
     if (path === '/admin/api/analytics/chart') {
       const labels = last30Labels()
       return {

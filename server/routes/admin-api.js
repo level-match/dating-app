@@ -2,6 +2,9 @@ const express = require('express')
 const pool    = require('../db/pool')
 const { requireRole, activityLogger } = require('../middleware/admin-auth')
 const { logActivity, hashPassword }   = require('../services/admin-auth.service')
+const adminMatchingSvc                = require('../services/admin-matching.service')
+const adminUsersSvc                   = require('../services/admin-users.service')
+const adminSubsSvc                    = require('../services/admin-subscriptions.service')
 
 const router = express.Router()
 
@@ -84,135 +87,300 @@ const APP_SETTINGS = {
 /* ================================================================
    ANALYTICS
    ================================================================ */
+const TIER_PRICING = { plus: 499, prime: 1990 }
+
+async function safeCount(sql, params = []) {
+  try {
+    const { rows } = await pool.query(sql, params)
+    return Number(rows[0]?.n ?? 0)
+  } catch {
+    return null
+  }
+}
+
 router.get('/analytics/overview', async (req, res) => {
-  const base = 612, plus = 178, prime = 57
-  res.json({
-    users: { total: base + plus + prime, base, plus, prime,
-      activeToday: 234, activeWeek: 892, activeMonth: 2341,
-      newToday: 12, newYesterday: 8 },
-    revenue: {
-      monthPhp: 125470,
-      plusPhp:   88922,
-      primePhp:  36548,
-    },
-    matchSuccessRate: 73,
-    activeConversations: 341,
-    pendingReports: MOCK_REPORTS.filter(r => r.status === 'pending').length,
-    pendingBookings: MOCK_BOOKINGS.filter(b => b.status === 'pending').length,
-  })
+  try {
+    const [
+      totalUsers,
+      newUsersToday,
+      tierRows,
+      activePaidSubs,
+      openReports,
+      eventsThisMonth,
+      upcomingEvents,
+      pendingBookings,
+    ] = await Promise.all([
+      safeCount('SELECT COUNT(*)::int AS n FROM users'),
+      safeCount(`SELECT COUNT(*)::int AS n FROM users WHERE created_at::date = CURRENT_DATE`),
+      pool.query(`
+        SELECT tier, COUNT(*)::int AS n
+        FROM subscriptions
+        WHERE status IN ('active', 'pending', 'past_due')
+        GROUP BY tier
+      `).catch(() => ({ rows: [] })),
+      safeCount(`
+        SELECT COUNT(*)::int AS n FROM subscriptions
+        WHERE status IN ('active', 'pending', 'past_due') AND tier IN ('plus', 'prime')
+      `),
+      safeCount(`SELECT COUNT(*)::int AS n FROM content_reports WHERE status = 'pending'`),
+      safeCount(`
+        SELECT COUNT(*)::int AS n FROM community_events
+        WHERE date_trunc('month', event_date) = date_trunc('month', CURRENT_DATE)
+      `),
+      safeCount(`
+        SELECT COUNT(*)::int AS n FROM community_events
+        WHERE status = 'upcoming' AND event_date >= NOW()
+      `),
+      safeCount(`SELECT COUNT(*)::int AS n FROM concierge_bookings WHERE status = 'pending'`),
+    ])
+
+    const tiers = { base: 0, plus: 0, prime: 0 }
+    for (const row of tierRows.rows) {
+      if (row.tier in tiers) tiers[row.tier] = row.n
+    }
+
+    const mrr = tiers.plus * TIER_PRICING.plus + tiers.prime * TIER_PRICING.prime
+
+    res.json({
+      totalUsers:        totalUsers ?? MOCK_USERS.length,
+      newUsersToday:     newUsersToday ?? 0,
+      activeSubscriptions: activePaidSubs ?? MOCK_SUBSCRIPTIONS.filter(s => s.status === 'active').length,
+      mrr:               mrr || MOCK_SUBSCRIPTIONS.filter(s => s.status === 'active').reduce((s, x) => s + x.amountPhp, 0),
+      mrrGrowth:         0,
+      openReports:       openReports ?? MOCK_REPORTS.filter(r => r.status === 'pending').length,
+      eventsThisMonth:   eventsThisMonth ?? MOCK_EVENTS.filter(e => e.date.startsWith('2025-07')).length,
+      upcomingEvents:    upcomingEvents ?? MOCK_EVENTS.filter(e => e.status === 'upcoming').length,
+      pendingBookings:   pendingBookings ?? MOCK_BOOKINGS.filter(b => b.status === 'pending').length,
+    })
+  } catch (err) {
+    console.error('[admin/analytics/overview]', err.message)
+    res.status(500).json({ error: 'QUERY_FAILED', message: err.message })
+  }
 })
 
 router.get('/analytics/chart', async (req, res) => {
-  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
-  res.json({
-    signups7d:   { labels: days, data: [8, 12, 6, 15, 9, 11, 12] },
-    revenue7d:   { labels: days, data: [12500, 9800, 14900, 22000, 8500, 17800, 12500] },
-    tierHistory: {
-      labels: ['Jan','Feb','Mar','Apr','May','Jun'],
-      base:   [420, 468, 510, 551, 589, 612],
-      plus:   [98,  112, 130, 148, 163, 178],
-      prime:  [22,  28,  34,  41,  49,  57],
-    },
-  })
+  try {
+    const signupRows = await pool.query(`
+      SELECT created_at::date AS day, COUNT(*)::int AS n
+      FROM users
+      WHERE created_at >= CURRENT_DATE - 29
+      GROUP BY 1
+      ORDER BY 1
+    `).catch(() => ({ rows: [] }))
+
+    const tierRows = await pool.query(`
+      SELECT tier, COUNT(*)::int AS n
+      FROM subscriptions
+      WHERE status IN ('active', 'pending', 'past_due')
+      GROUP BY tier
+    `).catch(() => ({ rows: [] }))
+
+    const signups = { labels: [], data: [] }
+    const byDay = new Map(signupRows.rows.map(r => [r.day.toISOString().slice(0, 10), r.n]))
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const key = d.toISOString().slice(0, 10)
+      signups.labels.push(d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }))
+      signups.data.push(byDay.get(key) ?? 0)
+    }
+
+    const tiers = [0, 0, 0]
+    for (const row of tierRows.rows) {
+      if (row.tier === 'base')  tiers[0] = row.n
+      if (row.tier === 'plus')  tiers[1] = row.n
+      if (row.tier === 'prime') tiers[2] = row.n
+    }
+    if (!tiers.some(Boolean)) {
+      tiers[0] = MOCK_USERS.filter(u => u.tier === 'base').length
+      tiers[1] = MOCK_USERS.filter(u => u.tier === 'plus').length
+      tiers[2] = MOCK_USERS.filter(u => u.tier === 'prime').length
+    }
+
+    const monthLabels = []
+    const plusRev = []
+    const primeRev = []
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date()
+      d.setMonth(d.getMonth() - i)
+      monthLabels.push(d.toLocaleDateString('en-PH', { month: 'short' }))
+      // Placeholder until payment_ledger reporting is wired
+      plusRev.push(tiers[1] * TIER_PRICING.plus)
+      primeRev.push(tiers[2] * TIER_PRICING.prime)
+    }
+
+    res.json({
+      signups,
+      tiers,
+      revenue: { labels: monthLabels, plus: plusRev, prime: primeRev },
+    })
+  } catch (err) {
+    console.error('[admin/analytics/chart]', err.message)
+    res.status(500).json({ error: 'QUERY_FAILED', message: err.message })
+  }
+})
+
+/* ================================================================
+   MATCHING (real DB — match_deliveries, match_feedback, connections)
+   ================================================================ */
+router.get('/matching/dashboard', async (req, res) => {
+  try {
+    res.json(await adminMatchingSvc.getDashboard({
+      days: Number(req.query.days) || 7,
+      recentLimit: Number(req.query.limit) || 15,
+    }))
+  } catch (err) {
+    console.error('[admin/matching/dashboard]', err.message)
+    res.status(500).json({ error: 'QUERY_FAILED', message: err.message })
+  }
+})
+
+router.get('/matching/overview', async (req, res) => {
+  try {
+    res.json(await adminMatchingSvc.getOverview())
+  } catch (err) {
+    console.error('[admin/matching/overview]', err.message)
+    res.status(500).json({ error: 'QUERY_FAILED', message: err.message })
+  }
+})
+
+router.get('/matching/deliveries-chart', async (req, res) => {
+  try {
+    const days = Number(req.query.days) || 7
+    res.json(await adminMatchingSvc.getDeliveriesChart(days))
+  } catch (err) {
+    console.error('[admin/matching/deliveries-chart]', err.message)
+    res.status(500).json({ error: 'QUERY_FAILED', message: err.message })
+  }
+})
+
+router.get('/matching/recent-deliveries', async (req, res) => {
+  try {
+    const limit = Number(req.query.limit) || 20
+    const deliveries = await adminMatchingSvc.getRecentDeliveries(limit)
+    res.json({ deliveries })
+  } catch (err) {
+    console.error('[admin/matching/recent-deliveries]', err.message)
+    res.status(500).json({ error: 'QUERY_FAILED', message: err.message })
+  }
 })
 
 /* ================================================================
    USER MANAGEMENT
    ================================================================ */
-router.get('/users', (req, res) => {
-  let users = [...MOCK_USERS]
-  const { tier, status, region, q, page = 1, limit = 10 } = req.query
-
-  if (tier && tier !== 'all')    users = users.filter(u => u.tier === tier)
-  if (status && status !== 'all') users = users.filter(u => u.status === status)
-  if (region) users = users.filter(u => u.region.toLowerCase().includes(region.toLowerCase()))
-  if (q)      users = users.filter(u =>
-    u.name.toLowerCase().includes(q.toLowerCase()) ||
-    u.email.toLowerCase().includes(q.toLowerCase()) ||
-    u.id.includes(q)
-  )
-
-  const total = users.length
-  const start = (Number(page) - 1) * Number(limit)
-  res.json({ users: users.slice(start, start + Number(limit)), total, page: Number(page), pages: Math.ceil(total / Number(limit)) })
+router.get('/users', async (req, res) => {
+  try {
+    const { search, tier, status, page, limit } = req.query
+    res.json(await adminUsersSvc.listUsers({ search, tier, status, page, limit }))
+  } catch (err) {
+    console.error('[admin/users]', err.message)
+    res.status(500).json({ error: 'QUERY_FAILED', message: err.message })
+  }
 })
 
-router.get('/users/:id', (req, res) => {
-  const user = MOCK_USERS.find(u => u.id === req.params.id)
-  if (!user) return res.status(404).json({ error: 'NOT_FOUND' })
-  res.json(user)
+router.get('/users/:id', async (req, res) => {
+  try {
+    const user = await adminUsersSvc.getUserById(req.params.id)
+    if (!user) return res.status(404).json({ error: 'NOT_FOUND' })
+    res.json(user)
+  } catch (err) {
+    console.error('[admin/users/:id]', err.message)
+    res.status(500).json({ error: 'QUERY_FAILED', message: err.message })
+  }
 })
 
 router.patch('/users/:id/tier',
   requireRole('moderator', 'super_admin'),
   activityLogger('user.tier_changed', 'user'),
-  (req, res) => {
-    const { tier } = req.body
-    if (!['base','plus','prime'].includes(tier)) return res.status(400).json({ error: 'INVALID_TIER' })
-    const user = MOCK_USERS.find(u => u.id === req.params.id)
-    if (!user) return res.status(404).json({ error: 'NOT_FOUND' })
-    const prev = user.tier
-    user.tier = tier
-    res.json({ id: user.id, tier, previous: prev })
+  async (req, res) => {
+    try {
+      const { tier, reason } = req.body
+      if (!tier) return res.status(400).json({ error: 'MISSING_TIER' })
+      const result = await adminUsersSvc.setUserTier(req.params.id, tier, reason)
+      res.json(result)
+    } catch (err) {
+      if (err.code === 'INVALID_TIER') return res.status(400).json({ error: err.code })
+      console.error('[admin/users/tier]', err.message)
+      res.status(500).json({ error: 'UPDATE_FAILED', message: err.message })
+    }
   }
 )
 
 router.patch('/users/:id/status',
   requireRole('moderator', 'super_admin'),
   activityLogger('user.status_changed', 'user'),
-  (req, res) => {
-    const { status, reason } = req.body
-    if (!['active','suspended','banned'].includes(status)) return res.status(400).json({ error: 'INVALID_STATUS' })
-    const user = MOCK_USERS.find(u => u.id === req.params.id)
-    if (!user) return res.status(404).json({ error: 'NOT_FOUND' })
-    user.status = status
-    res.json({ id: user.id, status, reason })
+  async (req, res) => {
+    try {
+      const { status } = req.body
+      const result = await adminUsersSvc.setUserStatus(req.params.id, status)
+      if (!result) return res.status(404).json({ error: 'NOT_FOUND' })
+      res.json(result)
+    } catch (err) {
+      if (err.code === 'INVALID_STATUS') return res.status(400).json({ error: err.code })
+      console.error('[admin/users/status]', err.message)
+      res.status(500).json({ error: 'UPDATE_FAILED', message: err.message })
+    }
   }
 )
 
 router.delete('/users/:id',
   requireRole('super_admin'),
   activityLogger('user.deleted', 'user'),
-  (req, res) => {
-    const idx = MOCK_USERS.findIndex(u => u.id === req.params.id)
-    if (idx === -1) return res.status(404).json({ error: 'NOT_FOUND' })
-    const [removed] = MOCK_USERS.splice(idx, 1)
-    res.json({ id: removed.id, deleted: true })
+  async (req, res) => {
+    try {
+      const result = await adminUsersSvc.setUserStatus(req.params.id, 'banned')
+      if (!result) return res.status(404).json({ error: 'NOT_FOUND' })
+      res.json({ id: result.id, deleted: true })
+    } catch (err) {
+      console.error('[admin/users/delete]', err.message)
+      res.status(500).json({ error: 'UPDATE_FAILED', message: err.message })
+    }
   }
 )
 
 /* ================================================================
    SUBSCRIPTION MANAGEMENT
    ================================================================ */
-router.get('/subscriptions', (req, res) => {
-  let subs = [...MOCK_SUBSCRIPTIONS]
-  const { tier, status, page = 1, limit = 10 } = req.query
-  if (tier   && tier   !== 'all') subs = subs.filter(s => s.tier   === tier)
-  if (status && status !== 'all') subs = subs.filter(s => s.status === status)
-  const total = subs.length
-  const start = (Number(page) - 1) * Number(limit)
-  res.json({ subscriptions: subs.slice(start, start + Number(limit)), total, page: Number(page), pages: Math.ceil(total / Number(limit)) })
+router.get('/subscriptions', async (req, res) => {
+  try {
+    const { tier, status, page, limit } = req.query
+    res.json(await adminSubsSvc.listSubscriptions({ tier, status, page, limit }))
+  } catch (err) {
+    console.error('[admin/subscriptions]', err.message)
+    res.status(500).json({ error: 'QUERY_FAILED', message: err.message })
+  }
 })
 
 router.patch('/subscriptions/:id',
   requireRole('super_admin'),
   activityLogger('subscription.status_changed', 'subscription'),
-  (req, res) => {
-    const { status } = req.body
-    const sub = MOCK_SUBSCRIPTIONS.find(s => s.id === req.params.id)
-    if (!sub) return res.status(404).json({ error: 'NOT_FOUND' })
-    sub.status = status
-    res.json({ id: sub.id, status })
+  async (req, res) => {
+    try {
+      const { status } = req.body
+      if (!status) return res.status(400).json({ error: 'MISSING_STATUS' })
+      const result = await adminSubsSvc.updateSubscriptionStatus(req.params.id, status)
+      if (!result) return res.status(404).json({ error: 'NOT_FOUND' })
+      res.json(result)
+    } catch (err) {
+      if (err.code === 'INVALID_STATUS') return res.status(400).json({ error: err.code })
+      console.error('[admin/subscriptions/patch]', err.message)
+      res.status(500).json({ error: 'UPDATE_FAILED', message: err.message })
+    }
   }
 )
 
 router.post('/subscriptions/:id/refund-flag',
   requireRole('super_admin'),
   activityLogger('subscription.refund_flagged', 'subscription'),
-  (req, res) => {
-    const sub = MOCK_SUBSCRIPTIONS.find(s => s.id === req.params.id)
-    if (!sub) return res.status(404).json({ error: 'NOT_FOUND' })
-    res.json({ id: sub.id, refundFlagged: true, flaggedAt: new Date().toISOString() })
+  async (req, res) => {
+    try {
+      const result = await adminSubsSvc.flagRefund(req.params.id, req.body?.reason)
+      if (!result) return res.status(404).json({ error: 'NOT_FOUND' })
+      res.json(result)
+    } catch (err) {
+      console.error('[admin/subscriptions/refund-flag]', err.message)
+      res.status(500).json({ error: 'UPDATE_FAILED', message: err.message })
+    }
   }
 )
 
