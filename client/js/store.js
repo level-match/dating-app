@@ -230,6 +230,19 @@ export const store = {
     return result
   },
 
+  /** Server-authoritative daily match quota from GET /api/matches. */
+  setMatchQuota(quota) {
+    const user = this.getUser()
+    if (!user) return null
+    user.matchQuota = quota || null
+    this.setUser(user)
+    return quota
+  },
+
+  getMatchQuota() {
+    return this.getUser()?.matchQuota || null
+  },
+
   getMatchingEligibility() {
     return this.getUser()?.matching || null
   },

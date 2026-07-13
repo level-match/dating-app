@@ -14,41 +14,45 @@ import {
 
 const CYCLE_KEY = 'level_match_cycle'
 
+/** Cached quota from GET /api/matches — server is source of truth. */
+let _serverMatchQuota = null
+
+export function setMatchQuotaFromServer(quota) {
+  _serverMatchQuota = quota || null
+}
+
 /* ── Active session tier ────────────────────────────────────── */
 
 export function currentTier() {
   return store.getUser()?.tier || 'base'
 }
 
-/* ── 24-hour match delivery cycle ───────────────────────────
-   Tracks how many profiles have been delivered to the user
-   today. Resets automatically when the date changes.
+/* ── Daily match delivery quota (server-backed) ───────────────
+   Base tier cap is enforced by GET /api/matches + match_deliveries.
+   Local cycle storage is deprecated — kept only for legacy cleanup.
    ─────────────────────────────────────────────────────────── */
 
-function getCycle() {
-  const today = new Date().toISOString().slice(0, 10)
-  try {
-    const s = JSON.parse(localStorage.getItem(CYCLE_KEY))
-    if (s?.date === today) return s
-  } catch {}
-  return { date: today, count: 0 }
+function clearLegacyMatchCycle() {
+  try { localStorage.removeItem(CYCLE_KEY) } catch {}
 }
 
-function saveCycle(c) {
-  localStorage.setItem(CYCLE_KEY, JSON.stringify(c))
-}
+clearLegacyMatchCycle()
 
-export function recordMatchDelivery(count = 1) {
-  const c = getCycle()
-  c.count = (c.count || 0) + count
-  saveCycle(c)
+export function recordMatchDelivery() {
+  // No-op: delivery ledger lives on the server.
 }
 
 export function getRemainingMatchQuota() {
   const e = getEntitlements(currentTier())
   if (e.matchDelivery.type === 'unlimited') return Infinity
-  const used = getCycle().count || 0
-  return Math.max(0, e.matchDelivery.dailyLimit - used)
+  if (_serverMatchQuota?.type === 'capped') {
+    return Math.max(0, _serverMatchQuota.remaining ?? 0)
+  }
+  const cached = store.getMatchQuota?.()
+  if (cached?.type === 'capped') {
+    return Math.max(0, cached.remaining ?? 0)
+  }
+  return e.matchDelivery.dailyLimit
 }
 
 export function getDailyMatchLimit() {

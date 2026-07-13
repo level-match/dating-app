@@ -4,6 +4,7 @@ const { createSignedUrl, BUCKET } = require('./storage.service')
 const { evaluateEligibility, isEligibleIntentCategory } = require('../utils/matching-policy')
 const { classifyRelativeGeoTier } = require('../utils/geo-matching')
 const { passesHardFilters } = require('../utils/match-filters')
+const { rankMatchItems } = require('../utils/match-ranking')
 const {
   scoreAlignment,
   buildAlignmentSummaryFromBreakdown,
@@ -52,6 +53,8 @@ const PROFILE_SELECT = `
     p.mobility_profile_id,
     p.alignment_answers,
     p.alignment_completed_at,
+    p.created_at,
+    p.updated_at,
     p.gender_identity_custom,
     p.orientation_custom,
     g.id    AS gender_identity_id,
@@ -532,12 +535,12 @@ async function getMatchesForUser(userId) {
     })
   }
 
-  scored.sort((a, b) => b.score - a.score)
+  const ranked = rankMatchItems(scored, viewer, entitlements.algorithmPriority)
 
   const accessible = []
   const locked = []
 
-  for (const item of scored) {
+  for (const item of ranked) {
     if (canAccessGeo(tier, item.geoTier) || item.connection) {
       accessible.push(item)
     } else {
@@ -607,6 +610,7 @@ async function getMatchesForUser(userId) {
       accessibleCount: accessible.length,
       lockedCount: locked.length,
       connectionCount: connectionMatches.length,
+      rankingAlgorithm: entitlements.algorithmPriority,
     },
   }
 }

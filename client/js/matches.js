@@ -7,7 +7,7 @@ import {
   acceptConnectionRequest,
 } from './matches-api.js'
 import { bootPageLoader, finishPageLoader } from './loading.js'
-import { lockedMatchCard, currentTier } from './membership-guard.js'
+import { lockedMatchCard, currentTier, setMatchQuotaFromServer } from './membership-guard.js'
 import { requiredTierForGeo } from './membership.js'
 
 requireAuth()
@@ -339,6 +339,11 @@ function renderFromApi(payload) {
   liveTier = payload.tier || 'base'
   liveMatches = (payload.matches || []).map(enrichApiMatch)
   liveLocked = (payload.locked || []).filter(l => l.reason === 'geo')
+
+  if (payload.quota) {
+    store.setMatchQuota(payload.quota)
+    setMatchQuotaFromServer(payload.quota)
+  }
 
   updateStats(payload.stats)
   renderMatchGrid()
