@@ -25,6 +25,9 @@ async function resolveUser(client, { externalId, email }) {
 /* ─── Query helpers ─────────────────────────────────────────────*/
 
 async function getActiveSubscription(userId) {
+  await applyDueScheduledChanges(userId)
+  await recoverAbandonedPrimeUpgrade(userId)
+
   const result = await pool.query(
     `SELECT * FROM subscriptions
      WHERE user_id = $1
@@ -34,6 +37,124 @@ async function getActiveSubscription(userId) {
     [userId]
   )
   return result.rows[0] || null
+}
+
+/**
+ * If Plus→Prime checkout was abandoned, subscription can be stuck as prime/pending.
+ * Roll it back to plus/active so the member can retry.
+ */
+async function recoverAbandonedPrimeUpgrade(userId) {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+
+    const result = await client.query(
+      `SELECT * FROM subscriptions
+       WHERE user_id = $1
+         AND tier = 'prime'
+         AND status = 'pending'
+       ORDER BY created_at DESC, id DESC
+       LIMIT 1
+       FOR UPDATE`,
+      [userId]
+    )
+
+    if (!result.rows.length) {
+      await client.query('COMMIT')
+      return null
+    }
+
+    const sub = result.rows[0]
+    const paid = await client.query(
+      `SELECT id FROM payment_ledger
+       WHERE subscription_id = $1
+         AND type = 'upgrade_charge'
+         AND status = 'paid'
+       LIMIT 1`,
+      [sub.id]
+    )
+    if (paid.rows.length) {
+      await client.query('COMMIT')
+      return null
+    }
+
+    await client.query(
+      `UPDATE payment_ledger
+       SET status = 'failed'
+       WHERE subscription_id = $1
+         AND type = 'upgrade_charge'
+         AND status = 'pending'`,
+      [sub.id]
+    )
+
+    await client.query(
+      `UPDATE subscriptions
+       SET tier = 'plus',
+           status = 'active',
+           scheduled_tier = NULL,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [sub.id]
+    )
+
+    await _writeHistory(client, {
+      subscriptionId: sub.id,
+      userId,
+      fromTier:    'prime',
+      toTier:      'plus',
+      fromStatus:  'pending',
+      toStatus:    'active',
+      reason:      'upgrade_abandoned_reverted',
+      triggeredBy: 'system',
+    })
+
+    await client.query('COMMIT')
+    return true
+  } catch (err) {
+    await client.query('ROLLBACK')
+    throw err
+  } finally {
+    client.release()
+  }
+}
+
+/**
+ * Apply any scheduled_tier once current_period_end has passed.
+ * Keeps paid access until the billing period ends.
+ */
+async function applyDueScheduledChanges(userId) {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+
+    const result = await client.query(
+      `SELECT * FROM subscriptions
+       WHERE user_id = $1
+         AND status IN ('active', 'past_due')
+         AND scheduled_tier IS NOT NULL
+         AND current_period_end <= NOW()
+       ORDER BY created_at DESC, id DESC
+       LIMIT 1
+       FOR UPDATE`,
+      [userId]
+    )
+
+    if (!result.rows.length) {
+      await client.query('COMMIT')
+      return null
+    }
+
+    const sub = result.rows[0]
+    const targetTier = sub.scheduled_tier
+    await _applyScheduledDowngrade(client, sub, targetTier)
+    await client.query('COMMIT')
+    return true
+  } catch (err) {
+    await client.query('ROLLBACK')
+    throw err
+  } finally {
+    client.release()
+  }
 }
 
 /* ─── Create subscription (pending until webhook confirms) ──────
@@ -69,6 +190,7 @@ async function createSubscription({
                provider_customer_id     = $4,
                grace_period_end         = NULL,
                retry_count              = 0,
+               scheduled_tier           = NULL,
                updated_at               = NOW()
            WHERE id = $5
            RETURNING *`,
@@ -154,17 +276,29 @@ async function activateSubscription({ subscriptionId, providerPaymentId }) {
   try {
     await client.query('BEGIN')
 
+    const ledger = await client.query(
+      `SELECT type FROM payment_ledger
+       WHERE provider_payment_id = $1
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [providerPaymentId]
+    )
+    const chargeType = ledger.rows[0]?.type || null
+    const isUpgrade = chargeType === 'upgrade_charge'
+
     const result = await client.query(
       `UPDATE subscriptions
        SET status               = 'active',
+           tier                 = CASE WHEN $2 THEN 'prime' ELSE tier END,
            current_period_start = NOW(),
            current_period_end   = NOW() + INTERVAL '30 days',
            grace_period_end     = NULL,
            retry_count          = 0,
+           scheduled_tier       = NULL,
            updated_at           = NOW()
-       WHERE id = $1 AND status IN ('pending', 'past_due')
+       WHERE id = $1 AND status IN ('pending', 'past_due', 'active')
        RETURNING *`,
-      [subscriptionId]
+      [subscriptionId, isUpgrade]
     )
 
     if (!result.rows.length) {
@@ -184,10 +318,10 @@ async function activateSubscription({ subscriptionId, providerPaymentId }) {
     await _writeHistory(client, {
       subscriptionId: sub.id,
       userId:      sub.user_id,
-      fromStatus:  'pending',
+      fromStatus:  isUpgrade ? 'active' : 'pending',
       toStatus:    'active',
       toTier:      sub.tier,
-      reason:      'payment_confirmed',
+      reason:      isUpgrade ? 'upgrade_payment_confirmed' : 'payment_confirmed',
       triggeredBy: 'webhook',
     })
 
@@ -322,14 +456,21 @@ async function initiateUpgrade({
       ]
     )
 
-    // Transition subscription to prime/pending — activates when charge webhook fires
+    // Fail any previous unpaid upgrade attempts for this subscription.
+    await client.query(
+      `UPDATE payment_ledger
+       SET status = 'failed'
+       WHERE subscription_id = $1
+         AND type = 'upgrade_charge'
+         AND status = 'pending'`,
+      [sub.id]
+    )
+
+    // Keep Plus active until PayMongo confirms — do not flip to prime/pending yet.
     const updated = await client.query(
       `UPDATE subscriptions
-       SET tier                     = 'prime',
-           status                   = 'pending',
-           current_period_start     = NOW(),
-           current_period_end       = NOW() + INTERVAL '30 days',
-           provider_subscription_id = COALESCE($1, provider_subscription_id),
+       SET provider_subscription_id = COALESCE($1, provider_subscription_id),
+           scheduled_tier           = NULL,
            updated_at               = NOW()
        WHERE id = $2
        RETURNING *`,
@@ -360,8 +501,8 @@ async function initiateUpgrade({
       fromTier:    'plus',
       toTier:      'prime',
       fromStatus:  sub.status,
-      toStatus:    'pending',
-      reason:      'upgrade_initiated',
+      toStatus:    sub.status,
+      reason:      'upgrade_checkout_created',
       triggeredBy: 'api',
     })
 
@@ -447,7 +588,8 @@ async function _ensureBaseSubscriptionLocked(db, userId) {
 }
 
 /* ─── Downgrade subscription ──────────────────────────────────────
-   Persists tier changes: Prime → Plus (in-place) or any paid → Base. */
+   Schedules Prime → Plus or paid → Base at current_period_end.
+   Member keeps the current paid tier until that date. */
 async function downgradeSubscription({ userId, targetTier }) {
   if (!['base', 'plus'].includes(targetTier)) {
     const err = new Error('Downgrade target must be "base" or "plus".')
@@ -471,72 +613,122 @@ async function downgradeSubscription({ userId, targetTier }) {
     if (!result.rows.length) {
       const base = await ensureBaseSubscription(userId, client)
       await client.query('COMMIT')
-      return base
+      return { subscription: base, effectiveAt: null, scheduled: false }
     }
 
     const sub = result.rows[0]
 
     if (sub.tier === targetTier) {
-      await client.query('COMMIT')
-      return sub
-    }
-
-    if (targetTier === 'plus' && sub.tier === 'prime') {
-      const updated = await client.query(
-        `UPDATE subscriptions
-         SET tier = 'plus', updated_at = NOW()
-         WHERE id = $1
-         RETURNING *`,
-        [sub.id]
-      )
-
-      await _writeHistory(client, {
-        subscriptionId: sub.id,
-        userId,
-        fromTier:    'prime',
-        toTier:      'plus',
-        fromStatus:  sub.status,
-        toStatus:    sub.status,
-        reason:      'downgrade_prime_to_plus',
-        triggeredBy: 'api',
-      })
-
-      await client.query('COMMIT')
-      return updated.rows[0]
-    }
-
-    if (targetTier === 'base') {
       await client.query(
         `UPDATE subscriptions
-         SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
+         SET scheduled_tier = NULL, updated_at = NOW()
          WHERE id = $1`,
         [sub.id]
       )
-
-      await _writeHistory(client, {
-        subscriptionId: sub.id,
-        userId,
-        fromTier:    sub.tier,
-        toTier:      'base',
-        fromStatus:  sub.status,
-        toStatus:    'cancelled',
-        reason:      'downgrade_to_base',
-        triggeredBy: 'api',
-      })
-
-      const base = await ensureBaseSubscription(userId, client)
       await client.query('COMMIT')
-      return base
+      return { subscription: { ...sub, scheduled_tier: null }, effectiveAt: null, scheduled: false }
     }
 
-    const err = new Error(`Cannot downgrade from ${sub.tier} to ${targetTier}.`)
-    err.code = 'INVALID_DOWNGRADE_PATH'
-    throw err
+    if (targetTier === 'plus' && sub.tier !== 'prime') {
+      const err = new Error(`Cannot downgrade from ${sub.tier} to plus.`)
+      err.code = 'INVALID_DOWNGRADE_PATH'
+      throw err
+    }
+
+    const periodEnd = new Date(sub.current_period_end)
+    const periodEnded = periodEnd.getTime() <= Date.now()
+
+    if (!periodEnded) {
+      const err = new Error(
+        `You can downgrade only after your current plan ends on ${periodEnd.toLocaleDateString('en-PH', { dateStyle: 'medium' })}.`
+      )
+      err.code = 'PERIOD_NOT_ENDED'
+      err.currentPeriodEnd = periodEnd.toISOString()
+      throw err
+    }
+
+    await _applyScheduledDowngrade(client, sub, targetTier)
+    const live = await client.query(
+      `SELECT * FROM subscriptions
+       WHERE user_id = $1 AND status IN ('active', 'pending', 'past_due')
+       ORDER BY created_at DESC LIMIT 1`,
+      [userId]
+    )
+    await client.query('COMMIT')
+    return {
+      subscription: live.rows[0],
+      effectiveAt: new Date().toISOString(),
+      scheduled: false,
+    }
   } catch (err) {
     await client.query('ROLLBACK')
     throw err
   } finally {
     client.release()
+  }
+}
+
+/** Clear a pending period-end downgrade. */
+async function cancelScheduledDowngrade({ userId }) {
+  const result = await pool.query(
+    `UPDATE subscriptions
+     SET scheduled_tier = NULL, updated_at = NOW()
+     WHERE user_id = $1
+       AND status IN ('active', 'past_due')
+       AND scheduled_tier IS NOT NULL
+     RETURNING *`,
+    [userId]
+  )
+  return result.rows[0] || null
+}
+
+async function _applyScheduledDowngrade(client, sub, targetTier) {
+  if (targetTier === 'plus' && sub.tier === 'prime') {
+    await client.query(
+      `UPDATE subscriptions
+       SET tier = 'plus',
+           scheduled_tier = NULL,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [sub.id]
+    )
+
+    await _writeHistory(client, {
+      subscriptionId: sub.id,
+      userId:      sub.user_id,
+      fromTier:    'prime',
+      toTier:      'plus',
+      fromStatus:  sub.status,
+      toStatus:    sub.status,
+      reason:      'downgrade_prime_to_plus_period_end',
+      triggeredBy: 'system',
+    })
+    return
+  }
+
+  if (targetTier === 'base') {
+    await client.query(
+      `UPDATE subscriptions
+       SET status = 'cancelled',
+           cancelled_at = NOW(),
+           scheduled_tier = NULL,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [sub.id]
+    )
+
+    await _writeHistory(client, {
+      subscriptionId: sub.id,
+      userId:      sub.user_id,
+      fromTier:    sub.tier,
+      toTier:      'base',
+      fromStatus:  sub.status,
+      toStatus:    'cancelled',
+      reason:      'downgrade_to_base_period_end',
+      triggeredBy: 'system',
+    })
+
+    await ensureBaseSubscription(sub.user_id, client)
   }
 }
 
@@ -589,4 +781,6 @@ module.exports = {
   cancelSubscription,
   ensureBaseSubscription,
   downgradeSubscription,
+  cancelScheduledDowngrade,
+  applyDueScheduledChanges,
 }

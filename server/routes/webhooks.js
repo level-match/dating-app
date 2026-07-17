@@ -6,6 +6,10 @@ const {
   verifyStripeWebhook,
 } = require('../middleware/verify-webhook')
 const svc = require('../services/subscription.service')
+const {
+  normalizeWebhookEvent,
+  resolveProviderPaymentId,
+} = require('../services/paymongo.service')
 
 const router = express.Router()
 
@@ -14,34 +18,40 @@ const router = express.Router()
    rawBodySaver must precede verifyPayMongoWebhook so the raw body
    string is available for HMAC recomputation before JSON.parse(). */
 router.post('/paymongo', rawBodySaver, verifyPayMongoWebhook, async (req, res) => {
-  const event   = req.webhookPayload
-  const eventId = event.data?.id || event.id
+  const { eventId, eventType, resource } = normalizeWebhookEvent(req.webhookPayload)
+
+  if (!eventId || !eventType) {
+    return res.status(400).json({ error: 'INVALID_PAYLOAD', message: 'Unrecognized PayMongo webhook shape.' })
+  }
 
   // Record the event; returns false if already processed (replay protection)
-  const isNew = await _recordEvent(eventId, 'paymongo', event.type, event)
+  const isNew = await _recordEvent(eventId, 'paymongo', eventType, req.webhookPayload)
   if (!isNew) {
     return res.status(200).json({ received: true, skipped: 'already_processed' })
   }
 
   try {
-    switch (event.type) {
+    switch (eventType) {
+      case 'checkout_session.payment.paid':
+        await _handleCheckoutSessionPaid(resource)
+        break
+
       case 'payment.paid':
       case 'link.payment.paid':
-        await _handlePaymentPaid(event.data?.attributes || {})
+        await _handlePaymentPaid(resource?.attributes || resource || {})
         break
 
       case 'payment.failed':
-        await _handlePaymentFailed(event.data?.attributes || {})
+        await _handlePaymentFailed(resource?.attributes || resource || {})
         break
 
-      // PayMongo sends this when a subscription's billing cycle runs
       case 'payment.paid.recurring':
-        await _handleRecurringPaid(event.data?.attributes || {})
+        await _handleRecurringPaid(resource?.attributes || resource || {})
         break
 
       default:
         // Acknowledge unknown types without processing — prevents infinite retries
-        console.log(`[webhook/paymongo] Unhandled event type: ${event.type}`)
+        console.log(`[webhook/paymongo] Unhandled event type: ${eventType}`)
     }
 
     await _markProcessed(eventId, 'paymongo')
@@ -103,8 +113,7 @@ router.post('/stripe', rawBodySaver, verifyStripeWebhook, async (req, res) => {
    These are the ONLY code paths that call activateSubscription().
    Entitlement promotion never happens from a client-side request. */
 
-async function _handlePaymentPaid(attributes) {
-  const providerPaymentId = attributes.external_reference_number || attributes.id
+async function _activateByProviderPaymentId(providerPaymentId) {
   if (!providerPaymentId) return
 
   const ledger = await pool.query(
@@ -123,6 +132,27 @@ async function _handlePaymentPaid(attributes) {
     subscriptionId: ledger.rows[0].subscription_id,
     providerPaymentId,
   })
+}
+
+async function _handleCheckoutSessionPaid(session) {
+  const providerPaymentId = resolveProviderPaymentId(session)
+  if (!providerPaymentId) {
+    console.warn('[webhook] checkout_session.payment.paid missing session id')
+    return
+  }
+
+  // Prefer checkout session id (cs_…). Also try reference_number if ledger used that.
+  await _activateByProviderPaymentId(providerPaymentId)
+
+  const reference = session?.attributes?.reference_number
+  if (reference && reference !== providerPaymentId) {
+    await _activateByProviderPaymentId(reference)
+  }
+}
+
+async function _handlePaymentPaid(attributes) {
+  const providerPaymentId = attributes.external_reference_number || attributes.id
+  await _activateByProviderPaymentId(providerPaymentId)
 }
 
 async function _handlePaymentFailed(attributes) {

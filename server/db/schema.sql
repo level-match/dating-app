@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   provider_subscription_id VARCHAR(255),          -- gateway-side subscription/link ID
   provider_customer_id     VARCHAR(255),          -- gateway-side customer ID
   cancelled_at             TIMESTAMPTZ,
+  scheduled_tier           VARCHAR(10)
+                             CHECK (scheduled_tier IS NULL OR scheduled_tier IN ('base', 'plus')),
   created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

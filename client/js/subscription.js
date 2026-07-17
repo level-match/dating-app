@@ -81,6 +81,26 @@ export async function downgradeSubscription(targetTier) {
   return parseJson(res)
 }
 
+/** Cancel a pending period-end downgrade. */
+export async function cancelScheduledDowngrade() {
+  const res = await apiFetch('/api/subscription/downgrade/cancel', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  })
+  return parseJson(res)
+}
+
+/** Retry charge for a past-due subscription via PayMongo checkout. */
+export async function retryCharge(subscriptionId) {
+  const res = await apiFetch('/api/charge', {
+    method: 'POST',
+    headers: idempotencyHeaders(),
+    body: JSON.stringify({ subscriptionId }),
+  })
+  return parseJson(res)
+}
+
 /**
  * Development helper: simulates a PayMongo webhook confirming payment.
  * Only available when the server allows dev payment confirmation.

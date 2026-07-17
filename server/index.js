@@ -91,6 +91,7 @@ app.use((err, req, res, _next) => {
     DUPLICATE_SUBSCRIPTION:  409,
     NO_SUBSCRIPTION:         404,
     NOT_FOUND:               404,
+    PERIOD_NOT_ENDED:        409,
     INVALID_UPGRADE_PATH:    400,
     INVALID_DOWNGRADE_PATH:  400,
     INVALID_TIER:            400,

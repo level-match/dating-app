@@ -6,43 +6,114 @@ import {
   subscribe,
   upgradeSubscription,
   downgradeSubscription,
+  cancelScheduledDowngrade,
   confirmPendingPayment,
   pollUntilActive,
   fetchSubscription,
+  retryCharge,
 } from './subscription.js'
 import { bootPageLoader, finishPageLoader } from './loading.js'
 
 const TIER_ORDER = ['base', 'plus', 'prime']
+let _pendingDowngradeTier = null
+
+function formatPeriodEnd(iso) {
+  if (!iso) return 'the end of your billing period'
+  try {
+    return new Date(iso).toLocaleDateString('en-PH', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+  } catch {
+    return 'the end of your billing period'
+  }
+}
+
+function getSubscription() {
+  return store.getUser()?.subscription || null
+}
 
 function renderMembershipPage(tier) {
   const meta = TIER_META[tier] || TIER_META.base
-  document.getElementById('currentPlanBadge').textContent = `Current plan: ${meta.name}`
+  const sub = getSubscription()
+  const periodLabel = sub?.currentPeriodEnd
+    ? formatPeriodEnd(sub.currentPeriodEnd)
+    : null
+
+  document.getElementById('currentPlanBadge').textContent = periodLabel
+    ? `Current plan: ${meta.name} · Renews ${periodLabel}`
+    : `Current plan: ${meta.name}`
   document.getElementById('topbarTier').textContent = meta.name
 
   document.querySelectorAll('.mem-card--active').forEach(el => el.classList.remove('mem-card--active'))
   document.getElementById(`card-${tier}`)?.classList.add('mem-card--active')
 
-  renderCta('base', tier)
-  renderCta('plus', tier)
-  renderCta('prime', tier)
+  renderScheduledBanner(sub)
+  renderCta('base', tier, sub)
+  renderCta('plus', tier, sub)
+  renderCta('prime', tier, sub)
+}
+
+function renderScheduledBanner(sub) {
+  const banner = document.getElementById('scheduledDowngradeBanner')
+  if (!banner) return
+
+  if (!sub?.scheduledTier) {
+    banner.style.display = 'none'
+    return
+  }
+
+  const target = TIER_META[sub.scheduledTier] || TIER_META.base
+  const when = formatPeriodEnd(sub.currentPeriodEnd)
+  banner.style.display = ''
+  document.getElementById('scheduledDowngradeText').textContent =
+    `Downgrade to ${target.name} is scheduled for ${when}. You keep your current plan until then.`
+}
+
+function isPaidTier(tier) {
+  return tier === 'plus' || tier === 'prime'
+}
+
+/** True while the paid billing window is still active (before currentPeriodEnd). */
+function isCurrentPeriodActive(sub, tier = store.getTier()) {
+  if (!isPaidTier(tier)) return false
+  if (!sub?.currentPeriodEnd) return false
+  return new Date(sub.currentPeriodEnd).getTime() > Date.now()
 }
 
 /* ─ Render CTAs ─ */
-function renderCta(cardTier, currentTier) {
+function renderCta(cardTier, currentTier, sub = getSubscription()) {
   const el = document.getElementById(`cta-${cardTier}`)
   if (!el) return
   if (cardTier === currentTier) {
     el.innerHTML = `<div class="mem-current-label">✦ &nbsp;Current plan</div>`
     return
   }
+
   const cardMeta = TIER_META[cardTier]
-  const tiers = ['base', 'plus', 'prime']
-  const isUpgrade = tiers.indexOf(cardTier) > tiers.indexOf(currentTier)
+  const isUpgrade = TIER_ORDER.indexOf(cardTier) > TIER_ORDER.indexOf(currentTier)
+  const periodLocked = isCurrentPeriodActive(sub, currentTier)
+  const when = formatPeriodEnd(sub?.currentPeriodEnd)
+
   if (isUpgrade) {
+    // Base → paid is always allowed. Paid → higher only after period ends.
+    if (periodLocked) {
+      el.innerHTML = `<div class="mem-current-label">Upgrade available after ${when}</div>`
+      return
+    }
     el.innerHTML = `<button class="btn btn-gold" style="width:100%;justify-content:center;" onclick="changeTier('${cardTier}')">Upgrade to ${cardMeta.shortName}</button>`
-  } else {
-    el.innerHTML = `<button class="btn btn-outline-dark" style="width:100%;justify-content:center;" onclick="changeTier('${cardTier}')">Downgrade to ${cardMeta.shortName}</button>`
+    return
   }
+
+  // Downgrade only after current paid period ends.
+  if (periodLocked) {
+    el.innerHTML = `<div class="mem-current-label">Downgrade available after ${when}</div>`
+    return
+  }
+
+  el.innerHTML = `<button class="btn btn-outline" style="width:100%;justify-content:center;" onclick="changeTier('${cardTier}')">Downgrade to ${cardMeta.shortName}</button>`
 }
 
 async function bootMembershipPage() {
@@ -57,331 +128,373 @@ async function bootMembershipPage() {
   } finally {
     finishPageLoader()
   }
+  // Run after the loader so payment confirmation never blocks the page.
+  await handlePaymentReturn()
 }
 
 bootMembershipPage()
 
-/* ═══════════════════════════════════════════════════════
-   Payment modal
-   ═══════════════════════════════════════════════════════ */
-let _pendingTier     = null
-let _expressProvider = null  // 'apple' | 'google' | null (card)
-
 function showPaymentError(err) {
-  const message = err?.message || 'Payment could not be completed. Please try again.'
-  const el = document.getElementById('payErrorMsg')
-  if (el) {
-    el.textContent = message
-    el.classList.add('visible')
-  }
-  document.getElementById('paySubmitBtn') && (document.getElementById('paySubmitBtn').disabled = false)
-  showPanel('form')
-  const toast = document.createElement('div')
-  toast.className = 'toast animate-fadeUp'
-  toast.style.cssText = 'border-color:rgba(239,68,68,0.30);background:rgba(239,68,68,0.10);'
-  toast.innerHTML = `<span style="font-size:16px">⚠</span><span>${message}</span>`
-  document.body.appendChild(toast)
-  setTimeout(() => toast.remove(), 5000)
+  const message = err?.message
+    || err?.body?.message
+    || 'Payment could not be completed. Please try again.'
+  showPaymentToast(message, { error: true })
 }
 
-async function processSubscriptionPayment() {
+function showPaymentToast(message, { error = false } = {}) {
+  document.querySelectorAll('.toast.payment-toast').forEach(t => t.remove())
+  const toast = document.createElement('div')
+  toast.className = 'toast animate-fadeUp payment-toast'
+  if (error) {
+    toast.style.cssText = 'border-color:rgba(239,68,68,0.30);background:rgba(239,68,68,0.10);'
+  }
+  toast.innerHTML =
+    `<span style="font-size:18px">${error ? '⚠' : '✦'}</span>` +
+    `<span style="flex:1">${message}</span>` +
+    `<button type="button" aria-label="Dismiss" style="background:transparent;border:0;color:inherit;opacity:0.7;cursor:pointer;font-size:16px;line-height:1;padding:0 0 0 8px;">✕</button>`
+  const dismiss = () => toast.remove()
+  toast.querySelector('button')?.addEventListener('click', dismiss)
+  document.body.appendChild(toast)
+  setTimeout(dismiss, error ? 8000 : 4000)
+}
+
+function clearPaymentQuery() {
+  const url = new URL(window.location.href)
+  if (!url.searchParams.has('payment')) return
+  url.searchParams.delete('payment')
+  window.history.replaceState({}, '', url.pathname + url.search + url.hash)
+}
+
+function isPaidActive(data) {
+  return Boolean(
+    data?.tier
+    && data.tier !== 'base'
+    && data.subscription?.status === 'active'
+  )
+}
+
+/**
+ * After PayMongo redirects back to membership.html?payment=success|cancelled.
+ * Polls briefly for the webhook, then falls back to the local confirm endpoint
+ * (available when ALLOW_DEV_PAYMENT_CONFIRM=true) so localhost works without ngrok.
+ */
+async function handlePaymentReturn() {
+  const params = new URLSearchParams(window.location.search)
+  const payment = params.get('payment')
+  if (!payment) return
+
+  if (payment === 'cancelled') {
+    clearPaymentQuery()
+    showPaymentToast('Payment cancelled. Your plan was not changed.', { error: true })
+    return
+  }
+
+  if (payment !== 'success') return
+
+  showPaymentToast('Confirming payment…')
+
+  try {
+    let synced = await fetchSubscription()
+
+    // Short wait for a real webhook (production / public API).
+    if (!isPaidActive(synced)) {
+      try {
+        const current = synced.tier && synced.tier !== 'base' ? synced.tier : null
+        if (current) {
+          synced = await pollUntilActive(current, { maxAttempts: 5, intervalMs: 800 })
+        } else {
+          synced = await pollUntilPaidTier({ maxAttempts: 5, intervalMs: 800 })
+        }
+      } catch {
+        // Webhook may not reach localhost — try dev confirm next.
+      }
+    }
+
+    // Local/dev fallback: simulate the PayMongo webhook.
+    if (!isPaidActive(synced)) {
+      try {
+        await confirmPendingPayment()
+        synced = await fetchSubscription()
+      } catch (e) {
+        if (e.status && e.status !== 404) throw e
+      }
+    }
+
+    if (!isPaidActive(synced)) {
+      try {
+        synced = await pollUntilPaidTier({ maxAttempts: 5, intervalMs: 600 })
+      } catch {
+        /* fall through */
+      }
+    }
+
+    clearPaymentQuery()
+
+    if (!isPaidActive(synced)) {
+      showPaymentToast(
+        'Payment received, but your plan is still pending. Wait a moment and refresh — the webhook may not have reached the server yet.',
+        { error: true }
+      )
+      return
+    }
+
+    store.applySubscriptionSync(synced)
+    renderMembershipPage(synced.tier)
+    const newMeta = TIER_META[synced.tier] || TIER_META.base
+    showPaymentToast(`Welcome to ${newMeta.name}! Reloading…`)
+    setTimeout(() => window.location.assign('/membership.html'), 1000)
+  } catch (err) {
+    clearPaymentQuery()
+    showPaymentToast(
+      err?.message || 'Payment received — refresh in a moment if your plan has not updated.',
+      { error: true }
+    )
+  }
+}
+
+async function pollUntilPaidTier({ maxAttempts = 8, intervalMs = 800 } = {}) {
+  for (let i = 0; i < maxAttempts; i++) {
+    const data = await fetchSubscription()
+    if (isPaidActive(data)) return data
+    await new Promise(r => setTimeout(r, intervalMs))
+  }
+  throw new Error('Payment confirmation timed out. Please refresh in a moment.')
+}
+
+function setUpgradeButtonsBusy(busy) {
+  document.querySelectorAll('[id^="cta-"] button').forEach(btn => {
+    btn.disabled = busy
+    if (busy) btn.textContent = 'Redirecting to PayMongo…'
+  })
+}
+
+/** Client-side tier change rules.
+ *  - Base → Plus/Prime: anytime
+ *  - Paid upgrade / downgrade: only after currentPeriodEnd
+ */
+function validateTierChange(targetTier) {
+  const currentTier = store.getTier()
+  const sub = getSubscription()
+  const currentMeta = TIER_META[currentTier] || TIER_META.base
+  const targetMeta = TIER_META[targetTier] || TIER_META.base
+  const fromIdx = TIER_ORDER.indexOf(currentTier)
+  const toIdx = TIER_ORDER.indexOf(targetTier)
+  const when = formatPeriodEnd(sub?.currentPeriodEnd)
+
+  if (!TIER_ORDER.includes(targetTier)) {
+    return { ok: false, message: 'That membership plan is not available.' }
+  }
+
+  if (toIdx === fromIdx) {
+    return { ok: false, message: `You're already on ${currentMeta.name}.` }
+  }
+
+  if (sub?.status === 'pending') {
+    return {
+      ok: false,
+      message: 'You have a pending payment. Finish PayMongo checkout or wait for confirmation before changing plans.',
+    }
+  }
+
+  const isUpgrade = toIdx > fromIdx
+  const isDowngrade = toIdx < fromIdx
+  const periodLocked = isCurrentPeriodActive(sub, currentTier)
+
+  if (isUpgrade) {
+    if (!(
+      (currentTier === 'base' && (targetTier === 'plus' || targetTier === 'prime'))
+      || (currentTier === 'plus' && targetTier === 'prime')
+    )) {
+      return {
+        ok: false,
+        message: `You can't upgrade from ${currentMeta.name} to ${targetMeta.name}.`,
+      }
+    }
+
+    // Paid plan still active — must wait until it expires.
+    if (periodLocked) {
+      return {
+        ok: false,
+        message: `You can upgrade to ${targetMeta.name} only after your current ${currentMeta.name} plan ends on ${when}.`,
+      }
+    }
+
+    return { ok: true, direction: 'upgrade', currentTier, targetTier }
+  }
+
+  if (isDowngrade) {
+    if (!(
+      (currentTier === 'prime' && (targetTier === 'plus' || targetTier === 'base'))
+      || (currentTier === 'plus' && targetTier === 'base')
+    )) {
+      return {
+        ok: false,
+        message: `You can't move from ${currentMeta.name} down to ${targetMeta.name}.`,
+      }
+    }
+
+    if (!sub?.currentPeriodEnd) {
+      return {
+        ok: false,
+        message: 'Your billing period end date is missing. Refresh the page, then try again.',
+      }
+    }
+
+    if (periodLocked) {
+      return {
+        ok: false,
+        message: `You can downgrade to ${targetMeta.name} only after your current ${currentMeta.name} plan ends on ${when}.`,
+      }
+    }
+
+    return { ok: true, direction: 'downgrade', currentTier, targetTier }
+  }
+
+  return { ok: false, message: 'Invalid plan change.' }
+}
+
+/** Create PayMongo checkout and redirect — no in-app payment modal. */
+async function startPayMongoCheckout(targetTier) {
+  const check = validateTierChange(targetTier)
+  if (!check.ok || check.direction !== 'upgrade') {
+    throw new Error(check.message || 'This upgrade is not allowed.')
+  }
+
   const identity = await getSessionIdentity()
   if (!identity) {
     throw new Error('Sign in with your LEVEL account to subscribe.')
   }
 
   const currentTier = store.getTier()
-  const targetTier = _pendingTier
-
-  if (currentTier === 'plus' && targetTier === 'prime') {
-    await upgradeSubscription()
-  } else {
-    await subscribe(targetTier)
-  }
+  const meta = TIER_META[targetTier] || TIER_META.plus
+  showPaymentToast(`Opening PayMongo checkout for ${meta.name}…`)
+  setUpgradeButtonsBusy(true)
 
   try {
-    await confirmPendingPayment()
-  } catch (e) {
-    if (e.status !== 404) throw e
-  }
+    let result
+    if (currentTier === 'plus' && targetTier === 'prime') {
+      result = await upgradeSubscription()
+    } else if (currentTier === 'base' && (targetTier === 'plus' || targetTier === 'prime')) {
+      result = await subscribe(targetTier)
+    } else {
+      throw new Error(`Upgrade from ${currentTier} to ${targetTier} is not supported.`)
+    }
 
-  const synced = await pollUntilActive(targetTier)
-  store.applySubscriptionSync(synced)
-  return synced
+    if (result.checkoutUrl) {
+      window.location.href = result.checkoutUrl
+      return
+    }
+
+    // Zero-charge upgrade (full pro-rata credit) — already active.
+    if (result.status === 'active') {
+      const synced = await fetchSubscription()
+      store.applySubscriptionSync(synced)
+      finishTierChange(targetTier)
+      return
+    }
+
+    throw new Error(result.message || 'Checkout URL was not returned. Please try again.')
+  } catch (err) {
+    setUpgradeButtonsBusy(false)
+    renderMembershipPage(store.getTier())
+    throw err
+  }
 }
 
 /* ─ Tier change entry point ─ */
 window.changeTier = function(newTier) {
-  if (newTier === store.getTier()) return
-  const isUpgrade = TIER_ORDER.indexOf(newTier) > TIER_ORDER.indexOf(store.getTier())
-  if (isUpgrade) {
-    openPayModal(newTier)
-  } else {
-    const newMeta = TIER_META[newTier]
-    if (!confirm(`Downgrade to ${newMeta.name}? You'll lose access to paid features at the end of the billing period.`)) return
-    applyTierChange(newTier).catch(showPaymentError)
-  }
-}
-
-/* ─ Open modal & reset all panels ─ */
-window.openPayModal = function(targetTier) {
-  _pendingTier     = targetTier
-  _expressProvider = null
-  const m = TIER_META[targetTier]
-
-  // Update dynamic text
-  document.getElementById('payPlanName').textContent = m.name
-  document.getElementById('payPlanPrice').innerHTML  =
-    `₱${m.price.toLocaleString()}<span style="font-family:var(--font-sans);font-size:0.78rem;color:rgba(255,255,255,0.38);">/mo</span>`
-  document.getElementById('payBtnLabel').textContent = `Pay ₱${m.price.toLocaleString()}`
-  document.getElementById('paySuccessTitle').textContent = `Welcome to ${m.name}`
-  document.getElementById('paySheetAmount').textContent  = `₱${m.price.toLocaleString()}`
-  document.getElementById('pstep1Tier').textContent = m.name
-
-  // Reset form inputs
-  document.getElementById('payCardName').value   = ''
-  document.getElementById('payCardNumber').value = ''
-  document.getElementById('payExpiry').value     = ''
-  document.getElementById('payCvv').value        = ''
-  document.getElementById('payErrorMsg').classList.remove('visible')
-  document.querySelectorAll('.pay-input').forEach(i => i.classList.remove('error'))
-  document.getElementById('paySubmitBtn').disabled = false
-
-  // Show only the form panel
-  showPanel('form')
-
-  // Reset flow steps
-  document.querySelectorAll('.pay-flow-step').forEach(s => s.classList.remove('active', 'done'))
-
-  document.getElementById('payModalBackdrop').classList.add('open')
-  setTimeout(() => document.getElementById('payCardName').focus(), 100)
-}
-
-window.closePayModal = function() {
-  document.getElementById('payModalBackdrop').classList.remove('open')
-  _pendingTier     = null
-  _expressProvider = null
-}
-
-/* Close on backdrop / Escape */
-document.getElementById('payModalBackdrop').addEventListener('click', function(e) {
-  if (e.target === this) window.closePayModal()
-})
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') window.closePayModal()
-})
-
-/* ─ Panel switcher ─ */
-function showPanel(name) {
-  document.getElementById('payFormWrap').style.display   = name === 'form'  ? '' : 'none'
-  document.getElementById('paySheet').classList.toggle('visible', name === 'sheet')
-  document.getElementById('payProcessing').classList.toggle('visible', name === 'processing')
-  document.getElementById('paySuccess').classList.toggle('visible', name === 'success')
-}
-
-/* ─ Card input formatting ─ */
-document.getElementById('payCardNumber').addEventListener('input', function() {
-  const v = this.value.replace(/\D/g, '').slice(0, 16)
-  this.value = v.match(/.{1,4}/g)?.join(' ') || v
-})
-document.getElementById('payExpiry').addEventListener('input', function() {
-  let v = this.value.replace(/\D/g, '').slice(0, 4)
-  if (v.length >= 3) v = v.slice(0, 2) + ' / ' + v.slice(2)
-  this.value = v
-})
-document.getElementById('payCvv').addEventListener('input', function() {
-  this.value = this.value.replace(/\D/g, '').slice(0, 4)
-})
-
-/* ═══════════════════════════════════════════════════════
-   Step 1 → Step 2  (Express: Apple Pay / Google Pay)
-   ═══════════════════════════════════════════════════════ */
-window.submitExpressPayment = function(provider) {
-  _expressProvider = provider
-
-  // Render provider header in the sheet
-  const isApple = provider === 'apple'
-  document.getElementById('paySheetProvider').innerHTML = isApple
-    ? `<div class="pay-sheet-provider-logo">
-         <svg width="18" height="22" viewBox="0 0 814 1000" fill="white">
-           <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-37.3-155.5-127.4C46.7 790.7 0 663 0 541.8c0-207.5 135.4-317.5 269-317.5 70.1 0 128.4 46.4 172.5 46.4 42.8 0 109.6-49.1 189.2-49.1 30.1 0 108.2 2.6 168.2 81.1zm-134.5-162.4c31.3-37.9 53.1-90.8 53.1-143.6 0-7.3-.6-14.6-1.9-20.6-50.4 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 85.2-55.1 139.3 0 8.1 1.3 16.2 1.9 18.8 3.2.6 8.4 1.3 13.6 1.3 44.9 0 100.9-29.2 135.5-71z"/>
-         </svg>
-         <span style="font-size:1rem;font-weight:600;color:#fff;letter-spacing:0;">Pay</span>
-       </div>`
-    : `<div class="pay-sheet-provider-logo">
-         <svg width="52" height="22" viewBox="0 0 120 48" fill="none">
-           <text y="36" font-size="36" font-family="'Product Sans',sans-serif" font-weight="500">
-             <tspan fill="#4285F4">G</tspan><tspan fill="#EA4335">o</tspan><tspan fill="#FBBC05">o</tspan><tspan fill="#4285F4">g</tspan><tspan fill="#34A853">l</tspan><tspan fill="#EA4335">e</tspan>
-           </text>
-         </svg>
-         <span style="font-size:0.85rem;font-weight:500;color:rgba(255,255,255,0.6);">Pay</span>
-       </div>`
-
-  // Biometric label
-  document.getElementById('payBiometricLabel').textContent = isApple
-    ? 'Double-click to confirm' : 'Confirm with fingerprint'
-  document.getElementById('payBiometricSub').textContent = isApple
-    ? 'Authenticate with Face ID to complete payment'
-    : 'Touch the sensor to verify and pay'
-
-  // Reset biometric ring state
-  const ring = document.getElementById('payBiometricRing')
-  ring.classList.remove('scanning', 'authed')
-
-  // Show the sheet (Step 2)
-  showPanel('sheet')
-
-  // Auto-trigger biometric scan after 900ms (simulates SDK presenting the sheet)
-  setTimeout(() => triggerBiometric(isApple), 900)
-}
-
-/* Simulate biometric authentication (Step 3) */
-function triggerBiometric(isApple) {
-  const ring  = document.getElementById('payBiometricRing')
-  const label = document.getElementById('payBiometricLabel')
-  const sub   = document.getElementById('payBiometricSub')
-
-  ring.classList.add('scanning')
-  label.textContent = isApple ? 'Scanning Face ID…' : 'Reading fingerprint…'
-  sub.textContent   = 'Hold still — verifying your identity'
-
-  // After 1.6s — authenticated
-  setTimeout(() => {
-    ring.classList.remove('scanning')
-    ring.classList.add('authed')
-    ring.innerHTML = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
-    label.textContent = 'Identity verified'
-    sub.textContent   = 'Generating encrypted payment token…'
-
-    // After another 1s — token generated, move to processing flow
-    setTimeout(() => {
-      showPanel('processing')
-      runPaymentFlow()
-    }, 1000)
-  }, 1600)
-}
-
-window.cancelSheet = function() {
-  showPanel('form')
-  _expressProvider = null
-}
-
-/* ═══════════════════════════════════════════════════════
-   Card payment submission (skips the sheet — card
-   already provides credentials; goes straight to flow)
-   ═══════════════════════════════════════════════════════ */
-window.submitPayment = function() {
-  const name   = document.getElementById('payCardName').value.trim()
-  const number = document.getElementById('payCardNumber').value.replace(/\s/g, '')
-  const expiry = document.getElementById('payExpiry').value.replace(/\s/g, '')
-  const cvv    = document.getElementById('payCvv').value.trim()
-  let valid = true
-
-  function flag(id) { document.getElementById(id).classList.add('error'); valid = false }
-  document.querySelectorAll('.pay-input').forEach(i => i.classList.remove('error'))
-
-  if (!name)                           flag('payCardName')
-  if (number.length < 15)              flag('payCardNumber')
-  if (!/^\d{2}\/\d{2}$/.test(expiry)) flag('payExpiry')
-  if (cvv.length < 3)                  flag('payCvv')
-
-  if (!valid) {
-    document.getElementById('payErrorMsg').classList.add('visible')
+  const check = validateTierChange(newTier)
+  if (!check.ok) {
+    showPaymentError({ message: check.message })
     return
   }
-  document.getElementById('payErrorMsg').classList.remove('visible')
-  document.getElementById('paySubmitBtn').disabled = true
-  showPanel('processing')
-  runPaymentFlow()
-}
 
-/* ═══════════════════════════════════════════════════════
-   4-step animated payment flow
-   Step 1  Initiate Intent        (always shown first)
-   Step 2  Present Payment Sheet  (already happened for express; shown for card)
-   Step 3  Authorize Payment      (biometric for express; 3DS/card auth for card)
-   Step 4  Submit Token to Backend
-   ═══════════════════════════════════════════════════════ */
-function runPaymentFlow() {
-  const isExpress = !!_expressProvider
-  const paymentPromise = processSubscriptionPayment()
-
-  const steps = [
-    { id: 'pstep-1', delay: 0,    duration: isExpress ? 600  : 800  },
-    { id: 'pstep-2', delay: isExpress ? 600  : 800,  duration: isExpress ? 400  : 700  },
-    { id: 'pstep-3', delay: isExpress ? 1000 : 1500, duration: isExpress ? 400  : 900  },
-    { id: 'pstep-4', delay: isExpress ? 1400 : 2400, duration: isExpress ? 700  : 800  },
-  ]
-
-  // For express, mark steps 2 & 3 as already done (they happened in the sheet)
-  if (isExpress) {
-    setTimeout(() => {
-      document.getElementById('pstep-2')?.classList.add('done')
-      document.getElementById('pstep-3')?.classList.add('done')
-    }, 1050)
+  if (check.direction === 'upgrade') {
+    startPayMongoCheckout(newTier).catch(showPaymentError)
+    return
   }
 
-  steps.forEach(({ id, delay, duration }, idx) => {
-    setTimeout(() => {
-      if (idx > 0) {
-        document.getElementById(steps[idx - 1].id)?.classList.remove('active')
-        document.getElementById(steps[idx - 1].id)?.classList.add('done')
-      }
-      if (!isExpress || (id !== 'pstep-2' && id !== 'pstep-3')) {
-        document.getElementById(id)?.classList.add('active')
-      }
-    }, delay)
-
-    setTimeout(() => {
-      document.getElementById(id)?.classList.remove('active')
-      document.getElementById(id)?.classList.add('done')
-    }, delay + duration)
-  })
-
-  const totalTime = steps[steps.length - 1].delay + steps[steps.length - 1].duration + 400
-  setTimeout(async () => {
-    try {
-      await paymentPromise
-      showPanel('success')
-      setTimeout(() => finishTierChange(_pendingTier), 1800)
-    } catch (err) {
-      showPaymentError(err)
-    }
-  }, totalTime)
+  openDowngradeConfirm(newTier)
 }
 
-/* ─ Apply tier & reload after successful server sync ─ */
+function openDowngradeConfirm(targetTier) {
+  const check = validateTierChange(targetTier)
+  if (!check.ok || check.direction !== 'downgrade') {
+    showPaymentError({ message: check.message || 'This downgrade is not allowed.' })
+    return
+  }
+
+  const currentMeta = TIER_META[store.getTier()] || TIER_META.base
+  const targetMeta = TIER_META[targetTier] || TIER_META.base
+
+  _pendingDowngradeTier = targetTier
+  document.getElementById('downgradeConfirmTitle').textContent = `Downgrade to ${targetMeta.name}?`
+  document.getElementById('downgradeConfirmBody').innerHTML =
+    `Your <strong>${currentMeta.name}</strong> billing period has ended.<br><br>` +
+    `Confirm to switch to <strong>${targetMeta.name}</strong> now.`
+  document.getElementById('downgradeConfirmBackdrop').classList.add('open')
+}
+
+window.closeDowngradeConfirm = function() {
+  document.getElementById('downgradeConfirmBackdrop')?.classList.remove('open')
+  _pendingDowngradeTier = null
+}
+
+document.getElementById('downgradeConfirmBackdrop')?.addEventListener('click', (e) => {
+  if (e.target?.id === 'downgradeConfirmBackdrop') window.closeDowngradeConfirm()
+})
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') window.closeDowngradeConfirm()
+})
+
+window.confirmDowngrade = function() {
+  const targetTier = _pendingDowngradeTier
+  if (!targetTier) return
+  const btn = document.getElementById('downgradeConfirmOk')
+  if (btn) btn.disabled = true
+  applyTierChange(targetTier)
+    .catch(showPaymentError)
+    .finally(() => {
+      if (btn) btn.disabled = false
+      window.closeDowngradeConfirm()
+    })
+}
+
+window.cancelScheduledDowngradeClick = function() {
+  cancelScheduledDowngrade()
+    .then(async (body) => {
+      store.applySubscriptionSync(body)
+      renderMembershipPage(store.getTier())
+      showPaymentToast(body.message || 'Scheduled downgrade cancelled.')
+    })
+    .catch(showPaymentError)
+}
+
+/* ─ Apply scheduled downgrade ─ */
 async function applyTierChange(newTier) {
   const identity = await getSessionIdentity()
 
   if (identity) {
-    await downgradeSubscription(newTier)
-    const synced = await fetchSubscription()
-    store.applySubscriptionSync(synced)
-  } else {
-    store.setTier(newTier)
-    store.clearPastDue()
+    const result = await downgradeSubscription(newTier)
+    store.applySubscriptionSync(result)
+    renderMembershipPage(store.getTier())
+    showPaymentToast(result.message || `Downgrade to ${TIER_META[newTier]?.name || newTier} scheduled.`)
+    return
   }
 
+  store.setTier(newTier)
+  store.clearPastDue()
   localStorage.removeItem('level_match_cycle')
-  window.closePayModal()
   const newMeta = TIER_META[newTier] || TIER_META.base
-  const toast = document.createElement('div')
-  toast.className = 'toast animate-fadeUp'
-  toast.innerHTML = `<span style="font-size:18px">✦</span><span>Plan updated to ${newMeta.name}. Reloading…</span>`
-  document.body.appendChild(toast)
+  showPaymentToast(`Plan updated to ${newMeta.name}. Reloading…`)
   setTimeout(() => window.location.reload(), 1400)
 }
 
 function finishTierChange(newTier) {
   store.clearPastDue()
   localStorage.removeItem('level_match_cycle')
-  window.closePayModal()
   const newMeta = TIER_META[newTier] || TIER_META.base
-  const toast = document.createElement('div')
-  toast.className = 'toast animate-fadeUp'
-  toast.innerHTML = `<span style="font-size:18px">✦</span><span>Welcome to ${newMeta.name}! Reloading…</span>`
-  document.body.appendChild(toast)
+  showPaymentToast(`Welcome to ${newMeta.name}! Reloading…`)
   setTimeout(() => window.location.reload(), 1400)
 }
 
@@ -461,11 +574,27 @@ function initGraceCountdown(endTime) {
   tick()
 }
 
-/* ─ Update Payment Method (opens pay modal, clears PAST_DUE on success) ─ */
-window.updatePaymentMethod = function() {
+/* ─ Update Payment Method — PayMongo checkout for past_due retry ─ */
+window.updatePaymentMethod = async function() {
   const pd = store.getPastDue()
   if (!pd) return
-  openPayModal(pd.tier)
+
+  try {
+    const synced = await fetchSubscription()
+    const subscriptionId = synced.subscription?.id
+    if (!subscriptionId) {
+      throw new Error('No past-due subscription found to update.')
+    }
+    showPaymentToast('Opening PayMongo checkout…')
+    const result = await retryCharge(subscriptionId)
+    if (result.checkoutUrl) {
+      window.location.href = result.checkoutUrl
+      return
+    }
+    throw new Error(result.message || 'Checkout URL was not returned.')
+  } catch (err) {
+    showPaymentError(err)
+  }
 }
 
 /* ─ Manual retry simulation ─ */
