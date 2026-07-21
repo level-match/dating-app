@@ -94,17 +94,11 @@ Migrations are written in plain SQL or JS wrappers inside `server/db/migrations/
 ## ⚙️ Quickstart Workflow
 
 ### Environment Configuration
-1.  **Client Environment**: Copy `client/.env.example` to `client/.env.local` and add:
-    ```env
-    VITE_SUPABASE_URL=your_supabase_url
-    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-    ```
-2.  **Server Environment**: Copy `server/.env.example` to `server/.env` and add:
-    ```env
-    PORT=4000
-    DATABASE_URL=postgresql://user:password@localhost:5432/level_db
-    SUPABASE_JWT_SECRET=your_jwt_secret
-    ```
+
+Share only the `.example` templates (no secrets). See README for the full file map.
+
+1.  **Client**: `cp client/.env.example client/.env.local` (and optionally `.env.production.example` → `.env.production` for builds)
+2.  **Server**: `cp server/.env.example server/.env`, plus `.env.development.example` → `.env.development` (local) or `.env.production.example` → `.env.production` (Droplet)
 
 ### Command Reference
 

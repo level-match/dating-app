@@ -51,19 +51,29 @@ cd server && npm install
 
 ### 2. Set up environment variables
 
-**Client** — copy and fill in `client/.env.example`:
+Share the **`.example` files only** with teammates / project managers (placeholders, no secrets).  
+Real filled files (`.env`, `.env.local`, `.env.development`, `.env.production`) stay on each machine and are gitignored.
+
+| Template (safe to copy) | Create locally as | When used |
+|---|---|---|
+| `client/.env.example` | `client/.env.local` | Vite `npm run dev` |
+| `client/.env.production.example` | `client/.env.production` | Vite `npm run build` |
+| `server/.env.example` | `server/.env` | Shared secrets (all envs) |
+| `server/.env.development.example` | `server/.env.development` | Server `npm run dev` |
+| `server/.env.production.example` | `server/.env.production` | Server `npm start` |
 
 ```bash
+# Client
 cp client/.env.example client/.env.local
-```
+cp client/.env.production.example client/.env.production
 
-**Server** — copy and fill in `server/.env.example`:
-
-```bash
+# Server
 cp server/.env.example server/.env
+cp server/.env.development.example server/.env.development
+cp server/.env.production.example server/.env.production
 ```
 
-Fill in Supabase URL/keys on the client and `DATABASE_URL` + `SUPABASE_JWT_SECRET` on the server.
+Fill in Supabase URL/keys on the client, and `DATABASE_URL` + `SUPABASE_*` (+ payment/admin secrets) on the server.
 
 ### 3. Database (first time or reset)
 
